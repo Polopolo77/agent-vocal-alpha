@@ -194,10 +194,8 @@ STYLE DE COMMUNICATION
     pendingBotText: "",      // buffer for output transcription
   };
 
-  // URL du backend pour enregistrer les conversations.
-  // - Laisse "/api/save-conversation" si le widget est sur le m\u00eame domaine que le serveur Python.
-  // - Remplace par l'URL compl\u00e8te (ex: "https://mon-serveur.com/api/save-conversation") si le widget est sur un autre domaine.
-  const SAVE_ENDPOINT = "/api/save-conversation";
+  // URL du backend pour enregistrer les conversations (Railway).
+  const SAVE_ENDPOINT = "https://web-production-572b6.up.railway.app/api/save-conversation";
 
   // ============ INJECT CSS ============
   function injectStyles() {
