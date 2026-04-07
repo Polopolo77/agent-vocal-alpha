@@ -6,7 +6,9 @@
   "use strict";
 
   // ============ CONFIG ============
-  const API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+  // Backend Railway qui fournit la cl\u00e9 API et stocke les conversations
+  const BACKEND_URL = "https://web-production-572b6.up.railway.app";
+  const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
   const MODEL = "gemini-3.1-flash-live-preview";
   const VOICE = "Puck";
 
@@ -195,7 +197,7 @@ STYLE DE COMMUNICATION
   };
 
   // URL du backend pour enregistrer les conversations (Railway).
-  const SAVE_ENDPOINT = "https://web-production-572b6.up.railway.app/api/save-conversation";
+  const SAVE_ENDPOINT = BACKEND_URL + "/api/save-conversation";
 
   // ============ INJECT CSS ============
   function injectStyles() {
@@ -760,7 +762,14 @@ STYLE DE COMMUNICATION
       state.pendingBotText = "";
       state.audioPlayer = new AudioPlayer();
       state.audioPlayer.init();
-      state.ws = connectGemini(API_KEY);
+
+      // Fetch API key from backend
+      const res = await fetch(TOKEN_ENDPOINT, { method: "POST" });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      if (!json.token) throw new Error("Aucun token re\u00e7u");
+
+      state.ws = connectGemini(json.token);
     } catch (err) {
       console.error("Alpha connect error:", err);
       $status.textContent = "Erreur : " + err.message;
