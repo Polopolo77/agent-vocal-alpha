@@ -196,8 +196,8 @@ STYLE DE COMMUNICATION
     pendingBotText: "",      // buffer for output transcription
   };
 
-  // URL du backend pour enregistrer les conversations (Railway).
-  const SAVE_ENDPOINT = BACKEND_URL + "/api/save-conversation";
+  // URL Google Apps Script pour enregistrer les conversations dans Google Sheets
+  const SAVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbycjjRmDwKk2F2Pe7EbKfW5_kiKq2WqWjTx4I_Oqryn_Ly3hn3jC2M3Rx-RFPRMJ60/exec";
 
   // ============ INJECT CSS ============
   function injectStyles() {
@@ -728,23 +728,35 @@ STYLE DE COMMUNICATION
       messages: state.conversationLog,
     };
 
-    // Use sendBeacon if available (guaranteed to send even if page closes),
-    // otherwise fallback to fetch with keepalive
+    // Google Apps Script requires text/plain Content-Type to avoid CORS preflight
     const body = JSON.stringify(payload);
     try {
+      // sendBeacon with text/plain blob works with Apps Script and survives page close
       if (navigator.sendBeacon) {
-        const blob = new Blob([body], { type: "application/json" });
-        navigator.sendBeacon(SAVE_ENDPOINT, blob);
+        const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
+        const ok = navigator.sendBeacon(SAVE_ENDPOINT, blob);
+        if (!ok) throw new Error("sendBeacon returned false");
       } else {
         fetch(SAVE_ENDPOINT, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
           body: body,
           keepalive: true,
         }).catch((e) => console.error("Save failed:", e));
       }
     } catch (e) {
       console.error("Save error:", e);
+      // Fallback to fetch no-cors
+      try {
+        fetch(SAVE_ENDPOINT, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          body: body,
+          keepalive: true,
+        }).catch(() => {});
+      } catch {}
     }
   }
 
