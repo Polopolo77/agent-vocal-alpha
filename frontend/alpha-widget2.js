@@ -188,7 +188,16 @@ STYLE DE COMMUNICATION
     audioPlayer: null,
     isConnected: false,
     isRecording: false,
+    conversationLog: [],     // accumulated transcript for saving
+    conversationStartedAt: null,
+    pendingUserText: "",     // buffer for input transcription
+    pendingBotText: "",      // buffer for output transcription
   };
+
+  // URL du backend pour enregistrer les conversations.
+  // - Laisse "/api/save-conversation" si le widget est sur le m\u00eame domaine que le serveur Python.
+  // - Remplace par l'URL compl\u00e8te (ex: "https://mon-serveur.com/api/save-conversation") si le widget est sur un autre domaine.
+  const SAVE_ENDPOINT = "/api/save-conversation";
 
   // ============ INJECT CSS ============
   function injectStyles() {
@@ -448,6 +457,7 @@ STYLE DE COMMUNICATION
   // ============ DOM REFS ============
   let $btn, $overlay, $orb, $status, $transcripts, $hangup, $hangup2, $micHint;
   let currentBotMsg = null; // accumulate bot transcript in one bubble
+  let currentUserMsg = null; // accumulate user transcript in one bubble
 
   function initRefs() {
     $btn         = document.getElementById("alpha-widget-btn");
@@ -462,6 +472,7 @@ STYLE DE COMMUNICATION
 
   function addMessage(role, text, replace = false) {
     if (role === "bot") {
+      currentUserMsg = null;
       if (replace && currentBotMsg) {
         currentBotMsg.querySelector(".alpha-msg-text").textContent = text;
       } else {
@@ -473,10 +484,15 @@ STYLE DE COMMUNICATION
       }
     } else {
       currentBotMsg = null;
-      const msg = document.createElement("div");
-      msg.className = "alpha-msg you";
-      msg.innerHTML = `<span class="alpha-msg-label">Vous</span><span class="alpha-msg-text">${text}</span>`;
-      $transcripts.appendChild(msg);
+      if (replace && currentUserMsg) {
+        currentUserMsg.querySelector(".alpha-msg-text").textContent = text;
+      } else {
+        const msg = document.createElement("div");
+        msg.className = "alpha-msg you";
+        msg.innerHTML = `<span class="alpha-msg-label">Vous</span><span class="alpha-msg-text">${text}</span>`;
+        $transcripts.appendChild(msg);
+        currentUserMsg = msg;
+      }
     }
     $transcripts.scrollTop = $transcripts.scrollHeight;
   }
@@ -630,17 +646,38 @@ STYLE DE COMMUNICATION
       }
 
       if (sc.inputTranscription && sc.inputTranscription.text) {
-        addMessage("you", sc.inputTranscription.text);
+        // User started talking — flush any pending bot text to log first
+        if (state.pendingBotText) {
+          state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
+          state.pendingBotText = "";
+        }
+        state.pendingUserText += sc.inputTranscription.text;
+        addMessage("you", state.pendingUserText, true);
       }
       if (sc.outputTranscription && sc.outputTranscription.text) {
-        const prev = currentBotMsg ? currentBotMsg.querySelector(".alpha-msg-text").textContent : "";
-        addMessage("bot", prev + sc.outputTranscription.text, !!currentBotMsg);
+        // Bot started talking — flush any pending user text to log first
+        if (state.pendingUserText) {
+          state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() });
+          state.pendingUserText = "";
+        }
+        state.pendingBotText += sc.outputTranscription.text;
+        addMessage("bot", state.pendingBotText, !!currentBotMsg);
       }
 
       if (sc.turnComplete) {
         $orb.className = "alpha-orb listening";
         $status.textContent = "Alpha vous écoute...";
+        // Flush whatever is pending at end of turn
+        if (state.pendingUserText) {
+          state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() });
+          state.pendingUserText = "";
+        }
+        if (state.pendingBotText) {
+          state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
+          state.pendingBotText = "";
+        }
         currentBotMsg = null;
+        currentUserMsg = null;
       }
     };
 
@@ -670,6 +707,47 @@ STYLE DE COMMUNICATION
     state.isRecording = true;
   }
 
+  // ============ SAVE CONVERSATION ============
+  function saveConversation() {
+    // Flush any remaining pending text
+    if (state.pendingUserText) {
+      state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() });
+      state.pendingUserText = "";
+    }
+    if (state.pendingBotText) {
+      state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
+      state.pendingBotText = "";
+    }
+
+    // Don't save empty or trivial conversations (only the auto intro)
+    if (state.conversationLog.length < 2) return;
+
+    const payload = {
+      started_at: state.conversationStartedAt,
+      ended_at: new Date().toISOString(),
+      messages: state.conversationLog,
+    };
+
+    // Use sendBeacon if available (guaranteed to send even if page closes),
+    // otherwise fallback to fetch with keepalive
+    const body = JSON.stringify(payload);
+    try {
+      if (navigator.sendBeacon) {
+        const blob = new Blob([body], { type: "application/json" });
+        navigator.sendBeacon(SAVE_ENDPOINT, blob);
+      } else {
+        fetch(SAVE_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: body,
+          keepalive: true,
+        }).catch((e) => console.error("Save failed:", e));
+      }
+    } catch (e) {
+      console.error("Save error:", e);
+    }
+  }
+
   // ============ CONNECT / DISCONNECT ============
   async function connect() {
     try {
@@ -677,6 +755,11 @@ STYLE DE COMMUNICATION
       $btn.classList.add("alpha-hidden");
       $orb.className = "alpha-orb connecting";
       $status.textContent = "Connexion en cours...";
+      // Reset conversation log
+      state.conversationLog = [];
+      state.conversationStartedAt = new Date().toISOString();
+      state.pendingUserText = "";
+      state.pendingBotText = "";
       state.audioPlayer = new AudioPlayer();
       state.audioPlayer.init();
       state.ws = connectGemini(API_KEY);
@@ -688,6 +771,9 @@ STYLE DE COMMUNICATION
   }
 
   function disconnect() {
+    // Save conversation BEFORE cleaning up state
+    saveConversation();
+
     if (state.audioStreamer) { state.audioStreamer.stop(); state.audioStreamer = null; }
     if (state.ws) {
       try { state.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } })); } catch {}
@@ -697,12 +783,15 @@ STYLE DE COMMUNICATION
     if (state.audioPlayer) { state.audioPlayer.interrupt(); state.audioPlayer = null; }
     state.isConnected = false;
     state.isRecording = false;
+    state.conversationLog = [];
+    state.conversationStartedAt = null;
     $overlay.classList.remove("alpha-active");
     $btn.classList.remove("alpha-hidden");
     $orb.className = "alpha-orb";
     $status.textContent = "";
     $transcripts.innerHTML = "";
     currentBotMsg = null;
+    currentUserMsg = null;
   }
 
   // ============ INIT ============
@@ -713,6 +802,11 @@ STYLE DE COMMUNICATION
     $btn.addEventListener("click", connect);
     $hangup.addEventListener("click", disconnect);
     $hangup2.addEventListener("click", disconnect);
+
+    // Save conversation if user closes the tab/page during an active call
+    window.addEventListener("pagehide", () => {
+      if (state.isConnected) saveConversation();
+    });
   }
 
   if (document.readyState === "loading") {
