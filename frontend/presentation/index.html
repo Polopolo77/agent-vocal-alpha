@@ -499,6 +499,263 @@
       margin-top: 4px;
     }
 
+    /* ============ FLAGSHIP ============ */
+    .flagship-section {
+      background: radial-gradient(ellipse at top right, rgba(0, 230, 118, 0.1) 0%, transparent 50%),
+                  radial-gradient(ellipse at bottom left, rgba(0, 150, 255, 0.05) 0%, transparent 50%),
+                  linear-gradient(180deg, #0d1f0d 0%, #0a0a0a 100%);
+      padding: 100px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .flagship-section::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(0, 230, 118, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 230, 118, 0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      mask-image: radial-gradient(ellipse at center, black 40%, transparent 90%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 40%, transparent 90%);
+    }
+
+    .flagship-box {
+      background: linear-gradient(135deg, rgba(0, 230, 118, 0.08), rgba(0, 230, 118, 0.02));
+      border: 1px solid var(--green-border);
+      border-radius: 24px;
+      padding: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .flagship-box::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at top right, rgba(0, 230, 118, 0.1), transparent 40%);
+      pointer-events: none;
+    }
+
+    .flagship-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green);
+      color: #000;
+      padding: 6px 14px;
+      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .flagship-box h2 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 18px;
+      letter-spacing: -0.5px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .flagship-box h2 span {
+      background: linear-gradient(135deg, #00e676, #00c853);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .flagship-box > p.lead {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      max-width: 700px;
+      margin-bottom: 40px;
+      line-height: 1.6;
+      position: relative;
+      z-index: 1;
+    }
+
+    .flagship-flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .flow-step {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 16px;
+      text-align: center;
+      position: relative;
+    }
+
+    .flow-step::after {
+      content: "→";
+      position: absolute;
+      right: -14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--green);
+      font-size: 1.4rem;
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    .flow-step:last-child::after {
+      display: none;
+    }
+
+    .flow-step .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: var(--green-dim);
+      color: var(--green);
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      border: 1px solid var(--green-border);
+    }
+
+    .flow-step .step-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .flow-step .step-desc {
+      font-size: 0.78rem;
+      color: var(--text-subtle);
+      line-height: 1.4;
+    }
+
+    .flagship-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric-box {
+      padding: 16px;
+      background: var(--bg-3);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .metric-box .metric-label {
+      font-size: 0.72rem;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .metric-box .metric-value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--green);
+      line-height: 1.1;
+    }
+
+    .metric-box .metric-note {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .flagship-example {
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-top: 32px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .flagship-example h4 {
+      font-size: 0.85rem;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .dialogue {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .dialogue-line {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .dialogue-role {
+      font-size: 0.7rem;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      min-width: 60px;
+      padding-top: 3px;
+      font-weight: 700;
+    }
+
+    .dialogue-role.alpha {
+      color: var(--green);
+    }
+
+    .dialogue-text {
+      flex: 1;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .dialogue-text.bot {
+      color: var(--green);
+    }
+
+    @media (max-width: 768px) {
+      .flagship-box {
+        padding: 28px 20px;
+      }
+      .flagship-flow {
+        grid-template-columns: 1fr 1fr;
+      }
+      .flow-step::after {
+        display: none;
+      }
+    }
+
     /* ============ FOOTER ============ */
     footer {
       padding: 60px 0 40px;
@@ -573,11 +830,11 @@
           <div class="label">Proof of concept actif</div>
         </div>
         <div class="hero-stat">
-          <div class="number">24</div>
+          <div class="number">25</div>
           <div class="label">Cas d'usage identifiés</div>
         </div>
         <div class="hero-stat">
-          <div class="number">7</div>
+          <div class="number">8</div>
           <div class="label">Chantiers monétisables</div>
         </div>
         <div class="hero-stat">
@@ -613,6 +870,104 @@
           <div class="demo-orb"></div>
           <div class="demo-label">A L P H A</div>
           <div class="demo-status">Opérationnel · Temps réel</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PROPOSITION PHARE : CONCIERGE VOCAL ============ -->
+  <section class="flagship-section">
+    <div class="container">
+      <div class="flagship-box">
+        <div class="flagship-badge">⭐ Proposition phare</div>
+        <h2>Le <span>Concierge Vocal Argo</span><br>Un Typeform vocal qui oriente vers le bon produit</h2>
+        <p class="lead">
+          Au lieu de laisser le visiteur se perdre entre dix newsletters différentes,
+          un agent vocal l'accueille, lui pose 4 à 6 questions ciblées sur sa situation,
+          et lui recommande en temps réel le produit Argo qui correspond exactement à son profil.
+          L'agent connaît par cœur l'ensemble du catalogue et adapte sa recommandation à chaque profil.
+        </p>
+
+        <div class="flagship-flow">
+          <div class="flow-step">
+            <div class="step-num">1</div>
+            <div class="step-title">Accueil vocal</div>
+            <div class="step-desc">"Bonjour, je vais vous aider à trouver le produit qui vous correspond."</div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">2</div>
+            <div class="step-title">4-6 questions</div>
+            <div class="step-desc">Profil, objectifs, expérience, horizon, montant, tolérance au risque.</div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">3</div>
+            <div class="step-title">Analyse instantanée</div>
+            <div class="step-desc">L'agent reformule la situation et valide qu'il a bien compris.</div>
+          </div>
+          <div class="flow-step">
+            <div class="step-num">4</div>
+            <div class="step-title">Recommandation ciblée</div>
+            <div class="step-desc">"Le produit qui vous correspond, c'est Alpha. Voici pourquoi."</div>
+          </div>
+        </div>
+
+        <div class="flagship-example">
+          <h4>Exemple de conversation</h4>
+          <div class="dialogue">
+            <div class="dialogue-line">
+              <div class="dialogue-role alpha">Agent</div>
+              <div class="dialogue-text bot">Bonjour, bienvenue chez Argo Éditions. En quelques questions, je vais identifier le produit idéal pour vous. Êtes-vous déjà investi en bourse ?</div>
+            </div>
+            <div class="dialogue-line">
+              <div class="dialogue-role">Visiteur</div>
+              <div class="dialogue-text">Un peu, j'ai des ETF depuis 3 ans mais je veux du rendement supérieur.</div>
+            </div>
+            <div class="dialogue-line">
+              <div class="dialogue-role alpha">Agent</div>
+              <div class="dialogue-text bot">Parfait. Quel horizon d'investissement visez-vous, et quel montant êtes-vous prêt à allouer à une stratégie plus active ?</div>
+            </div>
+            <div class="dialogue-line">
+              <div class="dialogue-role">Visiteur</div>
+              <div class="dialogue-text">Long terme, 5 à 10 ans. Entre 20 000 et 50 000 euros.</div>
+            </div>
+            <div class="dialogue-line">
+              <div class="dialogue-role alpha">Agent</div>
+              <div class="dialogue-text bot">Merci. Avec ce profil, le produit qui correspond exactement à vos besoins est Alpha — notre Agent IA d'Investissement. Il surperforme le marché de 50 points grâce à une sélection algorithmique de 20 actions. Je vais vous montrer pourquoi en détail. Vous voulez ?</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flagship-metrics">
+          <div class="metric-box">
+            <div class="metric-label">Taux de complétion</div>
+            <div class="metric-value">85% à 95%</div>
+            <div class="metric-note">vs ~30% pour un Typeform écrit</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Conversion vers achat</div>
+            <div class="metric-value">+30% à +50%</div>
+            <div class="metric-note">produit recommandé = besoin réel</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Panier moyen</div>
+            <div class="metric-value">+200 à +500€</div>
+            <div class="metric-note">up-sell naturel vers le bon produit</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Revenu addnl estimé</div>
+            <div class="metric-value">+300k à +800k€/an</div>
+            <div class="metric-note">selon volume de visiteurs</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Effort d'implémentation</div>
+            <div class="metric-value" style="color: var(--yellow);">Moyen</div>
+            <div class="metric-note">~2 semaines de développement</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Positionnement</div>
+            <div class="metric-value" style="color: var(--blue);">Premium</div>
+            <div class="metric-note">effet "concierge" haut de gamme</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1161,12 +1516,12 @@
           <div class="priority-item">
             <div class="priority-rank">1</div>
             <div class="priority-content">
-              <h4>Agent SAV 24/7 + Onboarding vocal</h4>
-              <p>Libère le service client des questions répétitives. Économie directe immédiate, déploiement en 2 semaines.</p>
+              <h4>Concierge Vocal Argo (Typeform vocal)</h4>
+              <p>L'accueil universel du site. Qualifie chaque visiteur et oriente vers le bon produit. Impact immédiat sur toutes les pages d'Argo.</p>
             </div>
             <div class="priority-roi">
-              <div class="amount">~50k€/an économisés</div>
-              <div class="label">Coûts support</div>
+              <div class="amount">+300k à 800k€/an</div>
+              <div class="label">Conversion + panier moyen</div>
             </div>
           </div>
 
@@ -1184,6 +1539,18 @@
 
           <div class="priority-item">
             <div class="priority-rank">3</div>
+            <div class="priority-content">
+              <h4>Agent SAV 24/7 + Onboarding vocal</h4>
+              <p>Libère le service client des questions répétitives. Économie directe immédiate, déploiement en 2 semaines.</p>
+            </div>
+            <div class="priority-roi">
+              <div class="amount">~50k€/an économisés</div>
+              <div class="label">Coûts support</div>
+            </div>
+          </div>
+
+          <div class="priority-item">
+            <div class="priority-rank">4</div>
             <div class="priority-content">
               <h4>Alpha DE + Alpha IT (Suisse alémanique &amp; italienne)</h4>
               <p>Même code, même produit, traduction du prompt. Expansion sans coût technique. Marché alémanique = plus gros marché suisse.</p>
