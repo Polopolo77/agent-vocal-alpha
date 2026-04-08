@@ -151,6 +151,10 @@ async def handle_static(request):
     if not str(file_path).startswith(str(FRONTEND_DIR.resolve())):
         return web.Response(status=403)
 
+    # If it's a directory (e.g. /presentation/), serve its index.html
+    if file_path.is_dir():
+        file_path = file_path / "index.html"
+
     if not file_path.is_file():
         return web.Response(status=404, text="Not found")
 
