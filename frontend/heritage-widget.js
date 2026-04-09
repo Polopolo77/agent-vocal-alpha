@@ -2115,21 +2115,20 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     };
   }
 
-  async function generatePostCallReport() {
-    // Appel synchrone (on attend le rapport avant d'envoyer au Sheet)
+  async function generatePostCallReportFromSnapshot(snapshot) {
+    // Uses snapshot to avoid race conditions with disconnect() resetting state
     try {
       const res = await fetch(STRATEGIST_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          history: state.conversationLog.slice(),
-          turn_number: state.userTurnCount,
+          history: snapshot.messages,
+          turn_number: snapshot.turn_number,
           mode: "post_call",
         }),
       });
       const report = await res.json();
       if (report && !report.error) {
-        state.coachPostCallReport = report;
         return report;
       }
     } catch (err) {
@@ -2152,11 +2151,20 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     // Don't save empty or trivial conversations (only the auto intro)
     if (state.conversationLog.length < 2) return;
 
-    // Generate the post-call report from the coach (synchronous, short wait)
+    // CRITICAL: snapshot the state IMMEDIATELY before the async await,
+    // because disconnect() runs in parallel and will reset the state.
+    const snapshot = {
+      started_at: state.conversationStartedAt || new Date().toISOString(),
+      ended_at: new Date().toISOString(),
+      messages: state.conversationLog.slice(), // shallow copy
+      turn_number: state.userTurnCount,
+    };
+
+    // Generate the post-call report from the coach (async, short wait)
     // We use a 4-second timeout so we don't block the user if Gemini Flash is slow
     let report = null;
     try {
-      const reportPromise = generatePostCallReport();
+      const reportPromise = generatePostCallReportFromSnapshot(snapshot);
       const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 4000));
       report = await Promise.race([reportPromise, timeoutPromise]);
     } catch {}
@@ -2164,9 +2172,9 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     const reportCols = buildPostCallReport(report);
 
     const payload = {
-      started_at: state.conversationStartedAt,
-      ended_at: new Date().toISOString(),
-      messages: state.conversationLog,
+      started_at: snapshot.started_at,
+      ended_at: snapshot.ended_at,
+      messages: snapshot.messages,
       ...reportCols,
     };
 
