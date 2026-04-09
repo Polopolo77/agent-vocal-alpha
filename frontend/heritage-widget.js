@@ -1012,39 +1012,6 @@ AGENT : "Je vous arrête un instant. Il y a deux minutes, vous m'avez dit être 
 → L'agent prend position, challenge respectueusement, creuse la vraie source de l'hésitation. Il ne cède pas. Il ne transfère pas la décision. Il reste le médecin qui a diagnostiqué.
 
 ═══════════════════════════════════════════════════════════
-SECTION 17 — NOTES DU COACH (à traiter en silence)
-═══════════════════════════════════════════════════════════
-
-Pendant la conversation, tu peux recevoir des messages qui commencent par :
-"[Note interne du coach, NE PAS mentionner au client]"
-
-Ces messages NE VIENNENT PAS du prospect. Ce sont des notes envoyées par un coach invisible qui analyse la conversation en arrière-plan et te donne des directives tactiques (profil DISC détecté, chaleur du prospect, produit à recommander, objections à traiter, formulation suggérée, pièges à éviter).
-
-Règles absolues pour ces notes :
-1. Tu ne dois JAMAIS répondre verbalement à une note du coach.
-2. Tu ne dois JAMAIS dire au prospect "j'ai reçu une note", "mon coach me dit", "un instant".
-3. Tu ne dois JAMAIS lire la note à haute voix, même en partie.
-4. Tu ne dois JAMAIS mentionner qu'un coach existe.
-5. Tu utilises la note comme une information silencieuse pour améliorer ta prochaine vraie réponse au prospect.
-6. Après avoir reçu une note, tu ATTENDS que le prospect parle à nouveau avant de répondre.
-
-Exemple de comportement correct :
-- Tu reçois : "[Note interne du coach] Profil détecté : Stable. Produit cible : Fortune Stratégique. Action : creuser la peur de se tromper avec une reformulation empathique."
-- Tu ne réponds rien.
-- Le prospect dit ensuite : "J'ai peur de me tromper en investissant."
-- Tu réponds : "Cette peur, c'est probablement le frein numéro un chez les gens qui me parlent, et elle est totalement légitime. Quand vous dites 'me tromper', qu'est-ce qui vous fait le plus peur : perdre de l'argent, ou ne pas savoir expliquer vos choix à votre entourage ?"
-
-La note du coach t'a guidé sans que le prospect ne s'en aperçoive. C'est exactement le but.
-
-Exemple de comportement INTERDIT :
-- Tu reçois la note.
-- Tu dis : "Je vois. Mon analyse indique que vous êtes un profil Stable..." → INTERDIT.
-- Tu dis : "D'accord, un instant je consulte mes notes." → INTERDIT.
-- Tu dis : "Selon mes informations internes..." → INTERDIT.
-
-Les notes du coach sont comme des post-its qu'un manager glisserait discrètement sur ton bureau pendant un appel. Le client n'est jamais au courant.
-
-═══════════════════════════════════════════════════════════
 PHRASE D'OUVERTURE
 ═══════════════════════════════════════════════════════════
 
@@ -2076,31 +2043,27 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     return parts.join("\n");
   }
 
-  // Inject the latest coach directive via realtimeInput.text
-  // This is the only format that works safely mid-stream with Gemini Live
-  // (clientContent would close the connection because it conflicts with the active audio stream)
+  // Coach directive injection is DISABLED during live conversation.
+  //
+  // Reason: Gemini Live interprets any text sent via realtimeInput.text or clientContent
+  // as a user turn and generates a response to it. Even with "[Note interne]" prefix and
+  // explicit prompt rules telling Alpha to ignore coach notes, the model still responds,
+  // causing "Alpha talking to itself" bugs in the middle of real conversations.
+  //
+  // Instead, the coach's value is delivered through:
+  //   1. Debug panel (real-time analysis visible to the developer)
+  //   2. Product card (appears when coach detects ferme recommendation)
+  //   3. Closing CTA button (appears when signal_closing = vert)
+  //   4. Post-call report (enriched Google Sheets columns after hangup)
+  //
+  // Live adaptation of Alpha's behavior via the coach is not possible with the current
+  // Gemini Live API. It would require a different architecture (e.g. proxy mode where
+  // we intercept each turn and re-prompt Gemini with injected context, but that breaks
+  // the real-time audio streaming model).
   let lastInjectedDirective = null;
   function injectCoachDirectiveIfAvailable() {
-    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
-    if (!state.coachDirective) return;
-    // Don't re-inject the same directive twice
-    if (state.coachDirective === lastInjectedDirective) return;
-
-    const injection = buildCoachInjection();
-    if (!injection) return;
-
-    try {
-      // realtimeInput.text is the safe way to add text context during a live audio session
-      state.ws.send(JSON.stringify({
-        realtimeInput: {
-          text: injection,
-        },
-      }));
-      lastInjectedDirective = state.coachDirective;
-      debugLog("coach_injected", { length: injection.length });
-    } catch (err) {
-      console.error("Failed to inject coach directive:", err);
-    }
+    // Intentionally a no-op. See comment above.
+    return;
   }
 
   // ============ SAVE CONVERSATION ============
