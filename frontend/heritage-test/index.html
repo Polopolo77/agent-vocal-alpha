@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test · Agent Héritage Éditions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background:
+        radial-gradient(ellipse at top right, rgba(218, 165, 32, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom left, rgba(139, 69, 19, 0.05) 0%, transparent 50%),
+        linear-gradient(180deg, #0a0a0a 0%, #0d0d0d 100%);
+      color: #f0f0f0;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 24px 120px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(218, 165, 32, 0.1);
+      border: 1px solid rgba(218, 165, 32, 0.3);
+      color: #daa520;
+      padding: 8px 16px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: #daa520;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #daa520, #b8860b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: #999;
+      margin-bottom: 48px;
+      max-width: 640px;
+    }
+
+    .card {
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #daa520;
+      margin-bottom: 16px;
+    }
+
+    .card p {
+      color: #bbb;
+      margin-bottom: 12px;
+    }
+
+    .card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .card ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 8px;
+    }
+
+    .card li {
+      color: #bbb;
+      padding: 8px 0;
+      padding-left: 24px;
+      position: relative;
+    }
+
+    .card li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #daa520;
+      font-weight: 700;
+    }
+
+    .arrow-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: #daa520;
+      font-weight: 600;
+      padding: 16px 24px;
+      background: rgba(218, 165, 32, 0.08);
+      border: 1px solid rgba(218, 165, 32, 0.3);
+      border-radius: 12px;
+      margin-top: 24px;
+      font-size: 1rem;
+    }
+
+    .arrow-cta .big-arrow {
+      font-size: 1.4rem;
+      animation: bounce-arrow 1.5s infinite;
+    }
+
+    @keyframes bounce-arrow {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(6px, 6px); }
+    }
+
+    .test-scenarios {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+
+    .scenario {
+      background: #0f0f0f;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.3s;
+    }
+
+    .scenario:hover {
+      border-color: rgba(218, 165, 32, 0.4);
+    }
+
+    .scenario-label {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .scenario h3 {
+      font-size: 1rem;
+      color: #daa520;
+      margin-bottom: 12px;
+    }
+
+    .scenario p {
+      font-size: 0.9rem;
+      color: #999;
+      font-style: italic;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid #1a1a1a;
+      color: #555;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="badge">Mode test · Widget v1.1</div>
+    <h1>Agent <span>Héritage Éditions</span><br>Page de test privée</h1>
+    <p class="subtitle">
+      Cette page est conçue pour tester le nouveau closer-psychologue Héritage.
+      Le widget est chargé en bas à droite. Clique sur "Parler à un conseiller" pour démarrer une conversation test.
+    </p>
+
+    <div class="card">
+      <h2>Comment tester</h2>
+      <p>1. Clique sur le bouton doré "Parler à un conseiller" en bas à droite.</p>
+      <p>2. Autorise l'accès au micro (première fois uniquement).</p>
+      <p>3. L'agent Alpha démarre avec sa phrase d'ouverture Héritage.</p>
+      <p>4. Parle-lui comme si tu étais un visiteur d'editions-heritage.com.</p>
+      <p>5. Raccroche quand tu as fini → la conversation est automatiquement sauvegardée dans le Google Sheet.</p>
+
+      <div class="arrow-cta">
+        <span>Clique sur le bouton doré</span>
+        <span class="big-arrow">↘</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ce qui a été implémenté dans la v1.1</h2>
+      <ul>
+        <li>SPIN flexible : l'agent pivote rapidement si le prospect est "Dominant" et veut aller droit au but</li>
+        <li>Banque de 35+ phrases de liaison pour créer le rythme d'une vraie conversation</li>
+        <li>Gestion explicite des silences : l'agent respecte les temps de réflexion et ne répète jamais à l'identique</li>
+        <li>Tableau de détection de chaleur (Froid → Tiède → Chaud → Prêt à acheter)</li>
+        <li>Urgences temporelles éthiques (4 autorisées, 6 interdites)</li>
+        <li>30 objections avec réponses adaptées au profil DISC</li>
+        <li>5 archétypes de visiteurs Héritage avec approche sur mesure</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Scénarios de test suggérés</h2>
+      <p style="margin-bottom: 16px;">Teste différents profils pour vérifier que l'agent s'adapte :</p>
+
+      <div class="test-scenarios">
+
+        <div class="scenario">
+          <div class="scenario-label">Test 1</div>
+          <h3>Profil Dominant pressé</h3>
+          <p>"Bonjour. J'ai pas le temps. Donnez-moi juste le prix et la performance."</p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 2</div>
+          <h3>Retraité prudent</h3>
+          <p>"Bonjour, j'ai vu votre publicité mais j'ai peur des arnaques. C'est vraiment sérieux votre truc ?"</p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 3</div>
+          <h3>Débutant total</h3>
+          <p>"Je n'ai jamais investi de ma vie. Je ne comprends rien à la bourse. Est-ce que c'est pour moi ?"</p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 4</div>
+          <h3>Sceptique sur les +5000%</h3>
+          <p>"C'est quoi ces promesses de +5 000% dans vos mails ? Ça sent l'arnaque à plein nez."</p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 5</div>
+          <h3>Objection prix</h3>
+          <p>"99 euros par an c'est quand même cher pour une newsletter, non ?"</p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 6</div>
+          <h3>Hors-sujet</h3>
+          <p>"Dites-moi, vous pensez quoi de la politique en ce moment ?"<br><em style="color:#666">→ L'agent doit refuser élégamment et recentrer.</em></p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 7</div>
+          <h3>Prêt à acheter direct</h3>
+          <p>"Ok, ça m'intéresse. Comment je m'inscris ?"<br><em style="color:#666">→ L'agent doit stopper les questions et passer au closing.</em></p>
+        </div>
+
+        <div class="scenario">
+          <div class="scenario-label">Test 8</div>
+          <h3>Service client mécontent</h3>
+          <p>"Je suis abonné et votre service client ne répond jamais à mes emails, c'est une honte."</p>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Où voir les conversations enregistrées</h2>
+      <p>Toutes les conversations de test sont automatiquement envoyées vers ton Google Sheet (le même qui sert déjà pour Alpha Argo). Tu verras apparaître une nouvelle ligne à chaque raccroché, avec :</p>
+      <ul>
+        <li>Date et heure</li>
+        <li>Durée de la conversation</li>
+        <li>Nombre de messages échangés</li>
+        <li>Transcript complet (tes questions + les réponses d'Alpha)</li>
+      </ul>
+    </div>
+
+    <footer>
+      Page de test interne · Héritage Éditions SA · Lausanne
+    </footer>
+  </div>
+
+  <!-- Chargement du widget de production -->
+  <script src="/heritage-widget.js"></script>
+
+</body>
+</html>
