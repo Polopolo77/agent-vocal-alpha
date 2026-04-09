@@ -2160,16 +2160,31 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       turn_number: state.userTurnCount,
     };
 
-    // Generate the post-call report from the coach (async, short wait)
-    // We use a 4-second timeout so we don't block the user if Gemini Flash is slow
+    console.log("[Heritage] saveConversation start, messages=", snapshot.messages.length, "turns=", snapshot.turn_number);
+
+    // Generate the post-call report from the coach (async, longer wait)
+    // We use a 12-second timeout: Gemini Flash usually responds in 2-4s but can spike to 8s.
     let report = null;
+    const reportStart = Date.now();
     try {
       const reportPromise = generatePostCallReportFromSnapshot(snapshot);
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 4000));
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve("TIMEOUT"), 12000));
       report = await Promise.race([reportPromise, timeoutPromise]);
-    } catch {}
+      const elapsed = Date.now() - reportStart;
+      if (report === "TIMEOUT") {
+        console.warn("[Heritage] post-call report timeout after", elapsed, "ms");
+        report = null;
+      } else if (report === null) {
+        console.warn("[Heritage] post-call report returned null after", elapsed, "ms");
+      } else {
+        console.log("[Heritage] post-call report received after", elapsed, "ms");
+      }
+    } catch (err) {
+      console.error("[Heritage] post-call report threw:", err);
+    }
 
     const reportCols = buildPostCallReport(report);
+    console.log("[Heritage] reportCols keys:", Object.keys(reportCols).length);
 
     const payload = {
       started_at: snapshot.started_at,
@@ -2180,11 +2195,13 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
 
     // Google Apps Script requires text/plain Content-Type to avoid CORS preflight
     const body = JSON.stringify(payload);
+    console.log("[Heritage] sending payload, size=", body.length, "bytes, has reportCols=", Object.keys(reportCols).length > 0);
     try {
       if (navigator.sendBeacon) {
         const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
         const ok = navigator.sendBeacon(SAVE_ENDPOINT, blob);
         if (!ok) throw new Error("sendBeacon returned false");
+        console.log("[Heritage] sendBeacon OK");
       } else {
         fetch(SAVE_ENDPOINT, {
           method: "POST",
@@ -2192,10 +2209,11 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
           headers: { "Content-Type": "text/plain;charset=UTF-8" },
           body: body,
           keepalive: true,
-        }).catch((e) => console.error("Save failed:", e));
+        }).then(() => console.log("[Heritage] fetch keepalive OK"))
+          .catch((e) => console.error("[Heritage] Save failed:", e));
       }
     } catch (e) {
-      console.error("Save error:", e);
+      console.error("[Heritage] Save error:", e);
       try {
         fetch(SAVE_ENDPOINT, {
           method: "POST",
