@@ -1043,7 +1043,7 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
   };
 
   // URL Google Apps Script pour enregistrer les conversations dans Google Sheets (v2 avec colonnes enrichies)
-  const SAVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbzC4jn42VIayMY44L6Ru3QqzJhQOl2VQW7AxE1PfhCkll8exJNSyu9l-u8_Tjj08w/exec";
+  const SAVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbzC4jn42VlayMY44L6Ru3QqzJhQOI2VQW7AxE1PfhCkll8exJNSyu9l-u8_Tjj08w/exec";
 
   // Endpoint du coach stratège (Railway backend)
   const STRATEGIST_ENDPOINT = BACKEND_URL + "/api/strategist";
