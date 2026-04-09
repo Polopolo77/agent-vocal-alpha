@@ -195,20 +195,24 @@ Phrase d'ouverture obligatoire au démarrage : "Bonjour, je suis l'Assistant Her
         z-index: 99999;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+        max-width: 340px;
         background: linear-gradient(135deg, #d4a44c, #a07830);
         color: #080b14;
         border: none;
-        border-radius: 50px;
-        padding: 16px 28px;
-        font-size: 1rem;
-        font-weight: 700;
+        border-radius: 18px;
+        padding: 14px 22px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.3;
+        text-align: left;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         cursor: pointer;
         box-shadow: 0 4px 24px rgba(212,164,76,0.4);
         transition: all 0.3s ease;
         animation: ah-pulse 2.5s infinite;
       }
+      #ah-widget-btn strong { font-weight: 800; }
       #ah-widget-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 32px rgba(212,164,76,0.6);
@@ -408,7 +412,8 @@ Phrase d'ouverture obligatoire au démarrage : "Bonjour, je suis l'Assistant Her
   function injectHTML() {
     const btn = document.createElement("button");
     btn.id = "ah-widget-btn";
-    btn.innerHTML = `<span style="font-size:1.3rem">📞</span> Parler à l'Assistant Heritage`;
+    btn.innerHTML = `<span style="font-size:1.3rem">📞</span> <span>Une question sur les Trinity Sphères&nbsp;?<br><strong>Parlez à l'assistant IA d'Heritage</strong></span>`;
+    btn.style.display = "none"; // caché jusqu'au délai d'apparition
     document.body.appendChild(btn);
 
     const overlay = document.createElement("div");
@@ -798,6 +803,14 @@ Phrase d'ouverture obligatoire au démarrage : "Bonjour, je suis l'Assistant Her
     $btn.addEventListener("click", connect);
     $hangup.addEventListener("click", disconnect);
     $hangup2.addEventListener("click", disconnect);
+
+    // Le bouton apparaît après 15 secondes avec un petit fade-in
+    setTimeout(() => {
+      $btn.style.display = "flex";
+      $btn.style.opacity = "0";
+      $btn.style.transition = "opacity 0.6s ease";
+      requestAnimationFrame(() => { $btn.style.opacity = "1"; });
+    }, 15000);
 
     window.addEventListener("pagehide", () => {
       if (state.isConnected) saveConversation();
