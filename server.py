@@ -15,8 +15,10 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 DB_PATH = Path(__file__).parent / "conversations.db"
 
-# Modèle rapide et économique pour le coach en arrière-plan
-COACH_MODEL = "gemini-2.5-flash"
+# Modèle rapide et économique pour le coach en arrière-plan.
+# gemini-2.5-flash-lite : plus rapide et rate limit plus élevé que 2.5-flash,
+# parfait pour la classification structurée en JSON.
+COACH_MODEL = "gemini-2.5-flash-lite"
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
