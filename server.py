@@ -272,7 +272,8 @@ async def handle_strategist(request):
                 config={
                     "response_mime_type": "application/json",
                     "temperature": 0.3,  # déterministe
-                    "max_output_tokens": 2048,
+                    "max_output_tokens": 8192,
+                    "thinking_config": {"thinking_budget": 0},  # pas de raisonnement, juste JSON
                 },
             )
         )
