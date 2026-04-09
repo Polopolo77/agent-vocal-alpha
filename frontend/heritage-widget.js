@@ -1034,10 +1034,22 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     conversationStartedAt: null,
     pendingUserText: "",     // buffer for input transcription
     pendingBotText: "",      // buffer for output transcription
+
+    // Coach state
+    userTurnCount: 0,        // how many times the user has spoken
+    coachDirective: null,    // latest directive from the strategist
+    coachInFlight: false,    // true if a coach call is currently running
+    coachPostCallReport: null, // final report for Google Sheets
   };
 
   // URL Google Apps Script pour enregistrer les conversations dans Google Sheets
   const SAVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbycjjRmDwKk2F2Pe7EbKfW5_kiKq2WqWjTx4I_Oqryn_Ly3hn3jC2M3Rx-RFPRMJ60/exec";
+
+  // Endpoint du coach stratège (Railway backend)
+  const STRATEGIST_ENDPOINT = BACKEND_URL + "/api/strategist";
+
+  // Mode debug : active un panneau latéral qui affiche les directives coach en temps réel
+  const DEBUG_MODE = new URLSearchParams(window.location.search).get("debug") === "1";
 
   // ============ INJECT CSS ============
   function injectStyles() {
@@ -1255,9 +1267,151 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
         transform: rotate(135deg);
       }
 
+      /* Closing CTA (apparaît quand coach détecte signal_closing=vert) */
+      .heritage-closing-cta {
+        padding: 14px 16px;
+        border-top: 1px solid #3a2e1e;
+        background: linear-gradient(135deg, rgba(218,165,32,0.12), rgba(184,134,11,0.08));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        animation: heritage-cta-pulse 2s infinite;
+      }
+      @keyframes heritage-cta-pulse {
+        0%,100% { box-shadow: inset 0 0 0 1px rgba(218,165,32,0.2); }
+        50% { box-shadow: inset 0 0 0 1px rgba(218,165,32,0.5); }
+      }
+      .heritage-closing-label {
+        font-size: 0.8rem;
+        color: #daa520;
+        font-weight: 600;
+      }
+      .heritage-closing-btn {
+        background: linear-gradient(135deg, #b8860b, #daa520);
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.2s;
+      }
+      .heritage-closing-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(218,165,32,0.4);
+      }
+
+      /* Fiche produit (apparaît quand coach recommande un produit fermement) */
+      .heritage-product-card {
+        margin: 12px 16px 0 16px;
+        padding: 12px 14px;
+        background: rgba(218,165,32,0.06);
+        border: 1px solid rgba(218,165,32,0.2);
+        border-radius: 10px;
+        font-size: 0.85rem;
+      }
+      .heritage-product-card h4 {
+        color: #daa520;
+        font-size: 0.95rem;
+        margin-bottom: 4px;
+      }
+      .heritage-product-card p {
+        color: #aaa;
+        font-size: 0.8rem;
+        line-height: 1.4;
+      }
+      .heritage-product-card .product-price {
+        color: #daa520;
+        font-weight: 700;
+        margin-top: 4px;
+      }
+
+      /* Debug panel (uniquement si ?debug=1) */
+      #heritage-debug {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 380px;
+        max-height: 80vh;
+        background: #050505;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        z-index: 100001;
+        font-family: "SF Mono", ui-monospace, "Cascadia Code", monospace;
+        font-size: 0.72rem;
+        color: #aaa;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .heritage-debug-header {
+        padding: 10px 14px;
+        background: #111;
+        border-bottom: 1px solid #2a2a2a;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #daa520;
+        font-weight: 700;
+        font-size: 0.75rem;
+        letter-spacing: 1px;
+      }
+      .heritage-debug-header button {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+      .heritage-debug-header button:hover { color: #fff; }
+      .heritage-debug-body {
+        padding: 12px 14px;
+        overflow-y: auto;
+        flex: 1;
+      }
+      .heritage-debug-empty {
+        color: #555;
+        font-style: italic;
+      }
+      .heritage-debug-section {
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #1a1a1a;
+      }
+      .heritage-debug-section:last-child { border-bottom: none; }
+      .heritage-debug-section .debug-title {
+        color: #daa520;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+      }
+      .heritage-debug-section .debug-value {
+        color: #ccc;
+        font-size: 0.72rem;
+        line-height: 1.4;
+      }
+      .heritage-debug-section .debug-list {
+        color: #888;
+        padding-left: 14px;
+      }
+      .heritage-debug-log {
+        color: #555;
+        font-size: 0.65rem;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #1a1a1a;
+      }
+      .heritage-debug-log > div { padding: 2px 0; }
+
       @media (max-width: 600px) {
         #heritage-widget-btn { bottom: 20px; right: 16px; padding: 13px 20px; font-size: 0.9rem; }
         #heritage-overlay { right: 10px; left: 10px; width: auto; bottom: 90px; }
+        #heritage-debug { display: none; }
       }
     `;
     document.head.appendChild(style);
@@ -1283,7 +1437,14 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
         </div>
         <button class="heritage-close-btn" id="heritage-hangup">✕</button>
       </div>
+      <div class="heritage-product-card" id="heritage-product-card" style="display:none;"></div>
       <div class="heritage-transcripts" id="heritage-transcripts"></div>
+      <div class="heritage-closing-cta" id="heritage-closing-cta" style="display:none;">
+        <span class="heritage-closing-label">Prêt à commencer ?</span>
+        <a href="https://editions-heritage.com" target="_blank" rel="noopener" class="heritage-closing-btn">
+          S'inscrire maintenant
+        </a>
+      </div>
       <div class="heritage-box-footer">
         <span class="heritage-mic-hint" id="heritage-mic-hint">🎙 Micro actif</span>
         <button class="heritage-hangup" id="heritage-hangup2">
@@ -1292,6 +1453,25 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       </div>
     `;
     document.body.appendChild(overlay);
+
+    // Inject debug panel only if ?debug=1 in URL
+    if (DEBUG_MODE) {
+      const debug = document.createElement("div");
+      debug.id = "heritage-debug";
+      debug.innerHTML = `
+        <div class="heritage-debug-header">
+          <span>🔍 COACH DEBUG</span>
+          <button id="heritage-debug-close">✕</button>
+        </div>
+        <div class="heritage-debug-body" id="heritage-debug-body">
+          <div class="heritage-debug-empty">En attente du premier appel coach...</div>
+        </div>
+      `;
+      document.body.appendChild(debug);
+      document.getElementById("heritage-debug-close").addEventListener("click", () => {
+        debug.style.display = "none";
+      });
+    }
   }
 
   // ============ DOM REFS ============
@@ -1335,6 +1515,160 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       }
     }
     $transcripts.scrollTop = $transcripts.scrollHeight;
+  }
+
+  // ============ DEBUG PANEL ============
+  const debugLogEntries = [];
+  function debugLog(type, data) {
+    if (!DEBUG_MODE) return;
+    const ts = new Date().toLocaleTimeString();
+    debugLogEntries.push({ ts, type, data });
+    if (debugLogEntries.length > 30) debugLogEntries.shift();
+    const logEl = document.getElementById("heritage-debug-body");
+    if (logEl) renderDebugLog();
+  }
+
+  function renderDebugLog() {
+    const logEl = document.getElementById("heritage-debug-body");
+    if (!logEl) return;
+    const logsHtml = debugLogEntries
+      .slice()
+      .reverse()
+      .map((e) => `<div>[${e.ts}] <strong>${e.type}</strong> ${JSON.stringify(e.data).slice(0, 120)}</div>`)
+      .join("");
+    const currentHtml = logEl.innerHTML;
+    // Only update if the log section exists, otherwise keep the full panel
+    if (currentHtml.includes("heritage-debug-log")) {
+      const logDiv = logEl.querySelector(".heritage-debug-log");
+      if (logDiv) logDiv.innerHTML = logsHtml;
+    }
+  }
+
+  function updateDebugPanel(directive) {
+    if (!DEBUG_MODE) return;
+    const body = document.getElementById("heritage-debug-body");
+    if (!body) return;
+
+    const disc = directive.profil_disc || {};
+    const emot = directive.etat_emotionnel || {};
+    const spin = directive.spin || {};
+    const prod = directive.produit || {};
+    const obj = directive.objections || {};
+    const dir = directive.directive_prochain_tour || {};
+
+    const esc = (s) => String(s || "").replace(/</g, "&lt;");
+
+    body.innerHTML = `
+      <div class="heritage-debug-section">
+        <div class="debug-title">Profil DISC</div>
+        <div class="debug-value">
+          D ${disc.dominant || 0}% · I ${disc.influent || 0}% · S ${disc.stable || 0}% · C ${disc.consciencieux || 0}%<br>
+          Confiance : ${disc.confiance || 0}%<br>
+          <em>${esc(disc.justification)}</em>
+        </div>
+      </div>
+
+      <div class="heritage-debug-section">
+        <div class="debug-title">État émotionnel</div>
+        <div class="debug-value">
+          Chaleur : <strong>${esc(emot.chaleur)}</strong><br>
+          Stress : ${esc(emot.stress)}<br>
+          Confiance agent : ${esc(emot.confiance_agent)}<br>
+          Évolution : ${esc(emot.evolution)}
+        </div>
+      </div>
+
+      <div class="heritage-debug-section">
+        <div class="debug-title">SPIN</div>
+        <div class="debug-value">
+          Étape actuelle : <strong>${esc(spin.etape_actuelle)}</strong><br>
+          Prochaine : ${esc(spin.prochaine_etape)}<br>
+          Progression : ${spin.progression_pct || 0}%
+        </div>
+      </div>
+
+      <div class="heritage-debug-section">
+        <div class="debug-title">Produit recommandé</div>
+        <div class="debug-value">
+          <strong>${esc(prod.recommande) || "aucun"}</strong> (${esc(prod.certitude)})<br>
+          <em>${esc(prod.justification)}</em>
+        </div>
+      </div>
+
+      <div class="heritage-debug-section">
+        <div class="debug-title">Objections</div>
+        <div class="debug-value">
+          Évoquées : ${(obj.evoquees || []).map(esc).join(", ") || "—"}<br>
+          Levées : ${(obj.levees || []).map(esc).join(", ") || "—"}<br>
+          En cours : ${(obj.en_cours || []).map(esc).join(", ") || "—"}
+        </div>
+      </div>
+
+      <div class="heritage-debug-section">
+        <div class="debug-title">Directive prochain tour</div>
+        <div class="debug-value">
+          Action : <strong>${esc(dir.action_principale)}</strong><br>
+          Tactique : ${esc(dir.tactique)}<br>
+          Signal closing : <strong style="color:${dir.signal_closing === 'vert' ? '#0f0' : dir.signal_closing === 'orange' ? '#fa0' : '#f55'}">${esc(dir.signal_closing)}</strong><br>
+          <em>${esc(dir.formulation_suggeree)}</em>
+        </div>
+      </div>
+
+      <div class="heritage-debug-log"></div>
+    `;
+    renderDebugLog();
+  }
+
+  // ============ UI ACTIONS DÉCLENCHÉES PAR LE COACH ============
+  function showClosingCta() {
+    const el = document.getElementById("heritage-closing-cta");
+    if (el) el.style.display = "flex";
+  }
+
+  function hideClosingCta() {
+    const el = document.getElementById("heritage-closing-cta");
+    if (el) el.style.display = "none";
+  }
+
+  const PRODUCT_CARDS = {
+    fortune_strategique: {
+      name: "Fortune Stratégique",
+      desc: "Recommandations mensuelles actions + crypto par Ian King. Portefeuille en ligne, alertes d'achat et de vente.",
+      price: "99€/an — garantie 30 jours",
+    },
+    strategie_green_zone: {
+      name: "Stratégie Green Zone",
+      desc: "Scoring quantitatif d'actions américaines par Adam O'Dell. Méthode systématique, sans émotion.",
+      price: "Tarif sur demande",
+    },
+    supercycle_crypto: {
+      name: "Supercycle Crypto",
+      desc: "Publication 100% cryptomonnaies. Profil agressif, fort potentiel, volatilité assumée.",
+      price: "Tarif sur demande",
+    },
+    investisseur_alpha: {
+      name: "Investisseur Alpha",
+      desc: "Publication premium pour investisseurs expérimentés avec capital important.",
+      price: "Tarif sur demande",
+    },
+  };
+
+  function showProductCard(productKey) {
+    const el = document.getElementById("heritage-product-card");
+    if (!el) return;
+    const info = PRODUCT_CARDS[productKey];
+    if (!info) return;
+    el.innerHTML = `
+      <h4>${info.name}</h4>
+      <p>${info.desc}</p>
+      <p class="product-price">${info.price}</p>
+    `;
+    el.style.display = "block";
+  }
+
+  function hideProductCard() {
+    const el = document.getElementById("heritage-product-card");
+    if (el) el.style.display = "none";
   }
 
   // ============ AUDIO STREAMER (Micro → PCM16 16kHz → base64) ============
@@ -1495,10 +1829,18 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
         addMessage("you", state.pendingUserText, true);
       }
       if (sc.outputTranscription && sc.outputTranscription.text) {
-        // Bot started talking — flush any pending user text to log first
+        // Bot started talking — this means the user turn just ended
         if (state.pendingUserText) {
-          state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() });
+          const userText = state.pendingUserText.trim();
+          state.conversationLog.push({ role: "user", text: userText });
           state.pendingUserText = "";
+          // Increment turn count and trigger coach if needed
+          state.userTurnCount += 1;
+          const decision = shouldCallCoach(userText);
+          debugLog("coach_decision", { turn: state.userTurnCount, ...decision });
+          if (decision.call) {
+            callCoach("mid_call");
+          }
         }
         state.pendingBotText += sc.outputTranscription.text;
         addMessage("bot", state.pendingBotText, !!currentBotMsg);
@@ -1518,6 +1860,9 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
         }
         currentBotMsg = null;
         currentUserMsg = null;
+
+        // Try to inject the latest coach directive into context for next turn
+        injectCoachDirectiveIfAvailable();
       }
     };
 
@@ -1547,8 +1892,261 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     state.isRecording = true;
   }
 
+  // ============ COACH (stratège Gemini 2.5 Flash) ============
+
+  // Mots-clés déclencheurs pour un appel coach à la demande entre les tours 4-6
+  const COACH_TRIGGER_KEYWORDS = {
+    objection: ["cher", "arnaque", "réfléchir", "pas sûr", "concurrent", "trop", "hésite", "peur", "risque", "confiance"],
+    closing: ["je m'inscris", "comment faire", "je prends", "le lien", "envoyez-moi", "ok je", "d'accord je", "je me lance", "on y va", "c'est bon"],
+    contradiction_candidate: ["en fait", "par contre", "mais finalement", "attendez", "en réalité"],
+    difficult: ["conseil", "acheter quoi", "quelle action", "combien je dois", "personnalisé"],
+  };
+
+  // Détecte si le dernier message prospect contient un signal fort qui justifie un appel coach
+  function detectCoachTrigger(userText) {
+    const text = userText.toLowerCase();
+    for (const category in COACH_TRIGGER_KEYWORDS) {
+      for (const kw of COACH_TRIGGER_KEYWORDS[category]) {
+        if (text.includes(kw)) {
+          return category;
+        }
+      }
+    }
+    return null;
+  }
+
+  // Décide si on doit appeler le coach selon la stratégie hybride (Option D)
+  function shouldCallCoach(userText) {
+    const turn = state.userTurnCount;
+    // Tours 1-2 : pas de coach (pas assez de contexte)
+    if (turn <= 2) return { call: false, reason: "early_turn" };
+    // Tour 3 : premier appel obligatoire (détection du profil DISC)
+    if (turn === 3) return { call: true, reason: "first_profile_detection" };
+    // Tours 4-6 : uniquement sur signal fort
+    if (turn >= 4 && turn <= 6) {
+      const trigger = detectCoachTrigger(userText);
+      if (trigger) return { call: true, reason: "signal_" + trigger };
+      return { call: false, reason: "no_signal" };
+    }
+    // Tour 7+ : appel à chaque tour (phase décision)
+    return { call: true, reason: "decision_phase" };
+  }
+
+  // Appelle le coach en arrière-plan (non-bloquant)
+  function callCoach(mode = "mid_call") {
+    if (state.coachInFlight) return; // évite les appels concurrents
+    state.coachInFlight = true;
+
+    const payload = {
+      history: state.conversationLog.slice(), // copie
+      turn_number: state.userTurnCount,
+      mode: mode,
+    };
+
+    debugLog("coach_call", { turn: state.userTurnCount, mode: mode });
+
+    fetch(STRATEGIST_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((directive) => {
+        state.coachInFlight = false;
+        if (directive && !directive.error) {
+          state.coachDirective = directive;
+          if (mode === "post_call") {
+            state.coachPostCallReport = directive;
+          }
+          debugLog("coach_response", directive);
+          updateDebugPanel(directive);
+          handleCoachActions(directive);
+        } else {
+          debugLog("coach_error", directive);
+        }
+      })
+      .catch((err) => {
+        state.coachInFlight = false;
+        console.error("Coach error:", err);
+        debugLog("coach_error", { message: err.message });
+      });
+  }
+
+  // Gère les actions visibles déclenchées par le coach (closing vert, fiche produit)
+  function handleCoachActions(directive) {
+    const closingSignal = directive.directive_prochain_tour?.signal_closing;
+    if (closingSignal === "vert") {
+      showClosingCta();
+    } else {
+      hideClosingCta();
+    }
+
+    const produit = directive.produit?.recommande;
+    if (produit && directive.produit?.certitude === "ferme") {
+      showProductCard(produit);
+    }
+  }
+
+  // Construit le texte de directive à injecter comme "note interne" dans Gemini Live
+  function buildCoachInjection() {
+    const d = state.coachDirective;
+    if (!d) return null;
+
+    const parts = [];
+    parts.push("[Note interne du coach, NE PAS mentionner au client]");
+
+    if (d.profil_disc && d.profil_disc.justification) {
+      const disc = d.profil_disc;
+      const dominant = Math.max(disc.dominant || 0, disc.influent || 0, disc.stable || 0, disc.consciencieux || 0);
+      let type = "mixte";
+      if (dominant === disc.dominant) type = "Dominant";
+      else if (dominant === disc.influent) type = "Influent";
+      else if (dominant === disc.stable) type = "Stable";
+      else if (dominant === disc.consciencieux) type = "Consciencieux";
+      parts.push("Profil détecté : " + type + " (" + dominant + "%)");
+    }
+
+    if (d.etat_emotionnel?.chaleur) {
+      parts.push("Chaleur : " + d.etat_emotionnel.chaleur);
+    }
+
+    if (d.produit?.recommande) {
+      parts.push("Produit cible : " + d.produit.recommande + " (certitude " + (d.produit.certitude || "moyen") + ")");
+    }
+
+    if (d.objections?.en_cours && d.objections.en_cours.length > 0) {
+      parts.push("Objections en cours à traiter : " + d.objections.en_cours.join(", "));
+    }
+
+    if (d.memoire?.contradictions_detectees && d.memoire.contradictions_detectees.length > 0) {
+      parts.push("Contradictions à nommer respectueusement : " + d.memoire.contradictions_detectees.join(" ; "));
+    }
+
+    if (d.directive_prochain_tour?.action_principale) {
+      parts.push("Action à faire : " + d.directive_prochain_tour.action_principale);
+    }
+
+    if (d.directive_prochain_tour?.formulation_suggeree) {
+      parts.push("Formulation suggérée : " + d.directive_prochain_tour.formulation_suggeree);
+    }
+
+    if (d.directive_prochain_tour?.pieges_a_eviter && d.directive_prochain_tour.pieges_a_eviter.length > 0) {
+      parts.push("Pièges à éviter : " + d.directive_prochain_tour.pieges_a_eviter.join(" ; "));
+    }
+
+    if (d.directive_prochain_tour?.signal_closing === "vert") {
+      parts.push("SIGNAL CLOSING VERT : tu peux proposer l'inscription maintenant.");
+    }
+
+    parts.push("[Fin de la note]");
+
+    return parts.join("\n");
+  }
+
+  // Inject the latest coach directive as a non-blocking context turn
+  // (clientContent with turnComplete: false doesn't trigger an immediate response)
+  let lastInjectedDirective = null;
+  function injectCoachDirectiveIfAvailable() {
+    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+    if (!state.coachDirective) return;
+    // Don't re-inject the same directive twice
+    if (state.coachDirective === lastInjectedDirective) return;
+
+    const injection = buildCoachInjection();
+    if (!injection) return;
+
+    try {
+      state.ws.send(JSON.stringify({
+        clientContent: {
+          turns: [
+            {
+              role: "user",
+              parts: [{ text: injection }],
+            },
+          ],
+          turnComplete: false,
+        },
+      }));
+      lastInjectedDirective = state.coachDirective;
+      debugLog("coach_injected", { length: injection.length });
+    } catch (err) {
+      console.error("Failed to inject coach directive:", err);
+    }
+  }
+
   // ============ SAVE CONVERSATION ============
-  function saveConversation() {
+  function buildPostCallReport(report) {
+    // Transforme le rapport JSON du coach en colonnes plates pour Google Sheets
+    if (!report) return {};
+    const disc = report.profil_disc || {};
+    const emot = report.etat_emotionnel || {};
+    const prod = report.produit || {};
+    const obj = report.objections || {};
+    const dir = report.directive_prochain_tour || {};
+    const mem = report.memoire || {};
+
+    // Profil DISC dominant
+    const scores = {
+      Dominant: disc.dominant || 0,
+      Influent: disc.influent || 0,
+      Stable: disc.stable || 0,
+      Consciencieux: disc.consciencieux || 0,
+    };
+    let dominant = "Mixte";
+    let maxScore = 0;
+    for (const [k, v] of Object.entries(scores)) {
+      if (v > maxScore) { maxScore = v; dominant = k; }
+    }
+
+    // Conversion détectée
+    const conversion = dir.signal_closing === "vert" || emot.chaleur === "pret_a_acheter";
+
+    // Lead score (0-100)
+    const chaleurScores = { froid: 15, tiede: 40, chaud: 70, pret_a_acheter: 95 };
+    const leadScore = chaleurScores[emot.chaleur] || 0;
+
+    return {
+      profil_disc_final: dominant,
+      profil_disc_confiance: disc.confiance || 0,
+      chaleur_finale: emot.chaleur || "inconnue",
+      produit_recommande: prod.recommande || "aucun",
+      produit_certitude: prod.certitude || "faible",
+      objections_evoquees: (obj.evoquees || []).join(" | "),
+      objections_levees: (obj.levees || []).join(" | "),
+      objections_non_levees: (obj.en_cours || []).join(" | "),
+      peurs_principales: (mem.peurs_exprimees || []).join(" | "),
+      declarations_cles: (mem.declarations_cles || []).join(" | "),
+      contradictions_detectees: (mem.contradictions_detectees || []).join(" | "),
+      lead_score: leadScore,
+      conversion_probable: conversion ? "oui" : "non",
+      action_recommandee: dir.action_principale || "",
+    };
+  }
+
+  async function generatePostCallReport() {
+    // Appel synchrone (on attend le rapport avant d'envoyer au Sheet)
+    try {
+      const res = await fetch(STRATEGIST_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: state.conversationLog.slice(),
+          turn_number: state.userTurnCount,
+          mode: "post_call",
+        }),
+      });
+      const report = await res.json();
+      if (report && !report.error) {
+        state.coachPostCallReport = report;
+        return report;
+      }
+    } catch (err) {
+      console.error("Post-call report failed:", err);
+    }
+    return null;
+  }
+
+  async function saveConversation() {
     // Flush any remaining pending text
     if (state.pendingUserText) {
       state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() });
@@ -1562,16 +2160,27 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     // Don't save empty or trivial conversations (only the auto intro)
     if (state.conversationLog.length < 2) return;
 
+    // Generate the post-call report from the coach (synchronous, short wait)
+    // We use a 4-second timeout so we don't block the user if Gemini Flash is slow
+    let report = null;
+    try {
+      const reportPromise = generatePostCallReport();
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 4000));
+      report = await Promise.race([reportPromise, timeoutPromise]);
+    } catch {}
+
+    const reportCols = buildPostCallReport(report);
+
     const payload = {
       started_at: state.conversationStartedAt,
       ended_at: new Date().toISOString(),
       messages: state.conversationLog,
+      ...reportCols,
     };
 
     // Google Apps Script requires text/plain Content-Type to avoid CORS preflight
     const body = JSON.stringify(payload);
     try {
-      // sendBeacon with text/plain blob works with Apps Script and survives page close
       if (navigator.sendBeacon) {
         const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
         const ok = navigator.sendBeacon(SAVE_ENDPOINT, blob);
@@ -1587,7 +2196,6 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       }
     } catch (e) {
       console.error("Save error:", e);
-      // Fallback to fetch no-cors
       try {
         fetch(SAVE_ENDPOINT, {
           method: "POST",
@@ -1612,6 +2220,14 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       state.conversationStartedAt = new Date().toISOString();
       state.pendingUserText = "";
       state.pendingBotText = "";
+      // Reset coach state
+      state.userTurnCount = 0;
+      state.coachDirective = null;
+      state.coachInFlight = false;
+      state.coachPostCallReport = null;
+      lastInjectedDirective = null;
+      hideClosingCta();
+      hideProductCard();
       state.audioPlayer = new AudioPlayer();
       state.audioPlayer.init();
 
@@ -1630,8 +2246,8 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
   }
 
   function disconnect() {
-    // Save conversation BEFORE cleaning up state
-    saveConversation();
+    // Save conversation BEFORE cleaning up state (async with post-call report)
+    saveConversation().catch((e) => console.error("saveConversation error:", e));
 
     if (state.audioStreamer) { state.audioStreamer.stop(); state.audioStreamer = null; }
     if (state.ws) {
@@ -1644,6 +2260,10 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     state.isRecording = false;
     state.conversationLog = [];
     state.conversationStartedAt = null;
+    state.userTurnCount = 0;
+    state.coachDirective = null;
+    state.coachInFlight = false;
+    lastInjectedDirective = null;
     $overlay.classList.remove("heritage-active");
     $btn.classList.remove("heritage-hidden");
     $orb.className = "heritage-orb";
@@ -1651,6 +2271,8 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     $transcripts.innerHTML = "";
     currentBotMsg = null;
     currentUserMsg = null;
+    hideClosingCta();
+    hideProductCard();
   }
 
   // ============ INIT ============

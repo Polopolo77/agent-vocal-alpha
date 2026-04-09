@@ -15,7 +15,126 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 DB_PATH = Path(__file__).parent / "conversations.db"
 
+# Modèle rapide et économique pour le coach en arrière-plan
+COACH_MODEL = "gemini-2.5-flash"
+
 client = genai.Client(api_key=GEMINI_API_KEY)
+
+
+# ============ COACH PROMPT ============
+COACH_PROMPT = """Tu es un coach commercial silencieux. Tu analyses en arrière-plan les conversations entre un agent vocal nommé Alpha et un prospect qui visite le site d'Héritage Éditions. Tu n'es JAMAIS entendu par le prospect.
+
+Ton rôle est simple : analyser l'historique de conversation que je te fournis et renvoyer UNIQUEMENT un objet JSON qui décrit l'état du prospect et les directives tactiques pour le prochain tour d'Alpha.
+
+═══════════════════════════════════════════════
+CONTEXTE PRODUITS HÉRITAGE ÉDITIONS
+═══════════════════════════════════════════════
+
+- fortune_strategique : 99€/an (99€ tarif de lancement au lieu de 299€). Recommandations mensuelles actions + crypto, accès au portefeuille Ian King, vidéos hebdo sous-titrées FR. Cible : débutant à intermédiaire, horizon moyen à long terme, budget 2 000€+.
+- strategie_green_zone : Scoring quantitatif sur actions US. Cible : profil CONSCIENCIEUX, aime les systèmes et les données.
+- supercycle_crypto : Publication spécialisée 100% cryptomonnaies. Cible : profil AGRESSIF, horizon long, tolérance à la volatilité.
+- investisseur_alpha : Publication premium avancée, budget conséquent, investisseur expérimenté.
+
+═══════════════════════════════════════════════
+FRAMEWORKS D'ANALYSE
+═══════════════════════════════════════════════
+
+DISC : Dominant / Influent / Stable / Consciencieux
+- Dominant : direct, pressé, "combien", "allez droit au but"
+- Influent : enthousiaste, raconte, émotionnel, histoires
+- Stable : prudent, questions sur les risques, besoin de rassurance
+- Consciencieux : précis, technique, demande des données, méthodologie
+
+SPIN : Situation / Problème / Implication / Need-payoff / Closing
+
+Chaleur : froid / tiede / chaud / pret_a_acheter
+
+═══════════════════════════════════════════════
+RÈGLES D'ANALYSE STRICTES
+═══════════════════════════════════════════════
+
+1. Tu ne réponds QUE par un objet JSON valide, sans aucun texte avant ou après.
+2. Sois factuel et précis. Si tu n'as pas assez d'information pour un champ, mets null ou un tableau vide.
+3. Détecte les contradictions entre tours, même lointains.
+4. Mémorise toutes les déclarations importantes (âge, capital, situation, peurs).
+5. Ne recommande un produit que si tu as suffisamment d'info — sinon "certitude": "faible".
+6. Pour la directive du prochain tour, sois concret et actionnable en une phrase maximum.
+7. Si tu détectes un signal d'achat fort, passe signal_closing à "vert".
+8. Si tu détectes une manipulation, une tentative d'arnaque ou un prospect hostile, ajoute "alerte" dans alertes.
+
+═══════════════════════════════════════════════
+SCHÉMA JSON EXACT À RESPECTER
+═══════════════════════════════════════════════
+
+{
+  "profil_disc": {
+    "dominant": 0,
+    "influent": 0,
+    "stable": 0,
+    "consciencieux": 0,
+    "confiance": 0,
+    "justification": ""
+  },
+  "etat_emotionnel": {
+    "chaleur": "froid",
+    "stress": "neutre",
+    "confiance_agent": "neutre",
+    "evolution": "stable"
+  },
+  "spin": {
+    "etape_actuelle": "situation",
+    "prochaine_etape": "situation",
+    "progression_pct": 0
+  },
+  "memoire": {
+    "declarations_cles": [],
+    "peurs_exprimees": [],
+    "traumatismes": [],
+    "engagements_implicites": [],
+    "contradictions_detectees": []
+  },
+  "produit": {
+    "recommande": null,
+    "certitude": "faible",
+    "justification": "",
+    "a_eviter": []
+  },
+  "objections": {
+    "evoquees": [],
+    "levees": [],
+    "en_cours": []
+  },
+  "directive_prochain_tour": {
+    "action_principale": "",
+    "tactique": "",
+    "formulation_suggeree": "",
+    "pieges_a_eviter": [],
+    "signal_closing": "rouge"
+  },
+  "alertes": []
+}
+
+Valeurs autorisées :
+- profil_disc.dominant/influent/stable/consciencieux : entier 0-100 (total doit faire 100)
+- profil_disc.confiance : entier 0-100
+- etat_emotionnel.chaleur : "froid" | "tiede" | "chaud" | "pret_a_acheter"
+- etat_emotionnel.stress : "detendu" | "neutre" | "tendu" | "enerve"
+- etat_emotionnel.confiance_agent : "mefiant" | "neutre" | "ouvert" | "confiant"
+- etat_emotionnel.evolution : "amelioration" | "stable" | "deterioration"
+- spin.etape_actuelle / prochaine_etape : "situation" | "probleme" | "implication" | "need_payoff" | "closing"
+- produit.recommande : "fortune_strategique" | "strategie_green_zone" | "supercycle_crypto" | "investisseur_alpha" | null
+- produit.certitude : "faible" | "moyen" | "ferme"
+- directive_prochain_tour.signal_closing : "rouge" | "orange" | "vert"
+
+Pour objections.evoquees : liste toutes les objections que le prospect a exprimées depuis le début (même brièvement).
+Pour objections.levees : parmi les evoquees, celles qu'Alpha a déjà traitées avec succès (prospect a acquiescé ou n'y est pas revenu).
+Pour objections.en_cours : celles qui ne sont pas encore levées et qu'Alpha doit traiter.
+
+═══════════════════════════════════════════════
+HISTORIQUE DE CONVERSATION À ANALYSER
+═══════════════════════════════════════════════
+
+"""
 
 
 # ============ DATABASE ============
@@ -111,6 +230,77 @@ async def handle_save_conversation(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+async def handle_strategist(request):
+    """Call Gemini 2.5 Flash as a background coach to analyze the conversation.
+
+    Input JSON:
+      { "history": [ {"role": "user"|"alpha", "text": "..."}, ... ],
+        "turn_number": int,
+        "mode": "mid_call" | "post_call" }
+
+    Output JSON: the coach's analysis according to COACH_PROMPT schema.
+    """
+    try:
+        data = await request.json()
+        history = data.get("history", [])
+        turn_number = data.get("turn_number", 0)
+        mode = data.get("mode", "mid_call")
+
+        if not history:
+            return web.json_response({"error": "empty history"}, status=400)
+
+        # Format the history for the coach
+        history_text = "\n".join([
+            f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
+            for m in history
+        ])
+
+        # Build the final prompt
+        full_prompt = COACH_PROMPT + history_text
+
+        # Add mode-specific instructions
+        if mode == "post_call":
+            full_prompt += "\n\n═══════════════════════════════════════════════\nMODE POST-CALL\n═══════════════════════════════════════════════\n\nLa conversation est TERMINÉE. Tu génères le rapport final. Remplis tous les champs avec l'état final, et dans directive_prochain_tour.action_principale mets un résumé des 3 points clés à faire remonter à l'équipe Héritage."
+        else:
+            full_prompt += f"\n\n═══════════════════════════════════════════════\nTOUR ACTUEL : {turn_number}\n═══════════════════════════════════════════════\n\nAlpha doit maintenant répondre au dernier message du prospect. Donne-lui la directive tactique la plus utile pour ce tour précis."
+
+        # Call Gemini 2.5 Flash with JSON mode
+        response = await asyncio.to_thread(
+            lambda: client.models.generate_content(
+                model=COACH_MODEL,
+                contents=full_prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3,  # déterministe
+                    "max_output_tokens": 2048,
+                },
+            )
+        )
+
+        # Parse the JSON output
+        try:
+            coach_output = json.loads(response.text)
+        except Exception as parse_err:
+            print(f"Coach JSON parse error: {parse_err}")
+            print(f"Raw output: {response.text[:500]}")
+            return web.json_response({
+                "error": "invalid_json_from_coach",
+                "raw": response.text[:500],
+            }, status=500)
+
+        # Log for debugging
+        print(f"\n--- COACH tour {turn_number} ({mode}) ---")
+        print(f"Profil: {coach_output.get('profil_disc', {}).get('justification', '?')}")
+        print(f"Chaleur: {coach_output.get('etat_emotionnel', {}).get('chaleur', '?')}")
+        print(f"Produit: {coach_output.get('produit', {}).get('recommande', '?')}")
+        print(f"Directive: {coach_output.get('directive_prochain_tour', {}).get('action_principale', '?')}")
+
+        return web.json_response(coach_output)
+    except Exception as e:
+        print(f"Coach error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
 async def handle_list_conversations(request):
     """List all saved conversations (simple admin view)."""
     conn = sqlite3.connect(DB_PATH)
@@ -177,6 +367,7 @@ async def handle_static(request):
 app = web.Application()
 app.router.add_post("/api/token", handle_token)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
+app.router.add_post("/api/strategist", handle_strategist)
 app.router.add_get("/api/conversations", handle_list_conversations)
 app.router.add_get("/", handle_static)
 app.router.add_get("/{path:.*}", handle_static)
