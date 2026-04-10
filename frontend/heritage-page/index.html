@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alpha — Héritage Éditions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --gold: #c9a84c;
+      --gold-dim: rgba(201, 168, 76, 0.12);
+      --gold-glow: rgba(201, 168, 76, 0.35);
+      --gold-bright: #e8d48b;
+      --bg: #060606;
+      --bg-card: #0c0c0c;
+      --text: #f5f0e8;
+      --text-dim: #7a7060;
+      --text-subtle: #3a3530;
+      --border: #1a1710;
+      --orb-scale: 1;
+      --orb-glow: 0.15;
+    }
+
+    html { height: 100%; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============ BACKGROUND ============ */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        radial-gradient(ellipse 600px 600px at 50% 35%, rgba(201, 168, 76, 0.06), transparent),
+        radial-gradient(ellipse 1200px 800px at 50% 50%, rgba(201, 168, 76, 0.02), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* subtle grain overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; text-align: center; padding: 40px 24px; width: 100%; max-width: 640px; }
+
+    /* ============ HEADER ============ */
+    .brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 60px;
+      opacity: 0.8;
+    }
+
+    .brand::after {
+      content: "";
+      display: block;
+      width: 40px;
+      height: 1px;
+      background: var(--gold);
+      opacity: 0.3;
+      margin: 16px auto 0;
+    }
+
+    /* ============ ORB ============ */
+    .orb-container {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      margin: 0 auto 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Ambient glow behind orb */
+    .orb-glow {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
+      opacity: var(--orb-glow);
+      transition: opacity 0.15s ease;
+      filter: blur(40px);
+    }
+
+    /* Outer rings */
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(201, 168, 76, 0.08);
+      transition: all 0.3s ease;
+    }
+    .orb-ring-1 { width: 240px; height: 240px; }
+    .orb-ring-2 { width: 220px; height: 220px; border-color: rgba(201, 168, 76, 0.05); }
+
+    /* Main orb */
+    .orb {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 38%, #2a2318, #0f0d09);
+      border: 1.5px solid rgba(201, 168, 76, 0.25);
+      position: relative;
+      z-index: 2;
+      transform: scale(var(--orb-scale));
+      transition: transform 0.08s ease-out, border-color 0.3s, box-shadow 0.15s;
+      box-shadow:
+        0 0 40px rgba(201, 168, 76, calc(var(--orb-glow) * 0.5)),
+        inset 0 0 30px rgba(201, 168, 76, 0.05);
+    }
+
+    /* Inner shimmer */
+    .orb::before {
+      content: "";
+      position: absolute;
+      top: 15%;
+      left: 20%;
+      width: 30%;
+      height: 25%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 168, 76, 0.12), transparent);
+      filter: blur(8px);
+    }
+
+    /* ============ ORB STATES ============ */
+    /* Idle / before call */
+    .orb-container.idle .orb {
+      animation: orb-idle 4s ease-in-out infinite;
+      border-color: rgba(201, 168, 76, 0.15);
+    }
+    @keyframes orb-idle {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    /* Connecting */
+    .orb-container.connecting .orb {
+      animation: orb-connecting 1.5s ease-in-out infinite;
+      border-color: rgba(201, 168, 76, 0.4);
+    }
+    .orb-container.connecting .orb-ring { border-color: rgba(201, 168, 76, 0.15); }
+    @keyframes orb-connecting {
+      0%, 100% { transform: scale(1); opacity: 0.6; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+
+    /* Listening (user speaks) — audio reactive via JS */
+    .orb-container.listening .orb {
+      border-color: rgba(201, 168, 76, 0.3);
+    }
+    .orb-container.listening .orb-ring-1 { border-color: rgba(201, 168, 76, 0.12); }
+
+    /* Speaking (Alpha speaks) — audio reactive via JS */
+    .orb-container.speaking .orb {
+      border-color: var(--gold);
+    }
+    .orb-container.speaking .orb-ring-1 {
+      border-color: rgba(201, 168, 76, 0.2);
+      animation: ring-pulse 1.5s ease-out infinite;
+    }
+    .orb-container.speaking .orb-ring-2 {
+      border-color: rgba(201, 168, 76, 0.1);
+      animation: ring-pulse 1.5s ease-out 0.5s infinite;
+    }
+    @keyframes ring-pulse {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.15); opacity: 0; }
+    }
+
+    /* ============ STATUS ============ */
+    .agent-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .status {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      min-height: 20px;
+      margin-bottom: 36px;
+      font-weight: 300;
+    }
+
+    /* ============ START BUTTON ============ */
+    .start-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: transparent;
+      border: 1px solid rgba(201, 168, 76, 0.35);
+      color: var(--gold);
+      padding: 16px 40px;
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.4s ease;
+      margin-bottom: 32px;
+    }
+
+    .start-btn:hover {
+      background: var(--gold-dim);
+      border-color: var(--gold);
+      box-shadow: 0 0 30px rgba(201, 168, 76, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .start-btn.hidden { display: none; }
+
+    /* ============ TRANSCRIPT ============ */
+    .transcript {
+      min-height: 120px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding: 0 20px;
+      margin-bottom: 32px;
+      scrollbar-width: none;
+    }
+    .transcript::-webkit-scrollbar { display: none; }
+
+    .transcript-line {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 16px;
+      animation: line-appear 0.5s ease-out;
+    }
+
+    .transcript-line .speaker {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .transcript-line.user .speaker { color: var(--text-dim); }
+    .transcript-line.user .words {
+      color: var(--text);
+      opacity: 0.7;
+      font-weight: 300;
+    }
+
+    .transcript-line.alpha .speaker { color: var(--gold); }
+    .transcript-line.alpha .words {
+      color: var(--gold-bright);
+      font-weight: 400;
+    }
+
+    @keyframes line-appear {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============ HANGUP ============ */
+    .hangup-btn {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1px solid rgba(180, 60, 50, 0.4);
+      color: #c75050;
+      padding: 12px 32px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 32px;
+    }
+    .hangup-btn:hover {
+      background: rgba(180, 60, 50, 0.12);
+      border-color: #c75050;
+    }
+    .hangup-btn.visible { display: inline-flex; }
+
+    .hangup-icon {
+      display: inline-block;
+      transform: rotate(135deg);
+      font-size: 1rem;
+    }
+
+    /* ============ PRODUCT CARD ============ */
+    .product-card {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 24px 28px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-align: left;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.5s ease;
+      pointer-events: none;
+    }
+
+    .product-card.visible {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .product-card h4 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+
+    .product-card p {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+
+    .product-card .product-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--gold);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: gap 0.3s;
+    }
+    .product-card .product-cta:hover { gap: 14px; }
+    .product-card .product-price {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gold-bright);
+    }
+
+    /* ============ CLOSING CTA ============ */
+    .closing-cta {
+      max-width: 420px;
+      margin: 16px auto 0;
+      padding: 18px 28px;
+      background: linear-gradient(135deg, rgba(201, 168, 76, 0.08), rgba(201, 168, 76, 0.03));
+      border: 1px solid rgba(201, 168, 76, 0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.5s ease;
+      pointer-events: none;
+    }
+    .closing-cta.visible {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .closing-cta span {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+    .closing-cta a {
+      background: var(--gold);
+      color: #0a0a0a;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.3s;
+    }
+    .closing-cta a:hover {
+      box-shadow: 0 4px 20px rgba(201, 168, 76, 0.3);
+      transform: translateY(-1px);
+    }
+
+    /* ============ FOOTER ============ */
+    .footer {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.65rem;
+      color: var(--text-subtle);
+      letter-spacing: 1px;
+      z-index: 1;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 600px) {
+      .orb-container { width: 200px; height: 200px; margin-bottom: 36px; }
+      .orb { width: 140px; height: 140px; }
+      .orb-ring-1 { width: 180px; height: 180px; }
+      .orb-ring-2 { width: 170px; height: 170px; }
+      .orb-glow { width: 220px; height: 220px; }
+      .brand { font-size: 0.75rem; margin-bottom: 40px; }
+      .transcript { max-height: 200px; }
+    }
+
+    @media (max-height: 700px) {
+      .brand { margin-bottom: 30px; }
+      .orb-container { margin-bottom: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+    <div class="brand">Héritage Éditions</div>
+
+    <div class="orb-container idle" id="orb-container">
+      <div class="orb-glow"></div>
+      <div class="orb-ring orb-ring-1"></div>
+      <div class="orb-ring orb-ring-2"></div>
+      <div class="orb" id="orb"></div>
+    </div>
+
+    <div class="agent-name">Alpha</div>
+    <div class="status" id="status">Posez vos questions.</div>
+
+    <button class="start-btn" id="start-btn" onclick="startCall()">Commencer</button>
+    <button class="hangup-btn" id="hangup-btn" onclick="endCall()"><span class="hangup-icon">📞</span> Raccrocher</button>
+
+    <div class="transcript" id="transcript"></div>
+
+    <div class="product-card" id="product-card"></div>
+    <div class="closing-cta" id="closing-cta">
+      <span>Alpha vous recommande cette publication</span>
+      <a href="https://editions-heritage.com" target="_blank" rel="noopener">Découvrir</a>
+    </div>
+  </div>
+
+  <div class="footer">Héritage Éditions SA — Lausanne</div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ============ CONFIG ============
+    const BACKEND_URL = "https://web-production-572b6.up.railway.app";
+    const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
+    const STRATEGIST_ENDPOINT = BACKEND_URL + "/api/strategist";
+    const SAVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbzC4jn42VlayMY44L6Ru3QqzJhQOI2VQW7AxE1PfhCkll8exJNSyu9l-u8_Tjj08w/exec";
+    const MODEL = "gemini-3.1-flash-live-preview";
+    const VOICE = "Puck";
+
+    // ============ SYSTEM INSTRUCTION (loaded from heritage-widget.js via shared backend) ============
+    // For the standalone page, we use a compact version of the prompt.
+    // The full v1.1 prompt is in heritage-widget.js for the embeddable widget.
+    let SYSTEM_INSTRUCTION = "";
+
+    // ============ DOM ============
+    const $orbContainer = document.getElementById("orb-container");
+    const $orb = document.getElementById("orb");
+    const $status = document.getElementById("status");
+    const $startBtn = document.getElementById("start-btn");
+    const $hangupBtn = document.getElementById("hangup-btn");
+    const $transcript = document.getElementById("transcript");
+    const $productCard = document.getElementById("product-card");
+    const $closingCta = document.getElementById("closing-cta");
+
+    // ============ STATE ============
+    const state = {
+      ws: null,
+      audioStreamer: null,
+      audioPlayer: null,
+      isConnected: false,
+      conversationLog: [],
+      conversationStartedAt: null,
+      pendingUserText: "",
+      pendingBotText: "",
+      userTurnCount: 0,
+      coachDirective: null,
+      coachInFlight: false,
+      currentUserLine: null,
+      currentAlphaLine: null,
+      orbAnimFrame: null,
+      micVolume: 0,
+      speakerVolume: 0,
+    };
+
+    // ============ ORB AUDIO REACTIVITY ============
+    function startOrbAnimation() {
+      function tick() {
+        const vol = state.isConnected
+          ? ($orbContainer.classList.contains("speaking") ? state.speakerVolume : state.micVolume)
+          : 0;
+
+        // Scale: 1.0 at silence, up to 1.25 at max volume
+        const scale = 1 + vol * 0.25;
+        // Glow: 0.15 at silence, up to 0.7 at max volume
+        const glow = 0.15 + vol * 0.55;
+
+        document.documentElement.style.setProperty("--orb-scale", scale.toFixed(3));
+        document.documentElement.style.setProperty("--orb-glow", glow.toFixed(3));
+
+        state.orbAnimFrame = requestAnimationFrame(tick);
+      }
+      tick();
+    }
+
+    function stopOrbAnimation() {
+      if (state.orbAnimFrame) cancelAnimationFrame(state.orbAnimFrame);
+      document.documentElement.style.setProperty("--orb-scale", "1");
+      document.documentElement.style.setProperty("--orb-glow", "0.15");
+    }
+
+    // ============ AUDIO STREAMER ============
+    class AudioStreamer {
+      constructor(onData) {
+        this.onData = onData;
+        this.ctx = null; this.stream = null;
+        this.source = null; this.proc = null;
+        this.active = false;
+      }
+      async start() {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        this.ctx = new AudioContext({ sampleRate: 16000 });
+        this.source = this.ctx.createMediaStreamSource(this.stream);
+        this.proc = this.ctx.createScriptProcessor(4096, 1, 1);
+        this.proc.onaudioprocess = (e) => {
+          if (!this.active) return;
+          const f32 = e.inputBuffer.getChannelData(0);
+          // Calculate RMS volume for orb reactivity
+          let sum = 0;
+          for (let i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
+          state.micVolume = Math.min(1, Math.sqrt(sum / f32.length) * 8);
+          // Convert to PCM16 base64
+          const i16 = new Int16Array(f32.length);
+          for (let i = 0; i < f32.length; i++) {
+            const s = Math.max(-1, Math.min(1, f32[i]));
+            i16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          }
+          const bytes = new Uint8Array(i16.buffer);
+          let bin = "";
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          this.onData(btoa(bin));
+        };
+        this.source.connect(this.proc);
+        this.proc.connect(this.ctx.destination);
+        this.active = true;
+      }
+      stop() {
+        this.active = false;
+        state.micVolume = 0;
+        if (this.proc) { this.proc.disconnect(); this.proc = null; }
+        if (this.source) { this.source.disconnect(); this.source = null; }
+        if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
+        if (this.ctx) { this.ctx.close(); this.ctx = null; }
+      }
+    }
+
+    // ============ AUDIO PLAYER ============
+    class AudioPlayer {
+      constructor() {
+        this.ctx = null; this.gain = null;
+        this.nextStartTime = 0; this.sources = [];
+      }
+      init() {
+        if (this.ctx) return;
+        this.ctx = new AudioContext({ sampleRate: 24000 });
+        this.gain = this.ctx.createGain();
+        this.gain.gain.value = 1.0;
+        this.gain.connect(this.ctx.destination);
+        this.nextStartTime = 0;
+      }
+      add(b64) {
+        this.init();
+        if (this.ctx.state === "suspended") this.ctx.resume();
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const i16 = new Int16Array(bytes.buffer);
+        const f32 = new Float32Array(i16.length);
+        // Calculate speaker volume for orb reactivity
+        let sum = 0;
+        for (let i = 0; i < i16.length; i++) {
+          f32[i] = i16[i] / 32768;
+          sum += f32[i] * f32[i];
+        }
+        state.speakerVolume = Math.min(1, Math.sqrt(sum / f32.length) * 6);
+        const buf = this.ctx.createBuffer(1, f32.length, 24000);
+        buf.getChannelData(0).set(f32);
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(this.gain);
+        const now = this.ctx.currentTime;
+        const startAt = Math.max(now, this.nextStartTime);
+        src.start(startAt);
+        this.nextStartTime = startAt + buf.duration;
+        this.sources.push(src);
+        src.onended = () => {
+          this.sources = this.sources.filter(s => s !== src);
+          if (this.sources.length === 0) state.speakerVolume = 0;
+        };
+      }
+      interrupt() {
+        for (const src of this.sources) { try { src.stop(); } catch {} }
+        this.sources = [];
+        this.nextStartTime = 0;
+        state.speakerVolume = 0;
+      }
+    }
+
+    // ============ TRANSCRIPT ============
+    function addTranscriptLine(role, text, replace = false) {
+      if (role === "alpha") {
+        if (replace && state.currentAlphaLine) {
+          state.currentAlphaLine.querySelector(".words").textContent = text;
+        } else {
+          const line = document.createElement("div");
+          line.className = "transcript-line alpha";
+          line.innerHTML = '<span class="speaker">Alpha</span><span class="words"></span>';
+          line.querySelector(".words").textContent = text;
+          $transcript.appendChild(line);
+          state.currentAlphaLine = line;
+          state.currentUserLine = null;
+        }
+      } else {
+        if (replace && state.currentUserLine) {
+          state.currentUserLine.querySelector(".words").textContent = text;
+        } else {
+          const line = document.createElement("div");
+          line.className = "transcript-line user";
+          line.innerHTML = '<span class="speaker">Vous</span><span class="words"></span>';
+          line.querySelector(".words").textContent = text;
+          $transcript.appendChild(line);
+          state.currentUserLine = line;
+          state.currentAlphaLine = null;
+        }
+      }
+      $transcript.scrollTop = $transcript.scrollHeight;
+    }
+
+    // ============ COACH (same as heritage-widget.js but simplified) ============
+    const TRIGGER_KEYWORDS = {
+      objection: ["cher", "arnaque", "réfléchir", "pas sûr", "hésite", "peur", "risque"],
+      closing: ["je m'inscris", "comment faire", "je prends", "le lien", "ok je"],
+    };
+
+    function shouldCallCoach(userText) {
+      const turn = state.userTurnCount;
+      if (turn <= 2) return false;
+      if (turn === 3) return true;
+      if (turn >= 4 && turn <= 6) {
+        const text = userText.toLowerCase();
+        for (const cat in TRIGGER_KEYWORDS)
+          for (const kw of TRIGGER_KEYWORDS[cat])
+            if (text.includes(kw)) return true;
+        return false;
+      }
+      return true;
+    }
+
+    function callCoach(mode) {
+      if (state.coachInFlight) return;
+      state.coachInFlight = true;
+      fetch(STRATEGIST_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history: state.conversationLog.slice(), turn_number: state.userTurnCount, mode }),
+      })
+        .then(r => r.json())
+        .then(d => {
+          state.coachInFlight = false;
+          if (d && !d.error) {
+            state.coachDirective = d;
+            handleCoachUI(d);
+          }
+        })
+        .catch(() => { state.coachInFlight = false; });
+    }
+
+    const PRODUCTS = {
+      fortune_strategique: { name: "Fortune Stratégique", desc: "Recommandations mensuelles actions & crypto par Ian King. Portefeuille en ligne, alertes achat/vente, vidéos hebdomadaires.", price: "99\u20AC/an", cta: "https://editions-heritage.com" },
+      strategie_green_zone: { name: "Stratégie Green Zone", desc: "Scoring quantitatif d'actions américaines. Méthode systématique par Adam O'Dell.", price: "Sur demande", cta: "https://editions-heritage.com" },
+      supercycle_crypto: { name: "Supercycle Crypto", desc: "Publication 100% cryptomonnaies pour profils à forte tolérance au risque.", price: "Sur demande", cta: "https://editions-heritage.com" },
+    };
+
+    function handleCoachUI(d) {
+      // Product card
+      if (d.produit?.recommande && d.produit.certitude === "ferme") {
+        const p = PRODUCTS[d.produit.recommande];
+        if (p) {
+          $productCard.innerHTML = '<h4>' + p.name + '</h4><p>' + p.desc + '</p><span class="product-price">' + p.price + '</span><br><br><a class="product-cta" href="' + p.cta + '" target="_blank" rel="noopener">Découvrir <span>\u2192</span></a>';
+          $productCard.classList.add("visible");
+        }
+      }
+      // Closing CTA
+      if (d.directive_prochain_tour?.signal_closing === "vert") {
+        $closingCta.classList.add("visible");
+      }
+    }
+
+    // ============ GEMINI WEBSOCKET ============
+    function connectGemini(token) {
+      const url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=" + token;
+      const ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        // Load the full system instruction from the heritage-widget.js file via a fetch
+        // For standalone page, we embed a compact prompt
+        ws.send(JSON.stringify({
+          setup: {
+            model: "models/" + MODEL,
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
+            },
+            systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
+          },
+        }));
+      };
+
+      ws.onmessage = async (event) => {
+        let data;
+        if (event.data instanceof Blob) {
+          try { data = JSON.parse(await event.data.text()); } catch { return; }
+        } else {
+          try { data = JSON.parse(event.data); } catch { return; }
+        }
+
+        if (data.setupComplete) {
+          state.isConnected = true;
+          setOrbState("speaking");
+          $status.textContent = "Alpha parle...";
+          ws.send(JSON.stringify({
+            realtimeInput: { text: "Le prospect vient de décrocher. Tu dis UNE phrase courte et naturelle pour te présenter, en français standard de France, sans accent québécois, sans monologue, sans annonce d'objectif. Exemple : 'Bonjour, Alpha à l'appareil pour Héritage Éditions. Comment puis-je vous aider ?'. Puis tu attends." }
+          }));
+          startMic();
+          return;
+        }
+
+        const sc = data.serverContent;
+        if (!sc) return;
+
+        if (sc.interrupted) {
+          state.audioPlayer.interrupt();
+          setOrbState("listening");
+          $status.textContent = "Alpha vous écoute...";
+        }
+
+        if (sc.modelTurn && sc.modelTurn.parts) {
+          for (const p of sc.modelTurn.parts) {
+            if (p.inlineData) {
+              setOrbState("speaking");
+              $status.textContent = "Alpha parle...";
+              state.audioPlayer.add(p.inlineData.data);
+            }
+          }
+        }
+
+        if (sc.inputTranscription && sc.inputTranscription.text) {
+          if (state.pendingBotText) {
+            state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
+            state.pendingBotText = "";
+          }
+          state.pendingUserText += sc.inputTranscription.text;
+          addTranscriptLine("user", state.pendingUserText, true);
+        }
+
+        if (sc.outputTranscription && sc.outputTranscription.text) {
+          if (state.pendingUserText) {
+            const userText = state.pendingUserText.trim();
+            state.conversationLog.push({ role: "user", text: userText });
+            state.pendingUserText = "";
+            state.userTurnCount += 1;
+            if (shouldCallCoach(userText)) callCoach("mid_call");
+          }
+          state.pendingBotText += sc.outputTranscription.text;
+          addTranscriptLine("alpha", state.pendingBotText, !!state.currentAlphaLine);
+        }
+
+        if (sc.turnComplete) {
+          setOrbState("listening");
+          $status.textContent = "Alpha vous écoute...";
+          if (state.pendingUserText) {
+            state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() });
+            state.pendingUserText = "";
+          }
+          if (state.pendingBotText) {
+            state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
+            state.pendingBotText = "";
+          }
+          state.currentAlphaLine = null;
+          state.currentUserLine = null;
+        }
+      };
+
+      ws.onerror = () => { $status.textContent = "Erreur de connexion"; };
+      ws.onclose = () => { if (state.isConnected) endCall(); };
+      return ws;
+    }
+
+    function setOrbState(s) {
+      $orbContainer.className = "orb-container " + s;
+    }
+
+    async function startMic() {
+      state.audioStreamer = new AudioStreamer((b64) => {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN)
+          state.ws.send(JSON.stringify({ realtimeInput: { audio: { data: b64, mimeType: "audio/pcm" } } }));
+      });
+      await state.audioStreamer.start();
+    }
+
+    // ============ SAVE ============
+    async function saveConversation() {
+      if (state.pendingUserText) { state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() }); state.pendingUserText = ""; }
+      if (state.pendingBotText) { state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() }); state.pendingBotText = ""; }
+      if (state.conversationLog.length < 2) return;
+
+      const snapshot = {
+        started_at: state.conversationStartedAt || new Date().toISOString(),
+        ended_at: new Date().toISOString(),
+        messages: state.conversationLog.slice(),
+        turn_number: state.userTurnCount,
+      };
+
+      let report = null;
+      try {
+        const rp = fetch(STRATEGIST_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ history: snapshot.messages, turn_number: snapshot.turn_number, mode: "post_call" }) }).then(r => r.json());
+        report = await Promise.race([rp, new Promise(r => setTimeout(() => r(null), 12000))]);
+        if (report && report.error) report = null;
+      } catch {}
+
+      const rc = report ? buildReport(report) : {};
+      const payload = { ...snapshot, ...rc };
+      const body = JSON.stringify(payload);
+      try {
+        const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
+        navigator.sendBeacon(SAVE_ENDPOINT, blob);
+      } catch {
+        fetch(SAVE_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body, keepalive: true }).catch(() => {});
+      }
+    }
+
+    function buildReport(r) {
+      if (!r) return {};
+      const d = r.profil_disc || {};
+      const scores = { Dominant: d.dominant||0, Influent: d.influent||0, Stable: d.stable||0, Consciencieux: d.consciencieux||0 };
+      let dom = "Mixte", mx = 0;
+      for (const [k,v] of Object.entries(scores)) if (v > mx) { mx = v; dom = k; }
+      const em = r.etat_emotionnel || {};
+      const pr = r.produit || {};
+      const ob = r.objections || {};
+      const chaleurScores = { froid: 15, tiede: 40, chaud: 70, pret_a_acheter: 95 };
+      return {
+        profil_disc_final: dom, profil_disc_confiance: d.confiance||0,
+        chaleur_finale: em.chaleur||"", produit_recommande: pr.recommande||"",
+        produit_certitude: pr.certitude||"", objections_evoquees: (ob.evoquees||[]).join(" | "),
+        objections_levees: (ob.levees||[]).join(" | "), objections_non_levees: (ob.en_cours||[]).join(" | "),
+        peurs_principales: ((r.memoire||{}).peurs_exprimees||[]).join(" | "),
+        declarations_cles: ((r.memoire||{}).declarations_cles||[]).join(" | "),
+        contradictions_detectees: ((r.memoire||{}).contradictions_detectees||[]).join(" | "),
+        lead_score: chaleurScores[em.chaleur]||0, conversion_probable: em.chaleur==="pret_a_acheter"?"oui":"non",
+        action_recommandee: (r.directive_prochain_tour||{}).action_principale||"",
+      };
+    }
+
+    // ============ CALL LIFECYCLE ============
+    window.startCall = async function () {
+      $startBtn.classList.add("hidden");
+      $hangupBtn.classList.add("visible");
+      setOrbState("connecting");
+      $status.textContent = "Connexion...";
+      $transcript.innerHTML = "";
+      $productCard.classList.remove("visible");
+      $closingCta.classList.remove("visible");
+
+      state.conversationLog = [];
+      state.conversationStartedAt = new Date().toISOString();
+      state.pendingUserText = "";
+      state.pendingBotText = "";
+      state.userTurnCount = 0;
+      state.coachDirective = null;
+      state.coachInFlight = false;
+      state.currentUserLine = null;
+      state.currentAlphaLine = null;
+
+      state.audioPlayer = new AudioPlayer();
+      state.audioPlayer.init();
+      startOrbAnimation();
+
+      try {
+        // Load prompt from backend if not already loaded
+        if (!SYSTEM_INSTRUCTION) {
+          const promptRes = await fetch(BACKEND_URL + "/api/prompt");
+          const promptJson = await promptRes.json();
+          if (promptJson.prompt) SYSTEM_INSTRUCTION = promptJson.prompt;
+        }
+        // Get API key
+        const res = await fetch(TOKEN_ENDPOINT, { method: "POST" });
+        const json = await res.json();
+        if (json.error) throw new Error(json.error);
+        state.ws = connectGemini(json.token);
+      } catch (err) {
+        $status.textContent = "Erreur : " + err.message;
+        setTimeout(endCall, 3000);
+      }
+    };
+
+    window.endCall = function () {
+      saveConversation().catch(() => {});
+      if (state.audioStreamer) { state.audioStreamer.stop(); state.audioStreamer = null; }
+      if (state.ws) {
+        try { state.ws.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } })); } catch {}
+        state.ws.close();
+        state.ws = null;
+      }
+      if (state.audioPlayer) { state.audioPlayer.interrupt(); state.audioPlayer = null; }
+      state.isConnected = false;
+      stopOrbAnimation();
+      setOrbState("idle");
+      $status.textContent = "Posez vos questions.";
+      $startBtn.classList.remove("hidden");
+      $hangupBtn.classList.remove("visible");
+    };
+
+    window.addEventListener("pagehide", () => { if (state.isConnected) saveConversation().catch(() => {}); });
+  })();
+  </script>
+
+  <!-- System prompt is loaded cleanly from /api/prompt at call start -->
+
+</body>
+</html>

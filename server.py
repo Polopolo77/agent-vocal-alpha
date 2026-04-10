@@ -334,6 +334,25 @@ async def handle_list_conversations(request):
     return web.json_response({"conversations": conversations})
 
 
+async def handle_prompt(request):
+    """Serve the system instruction from heritage-widget.js."""
+    try:
+        widget_path = FRONTEND_DIR / "heritage-widget.js"
+        if not widget_path.is_file():
+            return web.json_response({"error": "widget not found"}, status=404)
+        code = widget_path.read_text(encoding="utf-8")
+        marker_start = "const SYSTEM_INSTRUCTION = `"
+        idx = code.find(marker_start)
+        if idx < 0:
+            return web.json_response({"error": "prompt not found"}, status=404)
+        start = idx + len(marker_start)
+        end = code.find("`;", start)
+        prompt = code[start:end]
+        return web.json_response({"prompt": prompt})
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+
 async def handle_static(request):
     """Serve static frontend files."""
     path = request.match_info.get("path", "index.html")
@@ -371,6 +390,7 @@ app = web.Application()
 app.router.add_post("/api/token", handle_token)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_post("/api/strategist", handle_strategist)
+app.router.add_get("/api/prompt", handle_prompt)
 app.router.add_get("/api/conversations", handle_list_conversations)
 app.router.add_get("/", handle_static)
 app.router.add_get("/{path:.*}", handle_static)
