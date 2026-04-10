@@ -629,6 +629,22 @@ C'est tout. Pas de monologue. Pas d'annonce d'objectif. Tu attends que le visite
         animation: ah-pulse 2.5s infinite;
       }
       #ah-widget-btn strong { font-weight: 800; }
+      .ah-badge-free {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #38c768;
+        color: #fff;
+        font-size: 0.6rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 3px 8px;
+        border-radius: 20px;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(56,199,104,0.4);
+        text-transform: uppercase;
+        pointer-events: none;
+      }
       #ah-widget-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 32px rgba(212,164,76,0.6);
@@ -828,7 +844,7 @@ C'est tout. Pas de monologue. Pas d'annonce d'objectif. Tu attends que le visite
   function injectHTML() {
     const btn = document.createElement("button");
     btn.id = "ah-widget-btn";
-    btn.innerHTML = `<span style="font-size:1.3rem">📞</span> <span>Une question sur les Trinity Sphères&nbsp;?<br><strong>Parlez à l'assistant IA d'Heritage</strong></span>`;
+    btn.innerHTML = `<span style="font-size:1.3rem">📞</span> <span>Une question sur les Trinity Sphères&nbsp;?<br><strong>Parlez à notre assistant IA</strong></span><span class="ah-badge-free">GRATUIT</span>`;
     btn.style.display = "none"; // caché jusqu'au délai d'apparition
     document.body.appendChild(btn);
 
