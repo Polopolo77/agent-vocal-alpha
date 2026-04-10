@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Alpha — Héritage Éditions</title>
-  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.82/build/spline-viewer.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -161,83 +161,18 @@
       position: relative;
       width: 100%;
       max-width: 500px;
-      height: 400px;
-      margin: 0 auto 32px;
-      border-radius: 20px;
-      overflow: hidden;
+      height: 420px;
+      margin: 0 auto 24px;
     }
 
-    .robot-container spline-viewer {
-      width: 100%;
-      height: 100%;
+    .robot-container canvas {
+      width: 100% !important;
+      height: 100% !important;
       display: block;
     }
 
-    /* Subtle glow behind the robot */
-    .robot-glow {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 300px;
-      height: 300px;
-      border-radius: 50%;
-      background: radial-gradient(circle, var(--gold-glow), transparent 70%);
-      opacity: var(--orb-glow);
-      filter: blur(60px);
-      pointer-events: none;
-      z-index: 0;
-      transition: opacity 0.3s ease;
-    }
-
-    /* State indicator ring under the robot */
-    .robot-state-ring {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      border: 2px solid rgba(212, 180, 90, 0.15);
-      z-index: 5;
-      pointer-events: none;
-      transition: all 0.4s ease;
-    }
-
-    .robot-container.idle .robot-state-ring {
-      border-color: rgba(212, 180, 90, 0.1);
-      box-shadow: 0 0 20px rgba(212, 180, 90, 0.05);
-    }
-
-    .robot-container.connecting .robot-state-ring {
-      border-color: rgba(212, 180, 90, 0.4);
-      animation: ring-connecting 1.5s ease-in-out infinite;
-    }
-    @keyframes ring-connecting {
-      0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(1); }
-      50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
-    }
-
-    .robot-container.listening .robot-state-ring {
-      border-color: rgba(212, 180, 90, 0.3);
-      box-shadow: 0 0 25px rgba(212, 180, 90, 0.15);
-      transform: translateX(-50%) scale(var(--orb-scale));
-    }
-
-    .robot-container.speaking .robot-state-ring {
-      border-color: var(--gold);
-      box-shadow: 0 0 40px rgba(212, 180, 90, 0.3);
-      transform: translateX(-50%) scale(var(--orb-scale));
-      animation: ring-speak 0.8s ease-in-out infinite;
-    }
-    @keyframes ring-speak {
-      0%, 100% { box-shadow: 0 0 30px rgba(212, 180, 90, 0.2); }
-      50% { box-shadow: 0 0 60px rgba(212, 180, 90, 0.5); }
-    }
-
     @media (max-width: 600px) {
-      .robot-container { height: 300px; margin-bottom: 24px; }
+      .robot-container { height: 320px; margin-bottom: 16px; }
     }
 
     /* ============ STATUS ============ */
@@ -500,10 +435,8 @@
     <h1 class="headline">Discutez avec <span>Alpha</span></h1>
     <p class="intro">Notre agent IA répond à toutes vos questions sur nos publications,<br>nos performances et nos offres. En direct, par la voix.</p>
 
-    <div class="robot-container idle" id="robot-container">
-      <div class="robot-glow"></div>
-      <spline-viewer url="https://prod.spline.design/PyzDhpQ9E5f1E3MT/scene.splinecode"></spline-viewer>
-      <div class="robot-state-ring"></div>
+    <div class="robot-container" id="robot-container">
+      <canvas id="robot-canvas"></canvas>
     </div>
 
     <div class="agent-name">Alpha</div>
@@ -537,6 +470,393 @@
   </div>
 
   <div class="footer">Héritage Éditions SA — Lausanne</div>
+
+  <script>
+  // ============ THREE.JS ROBOT ============
+  (function initRobot() {
+    const canvas = document.getElementById("robot-canvas");
+    const container = document.getElementById("robot-container");
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, container.clientWidth / container.clientHeight, 0.1, 100);
+    camera.position.set(0, 1.2, 5.5);
+    camera.lookAt(0, 0.6, 0);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xfff5e0, 0.5);
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+    keyLight.position.set(3, 4, 4);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xd4b45a, 0.3);
+    fillLight.position.set(-3, 2, 2);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xd4b45a, 0.6);
+    rimLight.position.set(0, 3, -3);
+    scene.add(rimLight);
+
+    // Materials
+    const headMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, metalness: 0.8, roughness: 0.25 });
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xd4b45a, metalness: 0.9, roughness: 0.2 });
+    const darkGoldMat = new THREE.MeshStandardMaterial({ color: 0x8a7030, metalness: 0.7, roughness: 0.3 });
+    const suitMat = new THREE.MeshStandardMaterial({ color: 0x12121a, metalness: 0.1, roughness: 0.8 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf0ece0, metalness: 0, roughness: 0.9 });
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6 });
+    const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111118, metalness: 0.5, roughness: 0.3 });
+    const mouthMat = new THREE.MeshStandardMaterial({ color: 0xd4b45a, emissive: 0xd4b45a, emissiveIntensity: 0.2 });
+    const mouthInsideMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a });
+
+    const robot = new THREE.Group();
+
+    // ── HEAD ──
+    const headGroup = new THREE.Group();
+    // Main head (rounded look via sphere scaling)
+    const headGeo = new THREE.SphereGeometry(0.52, 32, 24);
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.scale.set(1, 0.9, 0.85);
+    head.position.y = 2.05;
+    headGroup.add(head);
+
+    // Head top plate (flat top accent)
+    const topPlateGeo = new THREE.CylinderGeometry(0.35, 0.38, 0.06, 32);
+    const topPlate = new THREE.Mesh(topPlateGeo, goldMat);
+    topPlate.position.y = 2.48;
+    headGroup.add(topPlate);
+
+    // Antenna
+    const antennaGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.2, 8);
+    const antenna = new THREE.Mesh(antennaGeo, goldMat);
+    antenna.position.y = 2.6;
+    headGroup.add(antenna);
+
+    const antennaTipGeo = new THREE.SphereGeometry(0.035, 12, 12);
+    const antennaTip = new THREE.Mesh(antennaTipGeo, goldMat);
+    antennaTip.position.y = 2.72;
+    headGroup.add(antennaTip);
+
+    // Gold band around head (visor line)
+    const bandGeo = new THREE.TorusGeometry(0.44, 0.02, 8, 48);
+    const band = new THREE.Mesh(bandGeo, goldMat);
+    band.position.y = 2.1;
+    band.rotation.x = Math.PI / 2;
+    band.scale.set(1, 0.85, 1);
+    headGroup.add(band);
+
+    // ── EYES ──
+    // Left eye
+    const eyeGeo = new THREE.SphereGeometry(0.09, 20, 20);
+    const leftEye = new THREE.Mesh(eyeGeo, eyeWhiteMat);
+    leftEye.position.set(-0.17, 2.1, 0.42);
+    headGroup.add(leftEye);
+
+    const pupilGeo = new THREE.SphereGeometry(0.045, 16, 16);
+    const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+    leftPupil.position.set(-0.17, 2.1, 0.5);
+    headGroup.add(leftPupil);
+
+    // Right eye
+    const rightEye = new THREE.Mesh(eyeGeo.clone(), eyeWhiteMat);
+    rightEye.position.set(0.17, 2.1, 0.42);
+    headGroup.add(rightEye);
+
+    const rightPupil = new THREE.Mesh(pupilGeo.clone(), pupilMat);
+    rightPupil.position.set(0.17, 2.1, 0.5);
+    headGroup.add(rightPupil);
+
+    // Eyelids for blinking (flat discs)
+    const lidGeo = new THREE.CircleGeometry(0.1, 16);
+    const leftLid = new THREE.Mesh(lidGeo, headMat);
+    leftLid.position.set(-0.17, 2.1, 0.44);
+    leftLid.scale.y = 0; // hidden by default
+    headGroup.add(leftLid);
+
+    const rightLid = new THREE.Mesh(lidGeo.clone(), headMat);
+    rightLid.position.set(0.17, 2.1, 0.44);
+    rightLid.scale.y = 0;
+    headGroup.add(rightLid);
+
+    // ── MOUTH ──
+    const mouthGroup = new THREE.Group();
+    // Mouth frame (gold lips)
+    const mouthFrameGeo = new THREE.BoxGeometry(0.22, 0.04, 0.05);
+    const mouthTop = new THREE.Mesh(mouthFrameGeo, mouthMat);
+    mouthTop.position.set(0, 1.88, 0.42);
+    mouthGroup.add(mouthTop);
+
+    const mouthBottom = new THREE.Mesh(mouthFrameGeo.clone(), mouthMat);
+    mouthBottom.position.set(0, 1.84, 0.42);
+    mouthGroup.add(mouthBottom);
+
+    // Mouth interior (dark, visible when open)
+    const mouthInteriorGeo = new THREE.BoxGeometry(0.18, 0.01, 0.04);
+    const mouthInterior = new THREE.Mesh(mouthInteriorGeo, mouthInsideMat);
+    mouthInterior.position.set(0, 1.86, 0.42);
+    mouthGroup.add(mouthInterior);
+
+    headGroup.add(mouthGroup);
+    robot.add(headGroup);
+
+    // ── NECK ──
+    const neckGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.2, 12);
+    const neck = new THREE.Mesh(neckGeo, new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.6, roughness: 0.3 }));
+    neck.position.y = 1.52;
+    robot.add(neck);
+
+    // ── TORSO (SUIT JACKET) ──
+    const torsoGroup = new THREE.Group();
+
+    // Main body
+    const torsoGeo = new THREE.BoxGeometry(0.9, 1.0, 0.55);
+    const torso = new THREE.Mesh(torsoGeo, suitMat);
+    torso.position.y = 0.95;
+    torsoGroup.add(torso);
+
+    // Shoulders (wider)
+    const shoulderGeo = new THREE.BoxGeometry(1.15, 0.12, 0.5);
+    const shoulders = new THREE.Mesh(shoulderGeo, suitMat);
+    shoulders.position.y = 1.42;
+    torsoGroup.add(shoulders);
+
+    // Shoulder pads (rounded)
+    const padGeo = new THREE.SphereGeometry(0.12, 16, 12);
+    const leftPad = new THREE.Mesh(padGeo, suitMat);
+    leftPad.position.set(-0.55, 1.42, 0);
+    leftPad.scale.set(1, 0.6, 0.9);
+    torsoGroup.add(leftPad);
+
+    const rightPad = new THREE.Mesh(padGeo.clone(), suitMat);
+    rightPad.position.set(0.55, 1.42, 0);
+    rightPad.scale.set(1, 0.6, 0.9);
+    torsoGroup.add(rightPad);
+
+    // ── SHIRT (visible at V) ──
+    const shirtGeo = new THREE.BoxGeometry(0.28, 0.55, 0.02);
+    const shirt = new THREE.Mesh(shirtGeo, shirtMat);
+    shirt.position.set(0, 1.15, 0.28);
+    torsoGroup.add(shirt);
+
+    // Collar left
+    const collarGeo = new THREE.BoxGeometry(0.15, 0.1, 0.02);
+    const collarLeft = new THREE.Mesh(collarGeo, shirtMat);
+    collarLeft.position.set(-0.14, 1.42, 0.28);
+    collarLeft.rotation.z = -0.3;
+    torsoGroup.add(collarLeft);
+
+    // Collar right
+    const collarRight = new THREE.Mesh(collarGeo.clone(), shirtMat);
+    collarRight.position.set(0.14, 1.42, 0.28);
+    collarRight.rotation.z = 0.3;
+    torsoGroup.add(collarRight);
+
+    // ── LAPELS ──
+    const lapelGeo = new THREE.BoxGeometry(0.18, 0.6, 0.02);
+    const lapelMat = new THREE.MeshStandardMaterial({ color: 0x16161e, metalness: 0.15, roughness: 0.7 });
+
+    const leftLapel = new THREE.Mesh(lapelGeo, lapelMat);
+    leftLapel.position.set(-0.22, 1.15, 0.285);
+    leftLapel.rotation.z = 0.08;
+    torsoGroup.add(leftLapel);
+
+    const rightLapel = new THREE.Mesh(lapelGeo.clone(), lapelMat);
+    rightLapel.position.set(0.22, 1.15, 0.285);
+    rightLapel.rotation.z = -0.08;
+    torsoGroup.add(rightLapel);
+
+    // ── TIE ──
+    // Knot
+    const knotGeo = new THREE.SphereGeometry(0.035, 12, 12);
+    const knot = new THREE.Mesh(knotGeo, goldMat);
+    knot.position.set(0, 1.38, 0.3);
+    knot.scale.set(1, 0.7, 0.6);
+    torsoGroup.add(knot);
+
+    // Tie body (tapered)
+    const tieShape = new THREE.Shape();
+    tieShape.moveTo(-0.04, 0);
+    tieShape.lineTo(0.04, 0);
+    tieShape.lineTo(0.055, -0.45);
+    tieShape.lineTo(0, -0.5);
+    tieShape.lineTo(-0.055, -0.45);
+    tieShape.closePath();
+
+    const tieExtrudeSettings = { depth: 0.015, bevelEnabled: false };
+    const tieGeo = new THREE.ExtrudeGeometry(tieShape, tieExtrudeSettings);
+    const tie = new THREE.Mesh(tieGeo, goldMat);
+    tie.position.set(0, 1.36, 0.285);
+    torsoGroup.add(tie);
+
+    // Tie clip (small gold bar)
+    const clipGeo = new THREE.BoxGeometry(0.06, 0.008, 0.02);
+    const tieClip = new THREE.Mesh(clipGeo, darkGoldMat);
+    tieClip.position.set(0, 1.1, 0.31);
+    torsoGroup.add(tieClip);
+
+    robot.add(torsoGroup);
+
+    // ── ARMS ──
+    // Upper arms
+    const upperArmGeo = new THREE.CylinderGeometry(0.09, 0.08, 0.5, 12);
+    const leftUpperArm = new THREE.Mesh(upperArmGeo, suitMat);
+    leftUpperArm.position.set(-0.6, 1.15, 0);
+    leftUpperArm.rotation.z = 0.15;
+    robot.add(leftUpperArm);
+
+    const rightUpperArm = new THREE.Mesh(upperArmGeo.clone(), suitMat);
+    rightUpperArm.position.set(0.6, 1.15, 0);
+    rightUpperArm.rotation.z = -0.15;
+    robot.add(rightUpperArm);
+
+    // Forearms
+    const forearmGeo = new THREE.CylinderGeometry(0.07, 0.065, 0.4, 12);
+    const forearmMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, metalness: 0.5, roughness: 0.35 });
+
+    const leftForearm = new THREE.Mesh(forearmGeo, forearmMat);
+    leftForearm.position.set(-0.65, 0.7, 0.05);
+    leftForearm.rotation.z = 0.1;
+    robot.add(leftForearm);
+
+    const rightForearm = new THREE.Mesh(forearmGeo.clone(), forearmMat);
+    rightForearm.position.set(0.65, 0.7, 0.05);
+    rightForearm.rotation.z = -0.1;
+    robot.add(rightForearm);
+
+    // Hands (small spheres, gold/metallic)
+    const handGeo = new THREE.SphereGeometry(0.06, 12, 12);
+    const leftHand = new THREE.Mesh(handGeo, darkGoldMat);
+    leftHand.position.set(-0.67, 0.47, 0.05);
+    robot.add(leftHand);
+
+    const rightHand = new THREE.Mesh(handGeo.clone(), darkGoldMat);
+    rightHand.position.set(0.67, 0.47, 0.05);
+    robot.add(rightHand);
+
+    // ── POCKET SQUARE ──
+    const pocketGeo = new THREE.BoxGeometry(0.06, 0.04, 0.01);
+    const pocket = new THREE.Mesh(pocketGeo, goldMat);
+    pocket.position.set(-0.28, 1.25, 0.285);
+    pocket.rotation.z = 0.1;
+    robot.add(pocket);
+
+    // Position whole robot
+    robot.position.y = -1.0;
+    scene.add(robot);
+
+    // ── ANIMATION STATE ──
+    let blinkTimer = 0;
+    let nextBlink = 2 + Math.random() * 4;
+    let isBlinking = false;
+    let blinkProgress = 0;
+
+    // Expose mouth + state for the main app
+    window.__robot = {
+      mouthTop,
+      mouthBottom,
+      mouthInterior,
+      headGroup,
+      leftLid,
+      rightLid,
+      leftEye,
+      rightEye,
+      antennaTip,
+      robot,
+      speakerVolume: 0,
+      micVolume: 0,
+      state: "idle", // idle, connecting, listening, speaking
+    };
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const t = performance.now() * 0.001;
+      const rb = window.__robot;
+
+      // ── IDLE FLOAT ──
+      robot.position.y = -1.0 + Math.sin(t * 0.8) * 0.03;
+      robot.rotation.y = Math.sin(t * 0.3) * 0.05;
+
+      // ── HEAD TILT (subtle) ──
+      headGroup.rotation.z = Math.sin(t * 0.5) * 0.02;
+      headGroup.rotation.x = Math.sin(t * 0.7) * 0.01;
+
+      // ── BLINK ──
+      blinkTimer += 0.016;
+      if (blinkTimer > nextBlink && !isBlinking) {
+        isBlinking = true;
+        blinkProgress = 0;
+      }
+      if (isBlinking) {
+        blinkProgress += 0.15;
+        const s = blinkProgress < 0.5
+          ? blinkProgress * 2
+          : 2 - blinkProgress * 2;
+        leftLid.scale.y = Math.max(0, s);
+        rightLid.scale.y = Math.max(0, s);
+        if (blinkProgress >= 1) {
+          isBlinking = false;
+          blinkTimer = 0;
+          nextBlink = 2 + Math.random() * 4;
+          leftLid.scale.y = 0;
+          rightLid.scale.y = 0;
+        }
+      }
+
+      // ── MOUTH ANIMATION (audio reactive) ──
+      const vol = rb.state === "speaking" ? rb.speakerVolume : 0;
+      const mouthOpen = vol * 0.12;
+      mouthTop.position.y = 1.88 + mouthOpen * 0.5;
+      mouthBottom.position.y = 1.84 - mouthOpen * 0.5;
+      mouthInterior.scale.y = 1 + vol * 8;
+      mouthInterior.position.y = 1.86;
+
+      // Eye glow intensity based on state
+      const eyeIntensity = rb.state === "speaking" ? 0.8 + vol * 0.5 : 0.4;
+      eyeWhiteMat.emissiveIntensity = eyeIntensity;
+
+      // Antenna pulse when speaking
+      if (rb.state === "speaking") {
+        const pulseVal = 0.3 + vol * 0.7;
+        antennaTip.material = goldMat;
+        antennaTip.scale.setScalar(1 + vol * 0.5);
+      } else {
+        antennaTip.scale.setScalar(1);
+      }
+
+      // Connecting state — slight vibration
+      if (rb.state === "connecting") {
+        robot.position.x = Math.sin(t * 15) * 0.003;
+      } else {
+        robot.position.x = 0;
+      }
+
+      // Listening state — head tilts toward "listener"
+      if (rb.state === "listening") {
+        headGroup.rotation.x = -0.04 + Math.sin(t * 1.5) * 0.02;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Resize handler
+    window.addEventListener("resize", () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  })();
+  </script>
 
   <script>
   (function () {
@@ -584,30 +904,15 @@
       speakerVolume: 0,
     };
 
-    // ============ ORB AUDIO REACTIVITY ============
-    function startOrbAnimation() {
-      function tick() {
-        const vol = state.isConnected
-          ? ($orbContainer.classList.contains("speaking") ? state.speakerVolume : state.micVolume)
-          : 0;
-
-        // Scale: 1.0 at silence, up to 1.25 at max volume
-        const scale = 1 + vol * 0.25;
-        // Glow: 0.15 at silence, up to 0.7 at max volume
-        const glow = 0.15 + vol * 0.55;
-
-        document.documentElement.style.setProperty("--orb-scale", scale.toFixed(3));
-        document.documentElement.style.setProperty("--orb-glow", glow.toFixed(3));
-
-        state.orbAnimFrame = requestAnimationFrame(tick);
-      }
-      tick();
-    }
-
+    // Robot animation is handled by the Three.js loop above.
+    // We just sync state via window.__robot.speakerVolume / micVolume / state
+    function startOrbAnimation() {}
     function stopOrbAnimation() {
-      if (state.orbAnimFrame) cancelAnimationFrame(state.orbAnimFrame);
-      document.documentElement.style.setProperty("--orb-scale", "1");
-      document.documentElement.style.setProperty("--orb-glow", "0.15");
+      if (window.__robot) {
+        window.__robot.speakerVolume = 0;
+        window.__robot.micVolume = 0;
+        window.__robot.state = "idle";
+      }
     }
 
     // ============ AUDIO STREAMER ============
@@ -628,10 +933,11 @@
         this.proc.onaudioprocess = (e) => {
           if (!this.active) return;
           const f32 = e.inputBuffer.getChannelData(0);
-          // Calculate RMS volume for orb reactivity
+          // Calculate RMS volume for robot reactivity
           let sum = 0;
           for (let i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
           state.micVolume = Math.min(1, Math.sqrt(sum / f32.length) * 8);
+          if (window.__robot) window.__robot.micVolume = state.micVolume;
           // Convert to PCM16 base64
           const i16 = new Int16Array(f32.length);
           for (let i = 0; i < f32.length; i++) {
@@ -686,6 +992,7 @@
           sum += f32[i] * f32[i];
         }
         state.speakerVolume = Math.min(1, Math.sqrt(sum / f32.length) * 6);
+        if (window.__robot) window.__robot.speakerVolume = state.speakerVolume;
         const buf = this.ctx.createBuffer(1, f32.length, 24000);
         buf.getChannelData(0).set(f32);
         const src = this.ctx.createBufferSource();
@@ -698,7 +1005,10 @@
         this.sources.push(src);
         src.onended = () => {
           this.sources = this.sources.filter(s => s !== src);
-          if (this.sources.length === 0) state.speakerVolume = 0;
+          if (this.sources.length === 0) {
+            state.speakerVolume = 0;
+            if (window.__robot) window.__robot.speakerVolume = 0;
+          }
         };
       }
       interrupt() {
@@ -902,7 +1212,8 @@
     }
 
     function setOrbState(s) {
-      $orbContainer.className = "orb-container " + s;
+      $orbContainer.className = "robot-container " + s;
+      if (window.__robot) window.__robot.state = s;
     }
 
     async function startMic() {
