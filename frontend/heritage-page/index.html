@@ -11,18 +11,19 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --gold: #c9a84c;
-      --gold-dim: rgba(201, 168, 76, 0.12);
-      --gold-glow: rgba(201, 168, 76, 0.35);
-      --gold-bright: #e8d48b;
-      --bg: #060606;
-      --bg-card: #0c0c0c;
+      --gold: #d4b45a;
+      --gold-dim: rgba(212, 180, 90, 0.15);
+      --gold-glow: rgba(212, 180, 90, 0.45);
+      --gold-bright: #f0dfa0;
+      --bg: #0b0b0b;
+      --bg-card: #121210;
       --text: #f5f0e8;
-      --text-dim: #7a7060;
-      --text-subtle: #3a3530;
-      --border: #1a1710;
+      --text-mid: #bfb8a8;
+      --text-dim: #8a8070;
+      --text-subtle: #4a4540;
+      --border: #252015;
       --orb-scale: 1;
-      --orb-glow: 0.15;
+      --orb-glow: 0.3;
     }
 
     html { height: 100%; }
@@ -46,8 +47,8 @@
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background:
-        radial-gradient(ellipse 600px 600px at 50% 35%, rgba(201, 168, 76, 0.06), transparent),
-        radial-gradient(ellipse 1200px 800px at 50% 50%, rgba(201, 168, 76, 0.02), transparent);
+        radial-gradient(ellipse 600px 600px at 50% 32%, rgba(212, 180, 90, 0.12), transparent),
+        radial-gradient(ellipse 1200px 800px at 50% 45%, rgba(212, 180, 90, 0.04), transparent);
       pointer-events: none;
       z-index: 0;
     }
@@ -87,6 +88,73 @@
       margin: 16px auto 0;
     }
 
+    /* ============ HEADLINE ============ */
+    .headline {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 14px;
+      letter-spacing: 1px;
+    }
+    .headline span {
+      color: var(--gold-bright);
+      font-weight: 600;
+    }
+
+    .intro {
+      font-size: 0.9rem;
+      color: var(--text-mid);
+      line-height: 1.7;
+      margin-bottom: 48px;
+      font-weight: 300;
+    }
+
+    /* ============ HOW IT WORKS ============ */
+    .how-it-works {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-bottom: 40px;
+      padding: 0 12px;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      max-width: 180px;
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid rgba(212, 180, 90, 0.3);
+      background: rgba(212, 180, 90, 0.08);
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .step-text {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+      text-align: center;
+    }
+    .step-text strong {
+      color: var(--text-mid);
+    }
+
+    /* Hide instructions during call */
+    .how-it-works.hidden { display: none; }
+    .headline.hidden, .intro.hidden { display: none; }
+
     /* ============ ORB ============ */
     .orb-container {
       position: relative;
@@ -125,28 +193,29 @@
       width: 180px;
       height: 180px;
       border-radius: 50%;
-      background: radial-gradient(circle at 38% 38%, #2a2318, #0f0d09);
-      border: 1.5px solid rgba(201, 168, 76, 0.25);
+      background: radial-gradient(circle at 38% 38%, #3a3020, #181408);
+      border: 1.5px solid rgba(212, 180, 90, 0.4);
       position: relative;
       z-index: 2;
       transform: scale(var(--orb-scale));
       transition: transform 0.08s ease-out, border-color 0.3s, box-shadow 0.15s;
       box-shadow:
-        0 0 40px rgba(201, 168, 76, calc(var(--orb-glow) * 0.5)),
-        inset 0 0 30px rgba(201, 168, 76, 0.05);
+        0 0 60px rgba(212, 180, 90, calc(var(--orb-glow) * 0.6)),
+        0 0 120px rgba(212, 180, 90, calc(var(--orb-glow) * 0.2)),
+        inset 0 0 40px rgba(212, 180, 90, 0.08);
     }
 
     /* Inner shimmer */
     .orb::before {
       content: "";
       position: absolute;
-      top: 15%;
-      left: 20%;
-      width: 30%;
-      height: 25%;
+      top: 12%;
+      left: 18%;
+      width: 35%;
+      height: 30%;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(201, 168, 76, 0.12), transparent);
-      filter: blur(8px);
+      background: radial-gradient(circle, rgba(212, 180, 90, 0.2), transparent);
+      filter: blur(10px);
     }
 
     /* ============ ORB STATES ============ */
@@ -451,6 +520,9 @@
   <div class="page">
     <div class="brand">Héritage Éditions</div>
 
+    <h1 class="headline">Discutez avec <span>Alpha</span></h1>
+    <p class="intro">Notre agent IA répond à toutes vos questions sur nos publications,<br>nos performances et nos offres. En direct, par la voix.</p>
+
     <div class="orb-container idle" id="orb-container">
       <div class="orb-glow"></div>
       <div class="orb-ring orb-ring-1"></div>
@@ -461,8 +533,23 @@
     <div class="agent-name">Alpha</div>
     <div class="status" id="status">Posez vos questions.</div>
 
-    <button class="start-btn" id="start-btn" onclick="startCall()">Commencer</button>
+    <button class="start-btn" id="start-btn" onclick="startCall()">Commencer la conversation</button>
     <button class="hangup-btn" id="hangup-btn" onclick="endCall()"><span class="hangup-icon">📞</span> Raccrocher</button>
+
+    <div class="how-it-works" id="how-it-works">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Cliquez sur <strong>Commencer</strong> et autorisez votre micro</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Posez vos questions <strong>à voix haute</strong>, Alpha vous répond instantanément</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Demandez-lui tout : publications, performances, tarifs, fonctionnement</div>
+      </div>
+    </div>
 
     <div class="transcript" id="transcript"></div>
 
@@ -909,6 +996,9 @@
     window.startCall = async function () {
       $startBtn.classList.add("hidden");
       $hangupBtn.classList.add("visible");
+      document.getElementById("how-it-works").classList.add("hidden");
+      document.querySelector(".headline").classList.add("hidden");
+      document.querySelector(".intro").classList.add("hidden");
       setOrbState("connecting");
       $status.textContent = "Connexion...";
       $transcript.innerHTML = "";
@@ -962,6 +1052,9 @@
       $status.textContent = "Posez vos questions.";
       $startBtn.classList.remove("hidden");
       $hangupBtn.classList.remove("visible");
+      document.getElementById("how-it-works").classList.remove("hidden");
+      document.querySelector(".headline").classList.remove("hidden");
+      document.querySelector(".intro").classList.remove("hidden");
     };
 
     window.addEventListener("pagehide", () => { if (state.isConnected) saveConversation().catch(() => {}); });
