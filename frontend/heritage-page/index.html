@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Alpha — Héritage Éditions</title>
+  <script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.82/build/spline-viewer.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -155,112 +156,88 @@
     .how-it-works.hidden { display: none; }
     .headline.hidden, .intro.hidden { display: none; }
 
-    /* ============ ORB ============ */
-    .orb-container {
+    /* ============ 3D ROBOT ============ */
+    .robot-container {
       position: relative;
-      width: 260px;
-      height: 260px;
-      margin: 0 auto 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 100%;
+      max-width: 500px;
+      height: 400px;
+      margin: 0 auto 32px;
+      border-radius: 20px;
+      overflow: hidden;
     }
 
-    /* Ambient glow behind orb */
-    .orb-glow {
+    .robot-container spline-viewer {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Subtle glow behind the robot */
+    .robot-glow {
       position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       width: 300px;
       height: 300px;
       border-radius: 50%;
       background: radial-gradient(circle, var(--gold-glow), transparent 70%);
       opacity: var(--orb-glow);
-      transition: opacity 0.15s ease;
-      filter: blur(40px);
+      filter: blur(60px);
+      pointer-events: none;
+      z-index: 0;
+      transition: opacity 0.3s ease;
     }
 
-    /* Outer rings */
-    .orb-ring {
+    /* State indicator ring under the robot */
+    .robot-state-ring {
       position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
-      border: 1px solid rgba(201, 168, 76, 0.08);
-      transition: all 0.3s ease;
-    }
-    .orb-ring-1 { width: 240px; height: 240px; }
-    .orb-ring-2 { width: 220px; height: 220px; border-color: rgba(201, 168, 76, 0.05); }
-
-    /* Main orb */
-    .orb {
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 38% 38%, #3a3020, #181408);
-      border: 1.5px solid rgba(212, 180, 90, 0.4);
-      position: relative;
-      z-index: 2;
-      transform: scale(var(--orb-scale));
-      transition: transform 0.08s ease-out, border-color 0.3s, box-shadow 0.15s;
-      box-shadow:
-        0 0 60px rgba(212, 180, 90, calc(var(--orb-glow) * 0.6)),
-        0 0 120px rgba(212, 180, 90, calc(var(--orb-glow) * 0.2)),
-        inset 0 0 40px rgba(212, 180, 90, 0.08);
+      border: 2px solid rgba(212, 180, 90, 0.15);
+      z-index: 5;
+      pointer-events: none;
+      transition: all 0.4s ease;
     }
 
-    /* Inner shimmer */
-    .orb::before {
-      content: "";
-      position: absolute;
-      top: 12%;
-      left: 18%;
-      width: 35%;
-      height: 30%;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(212, 180, 90, 0.2), transparent);
-      filter: blur(10px);
+    .robot-container.idle .robot-state-ring {
+      border-color: rgba(212, 180, 90, 0.1);
+      box-shadow: 0 0 20px rgba(212, 180, 90, 0.05);
     }
 
-    /* ============ ORB STATES ============ */
-    /* Idle / before call */
-    .orb-container.idle .orb {
-      animation: orb-idle 4s ease-in-out infinite;
-      border-color: rgba(201, 168, 76, 0.15);
+    .robot-container.connecting .robot-state-ring {
+      border-color: rgba(212, 180, 90, 0.4);
+      animation: ring-connecting 1.5s ease-in-out infinite;
     }
-    @keyframes orb-idle {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.02); }
+    @keyframes ring-connecting {
+      0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+      50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
     }
 
-    /* Connecting */
-    .orb-container.connecting .orb {
-      animation: orb-connecting 1.5s ease-in-out infinite;
-      border-color: rgba(201, 168, 76, 0.4);
-    }
-    .orb-container.connecting .orb-ring { border-color: rgba(201, 168, 76, 0.15); }
-    @keyframes orb-connecting {
-      0%, 100% { transform: scale(1); opacity: 0.6; }
-      50% { transform: scale(1.05); opacity: 1; }
+    .robot-container.listening .robot-state-ring {
+      border-color: rgba(212, 180, 90, 0.3);
+      box-shadow: 0 0 25px rgba(212, 180, 90, 0.15);
+      transform: translateX(-50%) scale(var(--orb-scale));
     }
 
-    /* Listening (user speaks) — audio reactive via JS */
-    .orb-container.listening .orb {
-      border-color: rgba(201, 168, 76, 0.3);
-    }
-    .orb-container.listening .orb-ring-1 { border-color: rgba(201, 168, 76, 0.12); }
-
-    /* Speaking (Alpha speaks) — audio reactive via JS */
-    .orb-container.speaking .orb {
+    .robot-container.speaking .robot-state-ring {
       border-color: var(--gold);
+      box-shadow: 0 0 40px rgba(212, 180, 90, 0.3);
+      transform: translateX(-50%) scale(var(--orb-scale));
+      animation: ring-speak 0.8s ease-in-out infinite;
     }
-    .orb-container.speaking .orb-ring-1 {
-      border-color: rgba(201, 168, 76, 0.2);
-      animation: ring-pulse 1.5s ease-out infinite;
+    @keyframes ring-speak {
+      0%, 100% { box-shadow: 0 0 30px rgba(212, 180, 90, 0.2); }
+      50% { box-shadow: 0 0 60px rgba(212, 180, 90, 0.5); }
     }
-    .orb-container.speaking .orb-ring-2 {
-      border-color: rgba(201, 168, 76, 0.1);
-      animation: ring-pulse 1.5s ease-out 0.5s infinite;
-    }
-    @keyframes ring-pulse {
-      0% { transform: scale(1); opacity: 1; }
-      100% { transform: scale(1.15); opacity: 0; }
+
+    @media (max-width: 600px) {
+      .robot-container { height: 300px; margin-bottom: 24px; }
     }
 
     /* ============ STATUS ============ */
@@ -523,11 +500,10 @@
     <h1 class="headline">Discutez avec <span>Alpha</span></h1>
     <p class="intro">Notre agent IA répond à toutes vos questions sur nos publications,<br>nos performances et nos offres. En direct, par la voix.</p>
 
-    <div class="orb-container idle" id="orb-container">
-      <div class="orb-glow"></div>
-      <div class="orb-ring orb-ring-1"></div>
-      <div class="orb-ring orb-ring-2"></div>
-      <div class="orb" id="orb"></div>
+    <div class="robot-container idle" id="robot-container">
+      <div class="robot-glow"></div>
+      <spline-viewer url="https://prod.spline.design/PyzDhpQ9E5f1E3MT/scene.splinecode"></spline-viewer>
+      <div class="robot-state-ring"></div>
     </div>
 
     <div class="agent-name">Alpha</div>
@@ -580,8 +556,7 @@
     let SYSTEM_INSTRUCTION = "";
 
     // ============ DOM ============
-    const $orbContainer = document.getElementById("orb-container");
-    const $orb = document.getElementById("orb");
+    const $orbContainer = document.getElementById("robot-container");
     const $status = document.getElementById("status");
     const $startBtn = document.getElementById("start-btn");
     const $hangupBtn = document.getElementById("hangup-btn");
