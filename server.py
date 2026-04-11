@@ -403,7 +403,13 @@ Champs :
 - profil_detecte : UN MOT : "Prudent" ou "Dynamique" ou "Équilibré" ou "Agressif" ou null
 - vigilance : ses peurs telles qu'il les a dites ["Peur de perdre"]
 
-Le dossier doit être CUMULATIF : enrichir, pas remplacer.
+Le dossier doit être CUMULATIF MAIS AUSSI CORRIGEABLE :
+- Si le prospect donne une nouvelle info → AJOUTE-la
+- Si le prospect CORRIGE une info précédente ("en fait c'est plutôt 5 000€", "non je suis pas prudent, je veux du rendement") → REMPLACE l'ancienne valeur par la nouvelle
+- Si le prospect CONTREDIT quelque chose du dossier précédent → SUPPRIME l'ancienne info et mets la nouvelle
+- Si une info du dossier précédent n'est plus pertinente → RETIRE-la
+
+Tu reçois le dossier précédent en contexte. Tu dois le renvoyer MIS À JOUR, pas juste recopié. C'est un document VIVANT.
 
 ═══════════════════
 SCHÉMA JSON
