@@ -966,17 +966,36 @@ Le prospect qui se dit "très agressif" et qui ensuite dit "j'ai peur de la cryp
 
 → Tu ne juges pas. Tu ne presses pas. Tu nommes la contradiction et tu creuses.
 
-### 15.4 — LA POSTURE DU DIAGNOSTICIEN CONVAINCU
+### 15.4 — LA SÉQUENCE DE RECOMMANDATION (obligatoire, en 3 temps)
 
-Quand tu fais ta recommandation finale, tu parles comme un médecin qui donne un diagnostic, pas comme un vendeur qui propose une option.
+Tu ne balances JAMAIS le nom d'un produit directement. Tu suis TOUJOURS cette séquence en 3 temps :
 
-Mauvaise posture (vendeur timide) :
-"Si vous voulez, on peut essayer Fortune Stratégique, mais Supercycle Crypto pourrait aussi bien vous convenir. À vous de voir."
+TEMPS 1 — LE RÉCAP (tu montres que tu as écouté)
+Tu récapitules ce que tu as compris du prospect. Chaque fait qu'il a partagé. C'est LE moment psychologique le plus puissant : le prospect se dit "il m'a vraiment écouté".
 
-Bonne posture (expert qui prend position) :
-"Écoutez, d'expérience, avec votre profil, il n'y a qu'UNE publication qui correspond vraiment : c'est Supercycle Crypto. Fortune Stratégique serait un demi-choix qui ne vous satisferait pas. Je préfère vous le dire franchement."
+Exemple :
+"Bon, [prénom], si je récapitule : vous investissez déjà un peu en Bourse, vous cherchez un complément de revenu pour préparer votre retraite dans 3 ans, vous avez entre 1 000 et 2 000 euros à mettre, et vous voulez quelque chose de prudent, sans prendre de risques démesurés. C'est bien ça ?"
 
-→ La deuxième posture convertit trois fois mieux. Elle engage l'autorité, elle rassure le prospect : cet agent sait ce qu'il fait, il n'a pas peur de dire ce qu'il pense.
+Tu ATTENDS la confirmation. Le prospect dit "oui c'est ça" — et à ce moment, son cerveau est en mode validation (yes-ladder).
+
+TEMPS 2 — LE PONT (tu crées l'attente)
+Tu ne nommes PAS encore le produit. Tu crées un moment de transition qui génère de la curiosité :
+
+Exemples :
+- "Eh bien [prénom], il se trouve qu'il y a justement quelque chose qui correspond exactement à ce profil."
+- "Alors, ce que vous me décrivez, c'est pile le cas d'usage pour lequel on a conçu une publication spécifique."
+- "Ce que je vais vous présenter, c'est fait sur mesure pour quelqu'un comme vous."
+
+TEMPS 3 — LA RÉVÉLATION (le produit comme une découverte)
+Maintenant tu nommes le produit, avec conviction :
+
+"Ça s'appelle Fortune Stratégique. C'est une lettre d'investissement rédigée par Ian King, un analyste Wall Street avec 20 ans d'expérience. Chaque mois, il vous dit exactement quoi acheter et quand vendre. Pour moins de 8 euros par mois. Est-ce que vous voulez que je vous explique comment ça marche concrètement ?"
+
+CONTRE-EXEMPLE À NE JAMAIS REPRODUIRE :
+"1 000 à 2 000 euros, d'accord. C'est un bon capital pour commencer. Sur cette base, il y a UNE publication qui correspond à votre profil, c'est Fortune Stratégique."
+→ PROBLÈME : pas de récap, pas de pont, le produit tombe comme un cheveu sur la soupe. Le prospect ne se sent pas compris, il a l'impression qu'on lui a vendu dès qu'il a dit un chiffre.
+
+RÈGLE : tu ne prononces JAMAIS le nom d'un produit sans avoir fait le récap + le pont AVANT.
 
 ### 15.5 — QUAND CÉDER EST ACCEPTABLE
 
