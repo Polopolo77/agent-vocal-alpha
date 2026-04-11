@@ -64,7 +64,14 @@
       z-index: 0;
     }
 
-    .page { position: relative; z-index: 1; text-align: center; padding: 40px 24px; width: 100%; max-width: 640px; }
+    .page {
+      position: relative; z-index: 1; text-align: center;
+      padding: 40px 24px; width: 100%; max-width: 640px;
+      transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    body.dossier-open .page {
+      transform: translateX(100px);
+    }
 
     /* ============ HEADER ============ */
     .brand {
@@ -688,23 +695,25 @@
     /* ============ DOSSIER PANEL ============ */
     .dossier-panel {
       position: fixed;
-      left: 24px;
-      top: 50%;
-      transform: translateY(-50%) translateX(-110%);
-      width: 300px;
-      max-height: 80vh;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      transform: translateX(-110%);
+      width: 380px;
       background: rgba(12, 12, 10, 0.95);
       backdrop-filter: blur(20px);
       border: 1px solid rgba(212, 180, 90, 0.15);
-      border-radius: 16px;
+      border-radius: 0 16px 16px 0;
       z-index: 50;
       overflow: hidden;
       transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+      box-shadow: 4px 0 40px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
     }
 
     .dossier-panel.open {
-      transform: translateY(-50%) translateX(0);
+      transform: translateX(0);
     }
 
     .dossier-header {
@@ -744,9 +753,9 @@
     }
 
     .dossier-body {
-      padding: 16px 20px;
+      padding: 20px 24px;
       overflow-y: auto;
-      max-height: calc(80vh - 60px);
+      flex: 1;
       scrollbar-width: none;
     }
     .dossier-body::-webkit-scrollbar { display: none; }
@@ -781,6 +790,36 @@
 
     @keyframes dossier-item-in {
       to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* Typewriter effect for newly written items */
+    .dossier-item.typing {
+      overflow: hidden;
+      white-space: nowrap;
+      border-right: 2px solid var(--gold);
+      animation: dossier-item-in 0.3s ease-out forwards, typing-cursor 0.6s step-end infinite;
+      width: 0;
+    }
+    .dossier-item.typing.done {
+      width: 100%;
+      white-space: normal;
+      border-right: none;
+      animation: dossier-item-in 0.3s ease-out forwards;
+    }
+    @keyframes typing-cursor {
+      0%, 100% { border-color: var(--gold); }
+      50% { border-color: transparent; }
+    }
+
+    /* Pen cursor next to title when writing */
+    .dossier-pen {
+      display: inline-block;
+      font-size: 0.85rem;
+      animation: pen-write 0.5s ease-in-out infinite alternate;
+    }
+    @keyframes pen-write {
+      from { transform: rotate(-5deg) translateY(0); }
+      to { transform: rotate(5deg) translateY(-2px); }
     }
 
     .dossier-item.highlight {
@@ -818,16 +857,15 @@
 
     @media (max-width: 900px) {
       .dossier-panel {
-        left: 10px;
-        width: 260px;
-        max-height: 60vh;
-        top: auto;
-        bottom: 90px;
-        transform: translateY(0) translateX(-110%);
+        width: 300px;
       }
-      .dossier-panel.open {
-        transform: translateY(0) translateX(0);
+      body.dossier-open .page {
+        transform: translateX(60px);
       }
+    }
+    @media (max-width: 600px) {
+      .dossier-panel { display: none; }
+      body.dossier-open .page { transform: none; }
     }
 
     /* ============ FOOTER ============ */
@@ -906,7 +944,7 @@
   <!-- Dossier Panel (slides in from left, like a notepad) -->
   <div class="dossier-panel" id="dossier-panel">
     <div class="dossier-header">
-      <div class="dossier-title">Votre dossier</div>
+      <div class="dossier-title">📋 Votre dossier</div>
       <div class="dossier-writing" id="dossier-writing">Alpha note...</div>
     </div>
     <div class="dossier-body" id="dossier-body">
@@ -1237,11 +1275,15 @@
     // ============ DOSSIER PANEL ============
     function openDossierPanel() {
       document.getElementById("dossier-panel").classList.add("open");
+      document.body.classList.add("dossier-open");
     }
 
     function closeDossierPanel() {
       document.getElementById("dossier-panel").classList.remove("open");
+      document.body.classList.remove("dossier-open");
     }
+
+    let previousDossierItems = new Set(); // Track what was already shown
 
     function updateDossier(dossier) {
       if (!dossier) return;
@@ -1249,74 +1291,73 @@
       const writing = document.getElementById("dossier-writing");
       if (!body) return;
 
-      // Show writing animation
-      if (writing) { writing.classList.add("active"); setTimeout(() => writing.classList.remove("active"), 2000); }
+      // Collect all current items to detect new ones
+      const allItems = [];
 
-      // Build dossier HTML
+      function addSection(label, items, isHighlight) {
+        if (!items || (Array.isArray(items) && items.length === 0) || (!Array.isArray(items) && !items)) return;
+        const arr = Array.isArray(items) ? items : [items];
+        arr.forEach(item => {
+          if (item) allItems.push({ label, text: String(item), highlight: isHighlight || false });
+        });
+      }
+
+      if (dossier.prenom) addSection("Prénom", dossier.prenom, true);
+      if (dossier.profil_detecte) addSection("Profil", dossier.profil_detecte, false);
+      addSection("Situation", dossier.situation, false);
+      addSection("Objectif", dossier.objectif, false);
+      if (dossier.horizon) addSection("Horizon", dossier.horizon, false);
+      if (dossier.capital) addSection("Capital", dossier.capital, false);
+      addSection("Vos préoccupations", dossier.vigilance, false);
+      addSection("Vos questions", dossier.questions_cles, false);
+
+      // Detect NEW items
+      const newItems = [];
+      allItems.forEach(item => {
+        const key = item.label + ":" + item.text;
+        if (!previousDossierItems.has(key)) {
+          newItems.push(item);
+          previousDossierItems.add(key);
+        }
+      });
+
+      // Show writing indicator if new items
+      if (newItems.length > 0 && writing) {
+        writing.innerHTML = '<span class="dossier-pen">✍️</span> Alpha note...';
+        writing.classList.add("active");
+        setTimeout(() => writing.classList.remove("active"), 3000);
+      }
+
+      // Build HTML grouped by label
+      const grouped = {};
+      allItems.forEach(item => {
+        if (!grouped[item.label]) grouped[item.label] = [];
+        grouped[item.label].push(item);
+      });
+
       let html = "";
+      let delay = 0;
 
-      // Prénom
-      if (dossier.prenom) {
+      for (const [label, items] of Object.entries(grouped)) {
         html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Prénom</div>';
-        html += '<div class="dossier-item highlight" style="animation-delay: 0.1s">' + esc(dossier.prenom) + '</div>';
-        html += '</div>';
-      }
+        html += '<div class="dossier-section-label">' + esc(label) + '</div>';
 
-      // Profil
-      if (dossier.profil_detecte) {
-        html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Profil détecté</div>';
-        html += '<div class="dossier-profil-badge">' + esc(dossier.profil_detecte) + '</div>';
-        html += '</div>';
-      }
+        items.forEach(item => {
+          const key = item.label + ":" + item.text;
+          const isNew = newItems.some(n => n.label + ":" + n.text === key);
 
-      // Situation
-      if (dossier.situation && dossier.situation.length > 0) {
-        html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Situation actuelle</div>';
-        dossier.situation.forEach((s, i) => {
-          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(s) + '</div>';
+          if (item.label === "Profil") {
+            html += '<div class="dossier-profil-badge">' + esc(item.text) + '</div>';
+          } else if (isNew) {
+            // New item: typewriter animation
+            html += '<div class="dossier-item' + (item.highlight ? ' highlight' : '') + ' typing" style="animation-delay: ' + delay + 's" data-text="' + esc(item.text) + '"></div>';
+            delay += 0.4;
+          } else {
+            // Existing item: already visible
+            html += '<div class="dossier-item' + (item.highlight ? ' highlight' : '') + '" style="opacity:1;transform:none">' + esc(item.text) + '</div>';
+          }
         });
-        html += '</div>';
-      }
 
-      // Objectif
-      if (dossier.objectif && dossier.objectif.length > 0) {
-        html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Objectif</div>';
-        dossier.objectif.forEach((o, i) => {
-          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(o) + '</div>';
-        });
-        html += '</div>';
-      }
-
-      // Horizon + Capital
-      if (dossier.horizon || dossier.capital) {
-        html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Paramètres</div>';
-        if (dossier.horizon) html += '<div class="dossier-item" style="animation-delay: 0.1s">Horizon : ' + esc(dossier.horizon) + '</div>';
-        if (dossier.capital) html += '<div class="dossier-item" style="animation-delay: 0.2s">Capital : ' + esc(dossier.capital) + '</div>';
-        html += '</div>';
-      }
-
-      // Vigilance
-      if (dossier.vigilance && dossier.vigilance.length > 0) {
-        html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Points de vigilance</div>';
-        dossier.vigilance.forEach((v, i) => {
-          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(v) + '</div>';
-        });
-        html += '</div>';
-      }
-
-      // Questions clés
-      if (dossier.questions_cles && dossier.questions_cles.length > 0) {
-        html += '<div class="dossier-section">';
-        html += '<div class="dossier-section-label">Questions posées</div>';
-        dossier.questions_cles.forEach((q, i) => {
-          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(q) + '</div>';
-        });
         html += '</div>';
       }
 
@@ -1325,9 +1366,30 @@
       }
 
       body.innerHTML = html;
+
+      // Animate typewriter for new items
+      body.querySelectorAll(".dossier-item.typing").forEach(el => {
+        const text = el.dataset.text;
+        const delayMs = parseFloat(el.style.animationDelay) * 1000 || 0;
+
+        setTimeout(() => {
+          el.style.width = "100%";
+          el.style.opacity = "1";
+          el.style.transform = "translateX(0)";
+          let i = 0;
+          const interval = setInterval(() => {
+            i++;
+            el.textContent = text.slice(0, i);
+            if (i >= text.length) {
+              clearInterval(interval);
+              el.classList.add("done");
+            }
+          }, 35); // 35ms per character
+        }, delayMs);
+      });
     }
 
-    function esc(s) { return String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+    function esc(s) { return String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
     function handleCoachUI(d) {
       // Dossier panel

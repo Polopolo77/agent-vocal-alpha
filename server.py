@@ -157,17 +157,30 @@ Pour objections.evoquees : liste toutes les objections que le prospect a exprim�
 Pour objections.levees : parmi les evoquees, celles qu'Alpha a déjà traitées avec succès (prospect a acquiescé ou n'y est pas revenu).
 Pour objections.en_cours : celles qui ne sont pas encore levées et qu'Alpha doit traiter.
 
-Pour dossier : remplis un résumé structuré de tout ce qu'on sait du prospect. Mets à jour à chaque appel avec les nouvelles informations. Les champs :
-- prenom : le prénom du prospect s'il l'a donné, sinon null
-- situation : liste de faits sur sa situation actuelle (ex: "Investi en ETF depuis 3 ans", "PEA ouvert chez Boursorama", "Retraité")
-- objectif : ce qu'il cherche (ex: "Complément de revenu", "Préparer sa retraite", "Faire fructifier son épargne")
-- horizon : horizon d'investissement (ex: "3-5 ans", "Long terme 10+ ans")
-- capital : capital mentionné (ex: "10 000-20 000€", "Budget modeste")
-- profil_detecte : profil en un mot (ex: "Prudent", "Équilibré", "Dynamique", "Agressif")
-- vigilance : points de préoccupation (ex: "Peur de perdre son capital", "Expérience négative avec la crypto", "Ne comprend pas les marchés US")
-- questions_cles : les questions importantes posées par le prospect (ex: "Comment ça marche concrètement ?", "C'est combien ?")
+Pour dossier : ATTENTION, le dossier est AFFICHÉ AU PROSPECT sur son écran. Il peut lire chaque mot. Tu dois donc écrire UNIQUEMENT des faits neutres et factuels que le prospect a dit lui-même. JAMAIS d'analyse interne, JAMAIS de stratégie, JAMAIS de jugement.
 
-Le dossier doit être CUMULATIF : les infos des tours précédents sont conservées et enrichies, pas remplacées.
+INTERDIT dans le dossier :
+- "Probablement orienté résultats, mais à confirmer" → trop analytique
+- "S'assurer que sa définition est réaliste" → note interne
+- "Profil à creuser" → stratégique
+- Toute phrase qui contient "probablement", "à confirmer", "s'assurer", "vérifier", "attention"
+
+AUTORISÉ dans le dossier :
+- Des faits bruts que le prospect a dits : "Investit en ETF", "PEA ouvert", "Retraité"
+- Des mots simples pour le profil : "Prudent", "Équilibré", "Dynamique" (UN mot, pas une phrase)
+- Des citations presque textuelles de ce qu'il a dit
+
+Les champs :
+- prenom : juste le prénom, rien d'autre (ex: "Paul")
+- situation : faits bruts sur sa situation (ex: "Investit en ETF depuis 3 ans", "PEA ouvert", "Retraité depuis 2 ans")
+- objectif : ce qu'il a dit vouloir (ex: "Complément de revenu", "Préparer sa retraite")
+- horizon : horizon mentionné (ex: "3-5 ans", "Long terme")
+- capital : ce qu'il a dit (ex: "Environ 10 000€", "Budget à définir")
+- profil_detecte : UN MOT seulement (ex: "Prudent" ou "Dynamique" ou "Équilibré")
+- vigilance : ses inquiétudes TELLES QU'IL LES A EXPRIMÉES (ex: "Peur de perdre", "Ne connaît pas la crypto")
+- questions_cles : ses questions mot pour mot (ex: "C'est combien ?", "Comment ça marche ?")
+
+Le dossier doit être CUMULATIF : les infos des tours précédents sont conservées et enrichies.
 
 Pour card_a_afficher : recommande UNE carte visuelle à afficher au prospect. Valeurs possibles :
 - "proof_153" : quand Alpha mentionne la performance +153% → affiche le chiffre en gros
