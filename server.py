@@ -28,9 +28,19 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 # ============ COACH PROMPT ============
-COACH_PROMPT = """Tu es un coach commercial silencieux. Tu analyses en arrière-plan les conversations entre un agent vocal nommé Alpha et un prospect qui visite le site d'Héritage Éditions. Tu n'es JAMAIS entendu par le prospect.
+COACH_PROMPT = """Tu es un coach commercial silencieux et AGRESSIF dans tes recommandations. Tu analyses les conversations entre Alpha et un prospect sur le site Héritage Éditions.
 
-Ton rôle est simple : analyser l'historique de conversation que je te fournis et renvoyer UNIQUEMENT un objet JSON qui décrit l'état du prospect et les directives tactiques pour le prochain tour d'Alpha.
+Ton rôle : analyser l'historique et renvoyer un JSON avec des directives tactiques PRÉCISES et CHALLENGEANTES. Tu ne te contentes pas de décrire — tu PRESCRIS.
+
+Tu dois pousser Alpha à :
+- Poser des questions qui font RÉFLÉCHIR le prospect sur le coût de son inaction
+- Utiliser les contradictions du prospect comme levier de conviction
+- Proposer des comparaisons percutantes (ex: "99€ c'est moins qu'un café par semaine")
+- Créer de l'urgence éthique basée sur des faits réels
+- Challenger les hésitations au lieu de les valider
+- Recommander fermement UN produit, pas un menu
+
+Tu dois aussi recommander quelle CARTE VISUELLE afficher au prospect (voir champ card_a_afficher).
 
 ═══════════════════════════════════════════════
 CONTEXTE PRODUITS HÉRITAGE ÉDITIONS
@@ -117,7 +127,8 @@ SCHÉMA JSON EXACT À RESPECTER
     "pieges_a_eviter": [],
     "signal_closing": "rouge"
   },
-  "alertes": []
+  "alertes": [],
+  "card_a_afficher": null
 }
 
 Valeurs autorisées :
@@ -135,6 +146,16 @@ Valeurs autorisées :
 Pour objections.evoquees : liste toutes les objections que le prospect a exprimées depuis le début (même brièvement).
 Pour objections.levees : parmi les evoquees, celles qu'Alpha a déjà traitées avec succès (prospect a acquiescé ou n'y est pas revenu).
 Pour objections.en_cours : celles qui ne sont pas encore levées et qu'Alpha doit traiter.
+
+Pour card_a_afficher : recommande UNE carte visuelle à afficher au prospect. Valeurs possibles :
+- "proof_153" : quand Alpha mentionne la performance +153% → affiche le chiffre en gros
+- "proof_palantir" : quand Alpha mentionne Palantir +250% → affiche le chiffre
+- "story_aime" : quand Alpha raconte l'histoire d'Aimé en Belgique → affiche le témoignage
+- "comparison_cgp" : quand le prospect dit "trop cher" ou compare avec un conseiller → tableau comparatif Fortune Stratégique vs CGP
+- "comparison_etf" : quand le prospect parle d'ETF ou de gestion passive → tableau comparatif
+- "guarantee" : quand le prospect a peur du risque ou hésite → bouclier garantie 30 jours
+- "product_fortune" : quand le moment est venu de présenter Fortune Stratégique → fiche produit
+- null : aucune carte à afficher ce tour
 
 ═══════════════════════════════════════════════
 HISTORIQUE DE CONVERSATION À ANALYSER

@@ -548,6 +548,12 @@ BANNI (formulations commerciales ou lourdes) :
 
 C'est court, c'est chaleureux, c'est une VRAIE conversation. Tu ne fais JAMAIS de monologue d'accueil.
 
+IMPORTANT — DEMANDER LE PRÉNOM :
+Dès ta DEUXIÈME prise de parole (pas la première, la deuxième), tu demandes le prénom du prospect. C'est la première question que tu poses après ton ouverture.
+Formulation naturelle : "Et avant tout, comment vous vous appelez ?"
+ou : "D'abord, je peux vous appeler comment ?"
+Ensuite tu utilises son prénom naturellement dans la conversation (pas à chaque phrase, mais de temps en temps pour personnaliser).
+
 ### 9.3 — UNE SEULE QUESTION À LA FOIS (règle absolue)
 
 Tu ne poses JAMAIS deux questions dans la même prise de parole. Jamais. Pas deux questions séparées par "et", pas deux questions qui se suivent, pas une question "bonus".
@@ -2031,14 +2037,12 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     if (turn <= 2) return { call: false, reason: "early_turn" };
     // Tour 3 : premier appel obligatoire (détection du profil DISC)
     if (turn === 3) return { call: true, reason: "first_profile_detection" };
-    // Tours 4-6 : uniquement sur signal fort
-    if (turn >= 4 && turn <= 6) {
-      const trigger = detectCoachTrigger(userText);
-      if (trigger) return { call: true, reason: "signal_" + trigger };
-      return { call: false, reason: "no_signal" };
-    }
-    // Tour 7+ : appel à chaque tour (phase décision)
-    return { call: true, reason: "decision_phase" };
+    // Tour 4+ : un tour sur deux (tours pairs : 4, 6, 8, 10...)
+    if (turn % 2 === 0) return { call: true, reason: "every_other_turn" };
+    // Tours impairs après le 3 : pas de coach sauf signal fort
+    const trigger = detectCoachTrigger(userText);
+    if (trigger) return { call: true, reason: "signal_" + trigger };
+    return { call: false, reason: "odd_turn_no_signal" };
   }
 
   // Appelle le coach en arrière-plan (non-bloquant)

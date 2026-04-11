@@ -485,6 +485,206 @@
       transform: translateY(-1px);
     }
 
+    /* ============ SMART CARDS ============ */
+    .smart-card-area {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 340px;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .smart-card {
+      background: rgba(12, 12, 10, 0.92);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(212, 180, 90, 0.2);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      opacity: 0;
+      transform: translateX(40px);
+      transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+      pointer-events: auto;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .smart-card.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .smart-card .sc-icon {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .smart-card .sc-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--gold);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    /* Proof Point card — big number */
+    .smart-card.proof .sc-number {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--gold-bright);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .smart-card.proof .sc-desc {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+    .smart-card.proof .sc-source {
+      font-size: 0.72rem;
+      color: var(--text-subtle);
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(212, 180, 90, 0.1);
+    }
+
+    /* Story Card — testimonial */
+    .smart-card.story .sc-quote {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .smart-card.story .sc-author {
+      font-size: 0.8rem;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .smart-card.story .sc-author-info {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+    .smart-card.story .sc-stars {
+      color: var(--gold);
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+
+    /* Comparison card — table */
+    .smart-card.comparison .sc-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .smart-card.comparison .sc-table th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--gold);
+      padding: 8px 4px;
+      text-align: left;
+      border-bottom: 1px solid rgba(212, 180, 90, 0.15);
+    }
+    .smart-card.comparison .sc-table td {
+      font-size: 0.82rem;
+      color: var(--text);
+      padding: 8px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+    .smart-card.comparison .sc-table td:first-child {
+      color: var(--text-dim);
+      font-size: 0.75rem;
+    }
+    .smart-card.comparison .sc-table .highlight {
+      color: var(--gold-bright);
+      font-weight: 600;
+    }
+
+    /* Guarantee shield card */
+    .smart-card.guarantee {
+      text-align: center;
+      border-color: rgba(212, 180, 90, 0.35);
+    }
+    .smart-card.guarantee .sc-shield {
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+    }
+    .smart-card.guarantee .sc-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--gold-bright);
+      margin-bottom: 4px;
+    }
+    .smart-card.guarantee .sc-subtitle {
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .smart-card.guarantee .sc-detail {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    /* Product card */
+    .smart-card.product .sc-product-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--gold-bright);
+      margin-bottom: 8px;
+    }
+    .smart-card.product .sc-product-desc {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .smart-card.product .sc-product-price {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--gold-bright);
+      margin-bottom: 4px;
+    }
+    .smart-card.product .sc-product-original {
+      font-size: 0.75rem;
+      color: var(--text-subtle);
+      text-decoration: line-through;
+    }
+    .smart-card.product .sc-product-cta {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 10px 20px;
+      background: var(--gold);
+      color: #0a0a0a;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+    .smart-card.product .sc-product-cta:hover {
+      box-shadow: 0 4px 20px rgba(212, 180, 90, 0.3);
+    }
+
+    @media (max-width: 900px) {
+      .smart-card-area {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        width: 100%;
+        max-width: 420px;
+        margin: 20px auto;
+      }
+    }
+
     /* ============ FOOTER ============ */
     .footer {
       position: fixed;
@@ -560,6 +760,9 @@
     </div>
   </div>
 
+  <!-- Smart Cards Area (slides in from right) -->
+  <div class="smart-card-area" id="smart-card-area"></div>
+
   <div class="footer">Héritage Éditions SA — Lausanne</div>
 
   <script>
@@ -597,6 +800,7 @@
       isConnected: false,
       conversationLog: [],
       conversationStartedAt: null,
+      sessionId: null,
       pendingUserText: "",
       pendingBotText: "",
       userTurnCount: 0,
@@ -774,14 +978,14 @@
       const turn = state.userTurnCount;
       if (turn <= 2) return false;
       if (turn === 3) return true;
-      if (turn >= 4 && turn <= 6) {
-        const text = userText.toLowerCase();
-        for (const cat in TRIGGER_KEYWORDS)
-          for (const kw of TRIGGER_KEYWORDS[cat])
-            if (text.includes(kw)) return true;
-        return false;
-      }
-      return true;
+      // After turn 3: every other turn (even turns)
+      if (turn % 2 === 0) return true;
+      // Odd turns: only on strong signal
+      const text = userText.toLowerCase();
+      for (const cat in TRIGGER_KEYWORDS)
+        for (const kw of TRIGGER_KEYWORDS[cat])
+          if (text.includes(kw)) return true;
+      return false;
     }
 
     function callCoach(mode) {
@@ -790,7 +994,7 @@
       fetch(STRATEGIST_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ history: state.conversationLog.slice(), turn_number: state.userTurnCount, mode }),
+        body: JSON.stringify({ history: state.conversationLog.slice(), turn_number: state.userTurnCount, mode, session_id: state.sessionId || "default" }),
       })
         .then(r => r.json())
         .then(d => {
@@ -803,21 +1007,90 @@
         .catch(() => { state.coachInFlight = false; });
     }
 
-    const PRODUCTS = {
-      fortune_strategique: { name: "Fortune Stratégique", desc: "Recommandations mensuelles actions & crypto par Ian King. Portefeuille en ligne, alertes achat/vente, vidéos hebdomadaires.", price: "99\u20AC/an", cta: "https://editions-heritage.com" },
-      strategie_green_zone: { name: "Stratégie Green Zone", desc: "Scoring quantitatif d'actions américaines. Méthode systématique par Adam O'Dell.", price: "Sur demande", cta: "https://editions-heritage.com" },
-      supercycle_crypto: { name: "Supercycle Crypto", desc: "Publication 100% cryptomonnaies pour profils à forte tolérance au risque.", price: "Sur demande", cta: "https://editions-heritage.com" },
+    // ============ SMART CARDS ============
+    const SMART_CARDS = {
+      proof_153: {
+        type: "proof",
+        html: '<div class="sc-label">Performance vérifiée</div><div class="sc-number">+153 %</div><div class="sc-desc">Performance moyenne du portefeuille Ian King depuis 2019</div><div class="sc-source">Source : Héritage Éditions — données vérifiables</div>'
+      },
+      proof_palantir: {
+        type: "proof",
+        html: '<div class="sc-label">Recommandation réelle</div><div class="sc-number">+250 %</div><div class="sc-desc">Gain réalisé sur Palantir, recommandé par Ian King à ses abonnés</div><div class="sc-source">Position toujours en portefeuille</div>'
+      },
+      story_aime: {
+        type: "story",
+        html: '<div class="sc-label">Témoignage abonné</div><div class="sc-quote">"J\'ai commencé avec 300\u20AC sur Palantir. Aujourd\'hui, je suis à +250%. Je n\'aurais jamais trouvé cette action seul."</div><div class="sc-author">Aimé</div><div class="sc-author-info">Belgique — Abonné depuis 2021</div><div class="sc-stars">\u2605\u2605\u2605\u2605\u2605</div>'
+      },
+      comparison_cgp: {
+        type: "comparison",
+        html: '<div class="sc-label">Comparatif</div><table class="sc-table"><tr><th></th><th>Fortune Strat.</th><th>CGP classique</th></tr><tr><td>Prix</td><td class="highlight">99\u20AC/an</td><td>1-2% du capital/an</td></tr><tr><td>Alertes</td><td class="highlight">Achat ET vente</td><td>RDV annuel</td></tr><tr><td>Résiliation</td><td class="highlight">1 email</td><td>Engagement 12 mois</td></tr><tr><td>Garantie</td><td class="highlight">30 jours</td><td>Aucune</td></tr></table>'
+      },
+      comparison_etf: {
+        type: "comparison",
+        html: '<div class="sc-label">Comparatif</div><table class="sc-table"><tr><th></th><th>Fortune Strat.</th><th>ETF S&P 500</th></tr><tr><td>Performance</td><td class="highlight">+153% moy.</td><td>+10%/an moy.</td></tr><tr><td>Sélection</td><td class="highlight">Active (Ian King)</td><td>Passive (indice)</td></tr><tr><td>Alertes vente</td><td class="highlight">Oui</td><td>Non</td></tr><tr><td>Accompagnement</td><td class="highlight">Vidéos + rapports</td><td>Aucun</td></tr></table>'
+      },
+      guarantee: {
+        type: "guarantee",
+        html: '<div class="sc-shield">\uD83D\uDEE1\uFE0F</div><div class="sc-title">Garantie 30 jours</div><div class="sc-subtitle">Satisfait ou remboursé</div><div class="sc-detail">Sans justification. Sur simple email.<br>Vous ne prenez aucun risque.</div>'
+      },
+      product_fortune: {
+        type: "product",
+        html: '<div class="sc-label">Publication recommandée</div><div class="sc-product-name">Fortune Stratégique</div><div class="sc-product-desc">Recommandations mensuelles actions & crypto par Ian King. Portefeuille en ligne, alertes d\'achat et de vente, vidéos hebdomadaires sous-titrées FR.</div><div class="sc-product-original">299\u20AC/an</div><div class="sc-product-price">99\u20AC/an</div><a class="sc-product-cta" href="https://editions-heritage.com" target="_blank" rel="noopener">Découvrir \u2192</a>'
+      },
     };
 
-    function handleCoachUI(d) {
-      // Product card
-      if (d.produit?.recommande && d.produit.certitude === "ferme") {
-        const p = PRODUCTS[d.produit.recommande];
-        if (p) {
-          $productCard.innerHTML = '<h4>' + p.name + '</h4><p>' + p.desc + '</p><span class="product-price">' + p.price + '</span><br><br><a class="product-cta" href="' + p.cta + '" target="_blank" rel="noopener">Découvrir <span>\u2192</span></a>';
-          $productCard.classList.add("visible");
-        }
+    let currentSmartCard = null;
+    let smartCardTimer = null;
+
+    function showSmartCard(cardKey) {
+      const cardDef = SMART_CARDS[cardKey];
+      if (!cardDef) return;
+
+      const area = document.getElementById("smart-card-area");
+      if (!area) return;
+
+      // Remove previous card
+      hideSmartCard();
+
+      const card = document.createElement("div");
+      card.className = "smart-card " + cardDef.type;
+      card.innerHTML = cardDef.html;
+      area.appendChild(card);
+
+      // Trigger animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { card.classList.add("visible"); });
+      });
+
+      currentSmartCard = card;
+
+      // Auto-hide after 20 seconds (unless it's a product card)
+      if (cardDef.type !== "product") {
+        smartCardTimer = setTimeout(hideSmartCard, 20000);
       }
+    }
+
+    function hideSmartCard() {
+      if (smartCardTimer) { clearTimeout(smartCardTimer); smartCardTimer = null; }
+      if (currentSmartCard) {
+        currentSmartCard.classList.remove("visible");
+        const el = currentSmartCard;
+        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 600);
+        currentSmartCard = null;
+      }
+    }
+
+    function handleCoachUI(d) {
+      // Smart card from coach
+      if (d.card_a_afficher && SMART_CARDS[d.card_a_afficher]) {
+        showSmartCard(d.card_a_afficher);
+      }
+
+      // Legacy product card (still works)
+      if (d.produit?.recommande && d.produit.certitude === "ferme") {
+        showSmartCard("product_fortune");
+      }
+
       // Closing CTA
       if (d.directive_prochain_tour?.signal_closing === "vert") {
         $closingCta.classList.add("visible");
@@ -842,6 +1115,22 @@
             systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
+            tools: [{
+              functionDeclarations: [{
+                name: "obtenir_briefing",
+                description: "Appelle cette fonction pour obtenir un briefing tactique du coach. Le briefing contient le profil psychologique du prospect, son niveau de chaleur, le produit recommandé, les objections en cours, et une directive. Appelle-le quand tu détectes une objection, quand tu hésites sur le produit, ou quand tu veux vérifier si c'est le moment de closer.",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    raison: {
+                      type: "string",
+                      description: "Brève raison de l'appel (ex: 'objection prix', 'confirmer produit cible')"
+                    }
+                  },
+                  required: ["raison"]
+                }
+              }]
+            }],
           },
         }));
       };
@@ -852,6 +1141,37 @@
           try { data = JSON.parse(await event.data.text()); } catch { return; }
         } else {
           try { data = JSON.parse(event.data); } catch { return; }
+        }
+
+        // ── TOOL CALL HANDLER ──
+        if (data.toolCall) {
+          const calls = data.toolCall.functionCalls || [];
+          for (const fc of calls) {
+            if (fc.name === "obtenir_briefing") {
+              console.log("[Heritage-Page] Tool call:", fc.args?.raison);
+              fetch(BACKEND_URL + "/api/briefing", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: state.sessionId || "default", user_message: fc.args?.raison || "" }),
+              })
+                .then(r => r.json())
+                .then(briefing => {
+                  ws.send(JSON.stringify({
+                    toolResponse: {
+                      functionResponses: [{ id: fc.id, name: fc.name, response: briefing }],
+                    },
+                  }));
+                })
+                .catch(() => {
+                  ws.send(JSON.stringify({
+                    toolResponse: {
+                      functionResponses: [{ id: fc.id, name: fc.name, response: { coach: null, meta: { note: "Coach indisponible." } } }],
+                    },
+                  }));
+                });
+            }
+          }
+          return;
         }
 
         if (data.setupComplete) {
@@ -1007,6 +1327,7 @@
 
       state.conversationLog = [];
       state.conversationStartedAt = new Date().toISOString();
+      state.sessionId = "s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
       state.pendingUserText = "";
       state.pendingBotText = "";
       state.userTurnCount = 0;
@@ -1014,6 +1335,7 @@
       state.coachInFlight = false;
       state.currentUserLine = null;
       state.currentAlphaLine = null;
+      hideSmartCard();
 
       state.audioPlayer = new AudioPlayer();
       state.audioPlayer.init();
@@ -1055,6 +1377,7 @@
       document.getElementById("how-it-works").classList.remove("hidden");
       document.querySelector(".headline").classList.remove("hidden");
       document.querySelector(".intro").classList.remove("hidden");
+      hideSmartCard();
     };
 
     window.addEventListener("pagehide", () => { if (state.isConnected) saveConversation().catch(() => {}); });
