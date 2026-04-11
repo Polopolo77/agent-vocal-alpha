@@ -1012,6 +1012,49 @@ AGENT : "Je vous arrête un instant. Il y a deux minutes, vous m'avez dit être 
 → L'agent prend position, challenge respectueusement, creuse la vraie source de l'hésitation. Il ne cède pas. Il ne transfère pas la décision. Il reste le médecin qui a diagnostiqué.
 
 ═══════════════════════════════════════════════════════════
+SECTION 17 — OUTIL obtenir_briefing (COACH EN TEMPS RÉEL)
+═══════════════════════════════════════════════════════════
+
+Tu as accès à un outil appelé obtenir_briefing. C'est ton COACH SILENCIEUX. Il analyse la conversation en arrière-plan et te donne un briefing tactique.
+
+QUAND L'APPELER :
+- À partir du tour 3 (pas avant, tu n'as pas assez de contexte)
+- Quand tu détectes une objection ("trop cher", "arnaque", "je réfléchis")
+- Quand tu hésites sur le produit à recommander
+- Quand le prospect te pose une question complexe
+- Quand tu sens que la chaleur change (prospect se refroidit ou se réchauffe)
+- Quand tu veux vérifier si c'est le moment de closer
+
+QUAND NE PAS L'APPELER :
+- Pendant les tours 1-2 (accueil et première question)
+- Quand la conversation est fluide et que tu sais quoi dire
+- À chaque tour sans exception — utilise ton jugement
+
+CE QUE TU REÇOIS :
+Le briefing contient :
+- Le profil DISC du prospect (Dominant, Influent, Stable, Consciencieux) avec pourcentage de confiance
+- Son niveau de chaleur (froid/tiède/chaud/prêt à acheter)
+- Le produit recommandé et la certitude
+- Les objections en cours non traitées
+- Les contradictions détectées dans ses propos
+- Une action recommandée pour ce tour
+- Une formulation suggérée (que tu peux adapter librement)
+- Les pièges à éviter
+- Le signal closing (rouge/orange/vert)
+
+COMMENT L'UTILISER :
+- Le briefing est un COUP DE POUCE, pas un ordre
+- Ta propre lecture de la conversation PRIME toujours
+- Utilise le briefing pour confirmer ou corriger ta stratégie
+- Si le briefing dit "signal closing vert" mais que tu ne sens pas le prospect prêt, ne close pas
+- Si le briefing dit "profil Stable" mais que le prospect vient de devenir direct et pressé, adapte-toi
+
+IMPORTANT :
+- Ne mentionne JAMAIS l'existence du coach ou du briefing au prospect
+- Ne dis JAMAIS "selon mon analyse" en référence au briefing
+- Intègre naturellement les informations dans ta réponse
+
+═══════════════════════════════════════════════════════════
 PHRASE D'OUVERTURE
 ═══════════════════════════════════════════════════════════
 
@@ -1032,6 +1075,7 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
     isRecording: false,
     conversationLog: [],     // accumulated transcript for saving
     conversationStartedAt: null,
+    sessionId: null,         // unique ID for this call session (for coach cache)
     pendingUserText: "",     // buffer for input transcription
     pendingBotText: "",      // buffer for output transcription
 
@@ -1776,6 +1820,22 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          tools: [{
+            functionDeclarations: [{
+              name: "obtenir_briefing",
+              description: "Appelle cette fonction pour obtenir un briefing tactique du coach en arrière-plan. Le briefing contient le profil psychologique du prospect, son niveau de chaleur, le produit recommandé, les objections en cours, et une directive sur ce que tu devrais faire à ce tour. Appelle cet outil quand tu veux vérifier ta stratégie, quand le prospect pose une question complexe, quand tu détectes une objection, ou quand tu hésites sur le produit à recommander.",
+              parameters: {
+                type: "object",
+                properties: {
+                  raison: {
+                    type: "string",
+                    description: "Brève raison pour laquelle tu appelles le briefing (ex: 'objection prix détectée', 'besoin de confirmer le produit cible', 'prospect semble prêt à acheter')"
+                  }
+                },
+                required: ["raison"]
+              }
+            }]
+          }],
         },
       }));
     };
@@ -1797,6 +1857,55 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
           realtimeInput: { text: "Le prospect vient de décrocher. Tu dis UNE phrase courte et naturelle pour te présenter, en français standard de France, sans accent québécois, sans monologue, sans annonce d'objectif. Exemple : 'Bonjour, Alpha à l'appareil pour Héritage Éditions. Comment puis-je vous aider ?'. Puis tu attends." }
         }));
         startMic();
+        return;
+      }
+
+      // ── TOOL CALL HANDLER ──
+      // When Gemini calls obtenir_briefing, we fetch the cached coach directive
+      // from the backend and send it back as a toolResponse.
+      if (data.toolCall) {
+        const calls = data.toolCall.functionCalls || [];
+        for (const fc of calls) {
+          if (fc.name === "obtenir_briefing") {
+            debugLog("tool_call", { reason: fc.args?.raison || "unknown" });
+            // Fetch briefing from backend (coach cache, ~10ms)
+            fetch(BACKEND_URL + "/api/briefing", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                session_id: state.sessionId || "default",
+                user_message: fc.args?.raison || "",
+              }),
+            })
+              .then((r) => r.json())
+              .then((briefing) => {
+                debugLog("tool_response", briefing);
+                // Send the briefing back to Gemini as a toolResponse
+                ws.send(JSON.stringify({
+                  toolResponse: {
+                    functionResponses: [{
+                      id: fc.id,
+                      name: fc.name,
+                      response: briefing,
+                    }],
+                  },
+                }));
+              })
+              .catch((err) => {
+                console.error("Briefing fetch failed:", err);
+                // Send empty response so Gemini doesn't hang
+                ws.send(JSON.stringify({
+                  toolResponse: {
+                    functionResponses: [{
+                      id: fc.id,
+                      name: fc.name,
+                      response: { coach: null, meta: { note: "Coach indisponible. Utilise ton propre jugement." } },
+                    }],
+                  },
+                }));
+              });
+          }
+        }
         return;
       }
 
@@ -1941,6 +2050,7 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       history: state.conversationLog.slice(), // copie
       turn_number: state.userTurnCount,
       mode: mode,
+      session_id: state.sessionId || "default",
     };
 
     debugLog("coach_call", { turn: state.userTurnCount, mode: mode });
@@ -2236,6 +2346,7 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
       // Reset conversation log
       state.conversationLog = [];
       state.conversationStartedAt = new Date().toISOString();
+      state.sessionId = "s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
       state.pendingUserText = "";
       state.pendingBotText = "";
       // Reset coach state

@@ -15,6 +15,10 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 DB_PATH = Path(__file__).parent / "conversations.db"
 
+# Cache global du dernier briefing coach par session
+# Key: session_id, Value: { directive JSON, timestamp }
+coach_cache = {}
+
 # Modèle rapide et économique pour le coach en arrière-plan.
 # gemini-2.5-flash-lite : plus rapide et rate limit plus élevé que 2.5-flash,
 # parfait pour la classification structurée en JSON.
@@ -298,9 +302,75 @@ async def handle_strategist(request):
         print(f"Produit: {coach_output.get('produit', {}).get('recommande', '?')}")
         print(f"Directive: {coach_output.get('directive_prochain_tour', {}).get('action_principale', '?')}")
 
+        # Cache the directive for the tool calling endpoint
+        session_id = data.get("session_id", "default")
+        coach_cache[session_id] = {
+            "directive": coach_output,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "turn": turn_number,
+        }
+
         return web.json_response(coach_output)
     except Exception as e:
         print(f"Coach error: {e}")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_briefing(request):
+    """Return the latest cached coach directive for tool calling.
+
+    Called by the widget when Gemini Live triggers obtenir_briefing.
+    Returns the last coach analysis (always cached, no LLM call, ~0ms).
+    """
+    try:
+        data = await request.json()
+        session_id = data.get("session_id", "default")
+        user_message = data.get("user_message", "")
+
+        cached = coach_cache.get(session_id)
+
+        if cached and cached["directive"]:
+            d = cached["directive"]
+            # Build a compact briefing for Alpha
+            disc = d.get("profil_disc", {})
+            emot = d.get("etat_emotionnel", {})
+            prod = d.get("produit", {})
+            obj = d.get("objections", {})
+            mem = d.get("memoire", {})
+            dir_ = d.get("directive_prochain_tour", {})
+
+            # Determine dominant DISC profile
+            scores = {"Dominant": disc.get("dominant", 0), "Influent": disc.get("influent", 0),
+                       "Stable": disc.get("stable", 0), "Consciencieux": disc.get("consciencieux", 0)}
+            dom = max(scores, key=scores.get) if max(scores.values()) > 0 else "inconnu"
+
+            briefing = {
+                "coach": {
+                    "profil_prospect": f"{dom} ({max(scores.values())}%)",
+                    "chaleur": emot.get("chaleur", "inconnue"),
+                    "confiance_agent": emot.get("confiance_agent", "neutre"),
+                    "produit_cible": prod.get("recommande") or "pas encore déterminé",
+                    "certitude_produit": prod.get("certitude", "faible"),
+                    "objections_en_cours": obj.get("en_cours", []),
+                    "contradictions": mem.get("contradictions_detectees", []),
+                    "action_recommandee": dir_.get("action_principale", ""),
+                    "formulation_suggeree": dir_.get("formulation_suggeree", ""),
+                    "pieges_a_eviter": dir_.get("pieges_a_eviter", []),
+                    "signal_closing": dir_.get("signal_closing", "rouge"),
+                },
+                "meta": {
+                    "coach_turn": cached["turn"],
+                    "coach_timestamp": cached["timestamp"],
+                },
+            }
+        else:
+            briefing = {
+                "coach": None,
+                "meta": {"note": "Pas encore de directive coach. Utilise ton propre jugement."},
+            }
+
+        return web.json_response(briefing)
+    except Exception as e:
         return web.json_response({"error": str(e)}, status=500)
 
 
@@ -390,6 +460,7 @@ app = web.Application()
 app.router.add_post("/api/token", handle_token)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_post("/api/strategist", handle_strategist)
+app.router.add_post("/api/briefing", handle_briefing)
 app.router.add_get("/api/prompt", handle_prompt)
 app.router.add_get("/api/conversations", handle_list_conversations)
 app.router.add_get("/", handle_static)
