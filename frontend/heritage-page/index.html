@@ -685,16 +685,159 @@
       }
     }
 
+    /* ============ DOSSIER PANEL ============ */
+    .dossier-panel {
+      position: fixed;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%) translateX(-110%);
+      width: 300px;
+      max-height: 80vh;
+      background: rgba(12, 12, 10, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(212, 180, 90, 0.15);
+      border-radius: 16px;
+      z-index: 50;
+      overflow: hidden;
+      transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .dossier-panel.open {
+      transform: translateY(-50%) translateX(0);
+    }
+
+    .dossier-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid rgba(212, 180, 90, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .dossier-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dossier-writing {
+      font-size: 0.65rem;
+      color: var(--text-subtle);
+      font-style: italic;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .dossier-writing.active {
+      opacity: 1;
+      animation: writing-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes writing-pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    .dossier-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      max-height: calc(80vh - 60px);
+      scrollbar-width: none;
+    }
+    .dossier-body::-webkit-scrollbar { display: none; }
+
+    .dossier-section {
+      margin-bottom: 18px;
+    }
+
+    .dossier-section-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--gold);
+      margin-bottom: 8px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dossier-item {
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.5;
+      padding: 6px 0 6px 16px;
+      border-left: 2px solid rgba(212, 180, 90, 0.15);
+      margin-bottom: 4px;
+      opacity: 0;
+      transform: translateX(-10px);
+      animation: dossier-item-in 0.4s ease-out forwards;
+    }
+
+    @keyframes dossier-item-in {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .dossier-item.highlight {
+      border-left-color: var(--gold);
+      color: var(--gold-bright);
+      font-weight: 500;
+    }
+
+    .dossier-profil-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--gold-dim);
+      border: 1px solid rgba(212, 180, 90, 0.2);
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: var(--gold-bright);
+      font-weight: 500;
+    }
+
+    .dossier-empty {
+      font-size: 0.78rem;
+      color: var(--text-subtle);
+      font-style: italic;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    .dossier-separator {
+      height: 1px;
+      background: rgba(212, 180, 90, 0.08);
+      margin: 12px 0;
+    }
+
+    @media (max-width: 900px) {
+      .dossier-panel {
+        left: 10px;
+        width: 260px;
+        max-height: 60vh;
+        top: auto;
+        bottom: 90px;
+        transform: translateY(0) translateX(-110%);
+      }
+      .dossier-panel.open {
+        transform: translateY(0) translateX(0);
+      }
+    }
+
     /* ============ FOOTER ============ */
     .footer {
-      position: fixed;
-      bottom: 20px;
-      left: 0;
-      right: 0;
       text-align: center;
       font-size: 0.65rem;
       color: var(--text-subtle);
       letter-spacing: 1px;
+      padding: 40px 0 20px;
+      position: relative;
       z-index: 1;
     }
 
@@ -757,6 +900,17 @@
     <div class="closing-cta" id="closing-cta">
       <span>Alpha vous recommande cette publication</span>
       <a href="https://editions-heritage.com" target="_blank" rel="noopener">Découvrir</a>
+    </div>
+  </div>
+
+  <!-- Dossier Panel (slides in from left, like a notepad) -->
+  <div class="dossier-panel" id="dossier-panel">
+    <div class="dossier-header">
+      <div class="dossier-title">Votre dossier</div>
+      <div class="dossier-writing" id="dossier-writing">Alpha note...</div>
+    </div>
+    <div class="dossier-body" id="dossier-body">
+      <div class="dossier-empty">En attente de la conversation...</div>
     </div>
   </div>
 
@@ -1080,7 +1234,108 @@
       }
     }
 
+    // ============ DOSSIER PANEL ============
+    function openDossierPanel() {
+      document.getElementById("dossier-panel").classList.add("open");
+    }
+
+    function closeDossierPanel() {
+      document.getElementById("dossier-panel").classList.remove("open");
+    }
+
+    function updateDossier(dossier) {
+      if (!dossier) return;
+      const body = document.getElementById("dossier-body");
+      const writing = document.getElementById("dossier-writing");
+      if (!body) return;
+
+      // Show writing animation
+      if (writing) { writing.classList.add("active"); setTimeout(() => writing.classList.remove("active"), 2000); }
+
+      // Build dossier HTML
+      let html = "";
+
+      // Prénom
+      if (dossier.prenom) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Prénom</div>';
+        html += '<div class="dossier-item highlight" style="animation-delay: 0.1s">' + esc(dossier.prenom) + '</div>';
+        html += '</div>';
+      }
+
+      // Profil
+      if (dossier.profil_detecte) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Profil détecté</div>';
+        html += '<div class="dossier-profil-badge">' + esc(dossier.profil_detecte) + '</div>';
+        html += '</div>';
+      }
+
+      // Situation
+      if (dossier.situation && dossier.situation.length > 0) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Situation actuelle</div>';
+        dossier.situation.forEach((s, i) => {
+          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(s) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      // Objectif
+      if (dossier.objectif && dossier.objectif.length > 0) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Objectif</div>';
+        dossier.objectif.forEach((o, i) => {
+          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(o) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      // Horizon + Capital
+      if (dossier.horizon || dossier.capital) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Paramètres</div>';
+        if (dossier.horizon) html += '<div class="dossier-item" style="animation-delay: 0.1s">Horizon : ' + esc(dossier.horizon) + '</div>';
+        if (dossier.capital) html += '<div class="dossier-item" style="animation-delay: 0.2s">Capital : ' + esc(dossier.capital) + '</div>';
+        html += '</div>';
+      }
+
+      // Vigilance
+      if (dossier.vigilance && dossier.vigilance.length > 0) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Points de vigilance</div>';
+        dossier.vigilance.forEach((v, i) => {
+          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(v) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      // Questions clés
+      if (dossier.questions_cles && dossier.questions_cles.length > 0) {
+        html += '<div class="dossier-section">';
+        html += '<div class="dossier-section-label">Questions posées</div>';
+        dossier.questions_cles.forEach((q, i) => {
+          html += '<div class="dossier-item" style="animation-delay: ' + (0.1 + i * 0.1) + 's">' + esc(q) + '</div>';
+        });
+        html += '</div>';
+      }
+
+      if (!html) {
+        html = '<div class="dossier-empty">Alpha prend des notes...</div>';
+      }
+
+      body.innerHTML = html;
+    }
+
+    function esc(s) { return String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
     function handleCoachUI(d) {
+      // Dossier panel
+      if (d.dossier) {
+        openDossierPanel();
+        updateDossier(d.dossier);
+      }
+
       // Smart card from coach
       if (d.card_a_afficher && SMART_CARDS[d.card_a_afficher]) {
         showSmartCard(d.card_a_afficher);
@@ -1378,6 +1633,8 @@
       document.querySelector(".headline").classList.remove("hidden");
       document.querySelector(".intro").classList.remove("hidden");
       hideSmartCard();
+      closeDossierPanel();
+      document.getElementById("dossier-body").innerHTML = '<div class="dossier-empty">En attente de la conversation...</div>';
     };
 
     window.addEventListener("pagehide", () => { if (state.isConnected) saveConversation().catch(() => {}); });

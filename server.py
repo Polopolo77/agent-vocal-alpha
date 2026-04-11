@@ -128,7 +128,17 @@ SCHÉMA JSON EXACT À RESPECTER
     "signal_closing": "rouge"
   },
   "alertes": [],
-  "card_a_afficher": null
+  "card_a_afficher": null,
+  "dossier": {
+    "prenom": null,
+    "situation": [],
+    "objectif": [],
+    "horizon": null,
+    "capital": null,
+    "profil_detecte": null,
+    "vigilance": [],
+    "questions_cles": []
+  }
 }
 
 Valeurs autorisées :
@@ -146,6 +156,18 @@ Valeurs autorisées :
 Pour objections.evoquees : liste toutes les objections que le prospect a exprimées depuis le début (même brièvement).
 Pour objections.levees : parmi les evoquees, celles qu'Alpha a déjà traitées avec succès (prospect a acquiescé ou n'y est pas revenu).
 Pour objections.en_cours : celles qui ne sont pas encore levées et qu'Alpha doit traiter.
+
+Pour dossier : remplis un résumé structuré de tout ce qu'on sait du prospect. Mets à jour à chaque appel avec les nouvelles informations. Les champs :
+- prenom : le prénom du prospect s'il l'a donné, sinon null
+- situation : liste de faits sur sa situation actuelle (ex: "Investi en ETF depuis 3 ans", "PEA ouvert chez Boursorama", "Retraité")
+- objectif : ce qu'il cherche (ex: "Complément de revenu", "Préparer sa retraite", "Faire fructifier son épargne")
+- horizon : horizon d'investissement (ex: "3-5 ans", "Long terme 10+ ans")
+- capital : capital mentionné (ex: "10 000-20 000€", "Budget modeste")
+- profil_detecte : profil en un mot (ex: "Prudent", "Équilibré", "Dynamique", "Agressif")
+- vigilance : points de préoccupation (ex: "Peur de perdre son capital", "Expérience négative avec la crypto", "Ne comprend pas les marchés US")
+- questions_cles : les questions importantes posées par le prospect (ex: "Comment ça marche concrètement ?", "C'est combien ?")
+
+Le dossier doit être CUMULATIF : les infos des tours précédents sont conservées et enrichies, pas remplacées.
 
 Pour card_a_afficher : recommande UNE carte visuelle à afficher au prospect. Valeurs possibles :
 - "proof_153" : quand Alpha mentionne la performance +153% → affiche le chiffre en gros
