@@ -1391,26 +1391,47 @@
     function esc(s) { return String(s || "").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
     function handleCoachUI(d) {
-      // Dossier panel
-      if (d.dossier) {
-        openDossierPanel();
-        updateDossier(d.dossier);
-      }
-
-      // Smart card from coach
-      if (d.card_a_afficher && SMART_CARDS[d.card_a_afficher]) {
-        showSmartCard(d.card_a_afficher);
-      }
-
-      // Legacy product card (still works)
-      if (d.produit?.recommande && d.produit.certitude === "ferme") {
-        showSmartCard("product_fortune");
-      }
-
-      // Closing CTA
+      // Coach only handles closing CTA now.
+      // Smart cards and dossier are managed by the UI Director.
       if (d.directive_prochain_tour?.signal_closing === "vert") {
         $closingCta.classList.add("visible");
       }
+    }
+
+    // ============ UI DIRECTOR (fast, every turn) ============
+    let uiDirectorInFlight = false;
+    let lastDossierData = {};
+
+    function callUIDirector() {
+      if (uiDirectorInFlight) return;
+      uiDirectorInFlight = true;
+
+      fetch(BACKEND_URL + "/api/ui-director", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: state.conversationLog.slice(),
+          previous_dossier: lastDossierData,
+        }),
+      })
+        .then(r => r.json())
+        .then(result => {
+          uiDirectorInFlight = false;
+          if (!result) return;
+
+          // Smart card
+          if (result.card_a_afficher && SMART_CARDS[result.card_a_afficher]) {
+            showSmartCard(result.card_a_afficher);
+          }
+
+          // Dossier notes
+          if (result.dossier) {
+            lastDossierData = result.dossier;
+            openDossierPanel();
+            updateDossier(result.dossier);
+          }
+        })
+        .catch(() => { uiDirectorInFlight = false; });
     }
 
     // ============ GEMINI WEBSOCKET ============
@@ -1536,6 +1557,8 @@
             state.pendingUserText = "";
             state.userTurnCount += 1;
             if (shouldCallCoach(userText)) callCoach("mid_call");
+            // UI Director: runs at EVERY turn from turn 2+ (fast, ~500ms)
+            if (state.userTurnCount >= 2) callUIDirector();
           }
           state.pendingBotText += sc.outputTranscription.text;
           addTranscriptLine("alpha", state.pendingBotText, !!state.currentAlphaLine);
@@ -1652,6 +1675,9 @@
       state.currentUserLine = null;
       state.currentAlphaLine = null;
       hideSmartCard();
+      lastDossierData = {};
+      previousDossierItems = new Set();
+      uiDirectorInFlight = false;
 
       state.audioPlayer = new AudioPlayer();
       state.audioPlayer.init();

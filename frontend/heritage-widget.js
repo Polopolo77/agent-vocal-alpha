@@ -1956,6 +1956,8 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
           if (decision.call) {
             callCoach("mid_call");
           }
+          // UI Director: fast agent for cards, runs at every turn from turn 2+
+          if (state.userTurnCount >= 2) callUIDirector();
         }
         state.pendingBotText += sc.outputTranscription.text;
         addMessage("bot", state.pendingBotText, !!currentBotMsg);
@@ -2178,6 +2180,42 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
   function injectCoachDirectiveIfAvailable() {
     // Intentionally a no-op. See comment above.
     return;
+  }
+
+  // ============ UI DIRECTOR (fast, every turn) ============
+  let uiDirectorInFlight = false;
+  let lastDossierData = {};
+
+  function callUIDirector() {
+    if (uiDirectorInFlight) return;
+    uiDirectorInFlight = true;
+
+    fetch(BACKEND_URL + "/api/ui-director", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        history: state.conversationLog.slice(),
+        previous_dossier: lastDossierData,
+      }),
+    })
+      .then(r => r.json())
+      .then(result => {
+        uiDirectorInFlight = false;
+        if (!result) return;
+        debugLog("ui_director", result);
+
+        // Smart card (if widget supports it)
+        if (result.card_a_afficher) {
+          handleCoachActions({ card_a_afficher: result.card_a_afficher });
+        }
+
+        // Dossier: widget doesn't have the panel, but we log it for debug
+        if (result.dossier) {
+          lastDossierData = result.dossier;
+          debugLog("dossier_update", result.dossier);
+        }
+      })
+      .catch(() => { uiDirectorInFlight = false; });
   }
 
   // ============ SAVE CONVERSATION ============

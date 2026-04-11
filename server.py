@@ -372,6 +372,113 @@ async def handle_strategist(request):
         return web.json_response({"error": str(e)}, status=500)
 
 
+UI_DIRECTOR_PROMPT = """Tu es un réalisateur UI. Tu reçois l'historique d'une conversation entre Alpha (agent vocal) et un prospect. Tu décides quoi afficher à l'écran du prospect.
+
+Tu renvoies UNIQUEMENT un JSON valide, rien d'autre.
+
+═══════════════════
+CARTES DISPONIBLES
+═══════════════════
+- "proof_153" : afficher quand Alpha mentionne +153% ou la performance globale
+- "proof_palantir" : afficher quand Alpha mentionne Palantir ou +250%
+- "story_aime" : afficher quand Alpha raconte l'histoire d'un abonné belge ou mentionne Aimé
+- "comparison_cgp" : afficher quand le prospect dit "trop cher", compare avec un conseiller, ou questionne le prix
+- "comparison_etf" : afficher quand le prospect parle d'ETF, de gestion passive, ou compare
+- "guarantee" : afficher quand le prospect exprime une peur, hésite sur le risque, ou dit "et si ça marche pas"
+- "product_fortune" : afficher quand Alpha recommande Fortune Stratégique et que le prospect semble intéressé
+- null : rien à afficher ce tour
+
+═══════════════════
+DOSSIER (visible par le prospect)
+═══════════════════
+Le dossier est AFFICHÉ au prospect. Écris UNIQUEMENT des faits neutres qu'il a dits lui-même.
+INTERDIT : analyses internes, "à confirmer", "probablement", stratégie.
+
+Champs :
+- prenom : son prénom s'il l'a donné, sinon null
+- situation : liste de faits bruts ["Investit en ETF", "PEA ouvert"]
+- objectif : ce qu'il veut ["Complément de revenu"]
+- horizon : "3-5 ans" ou null
+- capital : "10 000€" ou null
+- profil_detecte : UN MOT : "Prudent" ou "Dynamique" ou "Équilibré" ou "Agressif" ou null
+- vigilance : ses peurs telles qu'il les a dites ["Peur de perdre"]
+
+Le dossier doit être CUMULATIF : enrichir, pas remplacer.
+
+═══════════════════
+SCHÉMA JSON
+═══════════════════
+{
+  "card_a_afficher": null,
+  "dossier": {
+    "prenom": null,
+    "situation": [],
+    "objectif": [],
+    "horizon": null,
+    "capital": null,
+    "profil_detecte": null,
+    "vigilance": []
+  }
+}
+
+═══════════════════
+HISTORIQUE
+═══════════════════
+
+"""
+
+
+async def handle_ui_director(request):
+    """Fast UI agent: decides what to show on screen at each turn.
+
+    Runs at EVERY turn, with a very short prompt (~500 tokens)
+    for maximum speed (~500ms response time).
+    """
+    try:
+        data = await request.json()
+        history = data.get("history", [])
+        previous_dossier = data.get("previous_dossier", {})
+
+        if not history:
+            return web.json_response({"card_a_afficher": None, "dossier": {}})
+
+        # Only send the last 6 messages for speed (UI director doesn't need full history)
+        recent = history[-6:] if len(history) > 6 else history
+        history_text = "\n".join([
+            f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
+            for m in recent
+        ])
+
+        # Include previous dossier so the director can enrich it
+        if previous_dossier:
+            history_text += "\n\n═══════════════════\nDOSSIER PRÉCÉDENT (à enrichir, pas remplacer)\n═══════════════════\n" + json.dumps(previous_dossier, ensure_ascii=False)
+
+        full_prompt = UI_DIRECTOR_PROMPT + history_text
+
+        response = await asyncio.to_thread(
+            lambda: client.models.generate_content(
+                model=COACH_MODEL,  # Same fast model
+                contents=full_prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.2,
+                    "max_output_tokens": 1024,
+                    "thinking_config": {"thinking_budget": 0},
+                },
+            )
+        )
+
+        try:
+            result = json.loads(response.text)
+        except Exception:
+            return web.json_response({"card_a_afficher": None, "dossier": {}})
+
+        return web.json_response(result)
+    except Exception as e:
+        print(f"UI Director error: {e}")
+        return web.json_response({"card_a_afficher": None, "dossier": {}})
+
+
 async def handle_briefing(request):
     """Return the latest cached coach directive for tool calling.
 
@@ -516,6 +623,7 @@ app = web.Application()
 app.router.add_post("/api/token", handle_token)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_post("/api/strategist", handle_strategist)
+app.router.add_post("/api/ui-director", handle_ui_director)
 app.router.add_post("/api/briefing", handle_briefing)
 app.router.add_get("/api/prompt", handle_prompt)
 app.router.add_get("/api/conversations", handle_list_conversations)
