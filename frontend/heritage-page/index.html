@@ -1516,7 +1516,7 @@
           setOrbState("speaking");
           $status.textContent = "Alpha parle...";
           ws.send(JSON.stringify({
-            realtimeInput: { text: "Le prospect vient de décrocher. Tu te présentes en UNE phrase courte en français standard de France et tu demandes immédiatement son prénom. Exemple : 'Bonjour, c'est Alpha d'Héritage Éditions. Dites-moi, c'est quoi votre prénom ?'. Tu ne dis PAS 'Comment puis-je vous aider'. Tu prends les devants." }
+            realtimeInput: { text: "Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : 'Bonjour, ici Alpha d'Héritage Éditions. Avant de commencer, puis-je vous demander votre prénom ?'. Rien d'autre. Tu attends sa réponse." }
           }));
           startMic();
           return;
