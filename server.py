@@ -102,22 +102,6 @@ def _format_history(history: list[dict]) -> str:
     )
 
 
-def _require_product(data: dict) -> tuple[str | None, web.Response | None]:
-    """Return (product_id, None) or (None, error_response)."""
-    pid = data.get("product_id")
-    if not pid:
-        return None, web.json_response(
-            {"error": "missing product_id"},
-            status=400,
-        )
-    if pid not in REGISTRY.products:
-        return None, web.json_response(
-            {"error": f"unknown product_id: {pid}", "available": REGISTRY.list_ready()},
-            status=404,
-        )
-    return pid, None
-
-
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -176,44 +160,33 @@ async def handle_list_products(request: web.Request) -> web.Response:
 
 
 async def handle_prompt(request: web.Request) -> web.Response:
-    """Return the SYSTEM_INSTRUCTION for a given product."""
-    product_id = request.query.get("product")
+    """
+    Return the universal multi-product SYSTEM_INSTRUCTION for the voice agent.
+
+    No product parameter required — the prompt lists all 4 products and lets the
+    agent + coach decide dynamically which one to recommend based on the profile.
+    """
     agent_name = request.query.get("agent_name", DEFAULT_AGENT_NAME)
-
-    if not product_id:
-        return web.json_response(
-            {"error": "missing ?product=<id> query param", "available": REGISTRY.list_ready()},
-            status=400,
-        )
-    p = REGISTRY.get(product_id)
-    if not p:
-        return web.json_response(
-            {"error": f"unknown product: {product_id}", "available": REGISTRY.list_ready()},
-            status=404,
-        )
-
-    prompt = build_full_agent_prompt(p, agent_name=agent_name)
+    prompt = build_full_agent_prompt(REGISTRY, agent_name=agent_name)
     return web.json_response({
         "prompt": prompt,
-        "product_id": product_id,
-        "product_name": p.config.get("product_name", p.product_name),
-        "expert": p.config.get("lead_expert", {}).get("name"),
         "agent_name": agent_name,
         "voice": "Puck",
         "live_model": LIVE_MODEL,
+        "products_loaded": REGISTRY.list_ready(),
     })
 
 
 async def handle_strategist(request: web.Request) -> web.Response:
-    """Coach: analyze the conversation and return tactical directives as JSON."""
+    """Coach: analyze the conversation and return tactical directives as JSON.
+
+    Multi-product native: the coach itself picks which of the 4 products to
+    recommend based on the prospect's profile. No product_id needed as input.
+    """
     if not client:
         return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
     try:
         data = await request.json()
-        pid, err = _require_product(data)
-        if err:
-            return err
-
         history = data.get("history", [])
         if not history:
             return web.json_response({"error": "empty history"}, status=400)
@@ -223,9 +196,8 @@ async def handle_strategist(request: web.Request) -> web.Response:
         agent_name = data.get("agent_name", DEFAULT_AGENT_NAME)
         session_id = data.get("session_id", "default")
 
-        p = REGISTRY.get(pid)
         history_text = _format_history(history)
-        base = build_coach_prompt(p, agent_name=agent_name)
+        base = build_coach_prompt(REGISTRY, agent_name=agent_name)
 
         if mode == "post_call":
             suffix = (
@@ -242,7 +214,8 @@ async def handle_strategist(request: web.Request) -> web.Response:
                 f"TOUR ACTUEL : {turn_number}\n"
                 "═══════════════════════════════════════════════\n\n"
                 f"{agent_name} doit maintenant répondre au dernier message du prospect. "
-                f"Donne-lui la directive tactique la plus utile pour ce tour précis."
+                f"Donne-lui la directive tactique la plus utile pour ce tour précis. "
+                f"Rappel : produit non nommé avant tour 6, prix jamais avant tour 8."
             )
 
         full_prompt = base + history_text + suffix
@@ -270,20 +243,20 @@ async def handle_strategist(request: web.Request) -> web.Response:
                 status=500,
             )
 
-        # Logs
+        prod = coach_output.get("produit", {}) or {}
         log.info(
-            "COACH [%s/%s] turn=%s archetype=%s chaleur=%s tier=%s",
-            pid,
+            "COACH [%s] turn=%s archetype=%s chaleur=%s produit=%s tier=%s certitude=%s",
             mode,
             turn_number,
             coach_output.get("archetype_detecte"),
             coach_output.get("etat_emotionnel", {}).get("chaleur"),
-            coach_output.get("produit", {}).get("tier_recommande"),
+            prod.get("recommande"),
+            prod.get("tier_recommande"),
+            prod.get("certitude"),
         )
 
         coach_cache[session_id] = {
             "directive": coach_output,
-            "product_id": pid,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "turn": turn_number,
         }
@@ -295,16 +268,15 @@ async def handle_strategist(request: web.Request) -> web.Response:
 
 
 async def handle_ui_director(request: web.Request) -> web.Response:
-    """Fast UI agent: decides what card to show + what to write in the dossier."""
+    """Fast UI agent: decides what card to show + what to write in the dossier.
+
+    Multi-product native: knows all 4 products' cards and picks the right one
+    based on the conversation context (which product is being discussed).
+    """
     if not client:
         return web.json_response({"card_a_afficher": None, "dossier": {}})
     try:
         data = await request.json()
-        pid, err = _require_product(data)
-        if err:
-            # Pas critique : on renvoie juste une réponse vide plutôt qu'une erreur
-            return web.json_response({"card_a_afficher": None, "dossier": {}})
-
         history = data.get("history", [])
         previous_dossier = data.get("previous_dossier", {})
         agent_name = data.get("agent_name", DEFAULT_AGENT_NAME)
@@ -312,7 +284,6 @@ async def handle_ui_director(request: web.Request) -> web.Response:
         if not history:
             return web.json_response({"card_a_afficher": None, "dossier": {}})
 
-        p = REGISTRY.get(pid)
         recent = history[-6:] if len(history) > 6 else history
         history_text = _format_history(recent)
 
@@ -323,7 +294,7 @@ async def handle_ui_director(request: web.Request) -> web.Response:
                 + json.dumps(previous_dossier, ensure_ascii=False)
             )
 
-        full_prompt = build_ui_director_prompt(p, agent_name=agent_name) + history_text
+        full_prompt = build_ui_director_prompt(REGISTRY, agent_name=agent_name) + history_text
 
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
@@ -353,29 +324,24 @@ async def handle_briefing(request: web.Request) -> web.Response:
     """
     Tool calling endpoint: returns the coach directive + BM25 hits for the query.
 
+    The target product is determined (in priority order):
+      1. `produit.recommande` in the coach cache (when certitude is moyen/ferme)
+      2. Keyword heuristic on the query itself (e.g. "tilson" → argo_actions)
+      3. null — no BM25 if no product context yet
+
     Input JSON: {
       "session_id": str,
-      "query": str,              # preferred (new)
-      "user_message": str,       # legacy fallback
-      "product_id": str | null,  # optional override; else uses coach cache's product
+      "query": str,
+      "user_message": str,  # legacy fallback
     }
     """
     try:
         data = await request.json()
         session_id = data.get("session_id", "default")
         query = (data.get("query") or data.get("user_message") or "").strip()
-        product_id_override = data.get("product_id")
 
         cached = coach_cache.get(session_id)
-        product_id = product_id_override or (cached.get("product_id") if cached else None)
-        product = REGISTRY.get(product_id) if product_id else None
-
-        # BM25 search
-        bm25_hits = []
-        if product and query:
-            bm25_hits = REGISTRY.search(product_id, query, k=4)
-
-        briefing = build_briefing_from_cache(cached, bm25_hits, query, product=product)
+        briefing = build_briefing_from_cache(cached, REGISTRY, query)
         return web.json_response(briefing)
     except Exception as e:
         log.exception("Briefing error")

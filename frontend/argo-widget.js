@@ -1,13 +1,14 @@
 /**
- * Argo Voice Widget — Concierge IA Argo Éditions (multi-produits)
+ * Argo Voice Widget — Concierge IA Argo Éditions (multi-produits natif)
  *
  * Usage :
  *   <script src="argo-widget.js"
- *           data-product="argo_actions"
  *           data-backend-url="https://web-production-572b6.up.railway.app"
  *           data-agent-name="Argos"></script>
  *
- * Produits supportés : argo_actions | argo_crypto | argo_alpha | argo_gold
+ * L'agent découvre le prospect, son profil et recommande dynamiquement
+ * UNE des 4 publications Argo (Actions Gagnantes, Profits Asymétriques,
+ * Agent Alpha, Stratégie Haut Rendement).
  */
 (function () {
   "use strict";
@@ -19,19 +20,20 @@
   })();
 
   const DATASET = CURRENT_SCRIPT && CURRENT_SCRIPT.dataset ? CURRENT_SCRIPT.dataset : {};
-  const PRODUCT_ID = DATASET.product || "argo_actions";
   const BACKEND_URL = (DATASET.backendUrl || "https://web-production-572b6.up.railway.app").replace(/\/$/, "");
   const AGENT_NAME = DATASET.agentName || "Argos";
 
   const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
-  const PROMPT_ENDPOINT = BACKEND_URL + "/api/prompt?product=" + encodeURIComponent(PRODUCT_ID) + "&agent_name=" + encodeURIComponent(AGENT_NAME);
+  const PROMPT_ENDPOINT = BACKEND_URL + "/api/prompt?agent_name=" + encodeURIComponent(AGENT_NAME);
   const PRODUCTS_ENDPOINT = BACKEND_URL + "/api/products";
   const MODEL = "gemini-3.1-flash-live-preview";
   const VOICE = "Puck";
 
   // Placeholders remplis après fetch du prompt et du catalog
   let SYSTEM_INSTRUCTION = "";
-  let PRODUCT_META = { product_id: PRODUCT_ID, name: PRODUCT_ID, expert: "", offers: {} };
+  // Catalog des 4 produits, indexé par product_id. Enrichi par le coach au fil de la conv.
+  let CATALOG = {};
+  let CURRENT_RECOMMENDED_PRODUCT = null;
 
   // ============ STATE ============
   const state = {
@@ -445,7 +447,8 @@
     btn.innerHTML = `<span style="font-size:1.3rem">📞</span> Parler à un conseiller`;
     document.body.appendChild(btn);
 
-    const productLabel = (PRODUCT_META.name || PRODUCT_ID).toUpperCase();
+    // Label d'ouverture : branding uniquement (l'agent n'a pas encore choisi un produit).
+    const productLabel = "CONCIERGE IA";
     const overlay = document.createElement("div");
     overlay.id = "heritage-overlay";
     overlay.innerHTML = `
@@ -652,26 +655,35 @@
     if (el) el.style.display = "none";
   }
 
-  // Construit la carte produit à partir de PRODUCT_META chargé du backend.
-  // `tierKey` = "A" | "B" | "C" | "D" (optionnel) — précise quelle offre pousser.
+  // Construit la carte produit pour le produit actuellement recommandé par le coach.
+  // `tierKey` = "A" | "B" | "C" | "D" — précise quelle offre pousser.
   function showProductCard(tierKey) {
     const el = document.getElementById("heritage-product-card");
-    if (!el || !PRODUCT_META) return;
-    const offers = PRODUCT_META.offers || {};
+    if (!el) return;
+
+    const pid = CURRENT_RECOMMENDED_PRODUCT;
+    const pm = pid ? CATALOG[pid] : null;
+    if (!pm) return;
+
+    const offers = pm.offers || {};
     const tier = tierKey && offers[tierKey] ? offers[tierKey] : (offers.A || Object.values(offers)[0]);
     if (!tier) return;
 
     const priceLabel = tier.label || (tier.price_eur + "€/" + (tier.period || "an"));
-    const expert = PRODUCT_META.expert ? `par ${escapeHtml(PRODUCT_META.expert)}` : "";
-    const lm = PRODUCT_META.lead_magnet ? `<p class="product-bonus">Bonus offert : <strong>${escapeHtml(PRODUCT_META.lead_magnet)}</strong></p>` : "";
+    const expert = pm.expert ? `par ${escapeHtml(pm.expert)}` : "";
+    const lm = pm.lead_magnet ? `<p class="product-bonus">Bonus offert : <strong>${escapeHtml(pm.lead_magnet)}</strong></p>` : "";
 
     el.innerHTML = `
-      <h4>${escapeHtml(PRODUCT_META.name || PRODUCT_ID)}</h4>
+      <h4>${escapeHtml(pm.name || pid)}</h4>
       <p>${expert}</p>
       ${lm}
       <p class="product-price">${escapeHtml(priceLabel)}</p>
     `;
     el.style.display = "block";
+
+    // Update the overlay label maintenant qu'un produit est révélé.
+    const labelEl = document.querySelector(".heritage-label");
+    if (labelEl) labelEl.textContent = `ARGO · ${(pm.name || pid).toUpperCase()}`;
   }
 
   function hideProductCard() {
@@ -818,7 +830,7 @@
         $status.textContent = `${AGENT_NAME} parle...`;
         $micHint.textContent = "🎙 Micro actif";
         ws.send(JSON.stringify({
-          realtimeInput: { text: `Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : "Bonjour, ici ${AGENT_NAME}, le concierge IA d'Argo Éditions. Avant que je vous présente ${PRODUCT_META.name || "notre publication"}, puis-je vous demander votre prénom ?". Rien d'autre. Tu attends sa réponse.` }
+          realtimeInput: { text: `Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : "Bonjour, ici ${AGENT_NAME}, le concierge IA d'Argo Éditions. Avant d'aller plus loin, puis-je vous demander votre prénom ?". Rien d'autre. Tu attends sa réponse.` }
         }));
         startMic();
         return;
@@ -838,7 +850,6 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 session_id: state.sessionId || "default",
-                product_id: PRODUCT_ID,
                 query: fc.args?.raison || fc.args?.query || "",
               }),
             })
@@ -1016,7 +1027,6 @@
       turn_number: state.userTurnCount,
       mode: mode,
       session_id: state.sessionId || "default",
-      product_id: PRODUCT_ID,
       agent_name: AGENT_NAME,
     };
 
@@ -1058,10 +1068,17 @@
       hideClosingCta();
     }
 
-    // Nouveau schema : le coach renvoie `tier_recommande` ∈ {A,B,C,D}
-    // plutôt que le nom du produit (puisqu'il n'y en a qu'un par widget).
-    const tier = directive.produit?.tier_recommande;
-    if (tier && directive.produit?.certitude === "ferme") {
+    // Schema multi-produits : coach renvoie produit.recommande (argo_X) + tier_recommande (A/B/C/D)
+    const recommande = directive.produit?.recommande;
+    const tier       = directive.produit?.tier_recommande;
+    const certitude  = directive.produit?.certitude;
+
+    // Enregistre le produit recommandé dès que certitude moyen/ferme
+    if (recommande && (certitude === "moyen" || certitude === "ferme")) {
+      CURRENT_RECOMMENDED_PRODUCT = recommande;
+    }
+    // Révèle la fiche produit seulement quand certitude ferme
+    if (recommande && certitude === "ferme" && tier) {
       showProductCard(tier);
     }
   }
@@ -1159,7 +1176,6 @@
       body: JSON.stringify({
         history: state.conversationLog.slice(),
         previous_dossier: lastDossierData,
-        product_id: PRODUCT_ID,
         agent_name: AGENT_NAME,
       }),
     })
@@ -1243,7 +1259,6 @@
           turn_number: snapshot.turn_number,
           mode: "post_call",
           session_id: snapshot.session_id || "default",
-          product_id: PRODUCT_ID,
           agent_name: AGENT_NAME,
         }),
       });
@@ -1279,7 +1294,7 @@
       messages: state.conversationLog.slice(), // shallow copy
       turn_number: state.userTurnCount,
       session_id: state.sessionId,
-      product_id: PRODUCT_ID,
+      product_id: CURRENT_RECOMMENDED_PRODUCT,  // produit final recommandé (peut être null)
       agent_name: AGENT_NAME,
     };
 
@@ -1390,33 +1405,21 @@
       state.audioPlayer = new AudioPlayer();
       state.audioPlayer.init();
 
-      // Charger le prompt système du backend (product-spécifique)
+      // Charger le prompt système universel (multi-produits) du backend
       if (!SYSTEM_INSTRUCTION) {
         const pRes = await fetch(PROMPT_ENDPOINT);
         const pJson = await pRes.json();
         if (pJson.error) throw new Error("Prompt : " + pJson.error);
         SYSTEM_INSTRUCTION = pJson.prompt;
-        PRODUCT_META = {
-          product_id: pJson.product_id,
-          name: pJson.product_name,
-          expert: pJson.expert,
-          offers: PRODUCT_META.offers || {},  // sera enrichi via /api/products
-          lead_magnet: PRODUCT_META.lead_magnet || "",
-        };
-        // Met à jour le label dans l'UI maintenant qu'on connaît le nom
-        const labelEl = document.querySelector(".heritage-label");
-        if (labelEl) labelEl.textContent = `ARGO · ${(pJson.product_name || PRODUCT_ID).toUpperCase()}`;
       }
 
-      // Enrichir PRODUCT_META avec offres + lead magnet via /api/products
-      if (!PRODUCT_META.offers || Object.keys(PRODUCT_META.offers).length === 0) {
+      // Charger le catalog des 4 produits (pour showProductCard quand coach tranche)
+      if (Object.keys(CATALOG).length === 0) {
         try {
           const cRes = await fetch(PRODUCTS_ENDPOINT);
           const cJson = await cRes.json();
-          const entry = (cJson.products || []).find((p) => p.product_id === PRODUCT_ID);
-          if (entry) {
-            PRODUCT_META.offers = entry.offers || {};
-            PRODUCT_META.lead_magnet = entry.lead_magnet || "";
+          for (const p of (cJson.products || [])) {
+            CATALOG[p.product_id] = p;
           }
         } catch (catErr) {
           console.warn("Failed to load product catalog:", catErr);

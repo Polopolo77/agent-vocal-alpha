@@ -67,39 +67,6 @@
     letter-spacing: 5px;
   }
 
-  /* ============ PRODUCT SWITCHER (en haut) ============ */
-  .product-switcher {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-bottom: 32px;
-    opacity: 1;
-    transition: opacity 0.4s, max-height 0.4s;
-    max-height: 80px;
-    overflow: hidden;
-  }
-  body.in-call .product-switcher { opacity: 0; max-height: 0; pointer-events: none; margin-bottom: 0; }
-
-  .product-switcher button {
-    background: transparent;
-    border: 1px solid var(--line);
-    color: var(--muted);
-    padding: 8px 14px;
-    border-radius: 20px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-  }
-  .product-switcher button:hover { border-color: var(--gold-dim); color: var(--fg); }
-  .product-switcher button.active {
-    background: var(--gold-dim);
-    border-color: var(--gold);
-    color: var(--gold);
-  }
-
   /* ============ HERO / INTRO ============ */
   .headline {
     font-family: 'Cormorant Garamond', serif;
@@ -605,25 +572,20 @@
 <div class="page">
   <div class="brand">Argo · <strong>Éditions</strong> · Concierge IA</div>
 
-  <!-- Product switcher (hidden during call) -->
-  <div class="product-switcher" id="product-switcher" role="tablist" aria-label="Choisir un produit">
-    <!-- populated by JS -->
-  </div>
-
   <h1 class="headline">
     Discutez avec <span>Argos</span><br>
-    votre concierge IA pour <span id="product-name-intro">…</span>
+    votre concierge IA d'investissement
   </h1>
   <p class="intro">
     Une conversation vocale de 5 à 10 minutes. Argos vous pose quelques questions,
-    comprend votre situation, et vous dit honnêtement si <strong id="product-name-strong">cette publication</strong>
-    est faite pour vous.
+    comprend votre situation, et vous recommande <strong>la publication Argo qui vous correspond vraiment</strong>
+    — parmi Actions Gagnantes, Profits Asymétriques, Agent Alpha et Stratégie Haut Rendement.
   </p>
 
   <div class="how-it-works">
     <div class="step"><div class="step-num">1</div><div class="step-text">Démarrez l'appel<br>depuis votre navigateur</div></div>
     <div class="step"><div class="step-num">2</div><div class="step-text">Parlez naturellement<br>en français</div></div>
-    <div class="step"><div class="step-num">3</div><div class="step-text">Votre dossier se remplit<br>au fil de la conversation</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">Argos vous recommande<br>la bonne publication</div></div>
   </div>
 
   <div class="orb-container idle" id="orb-container">
@@ -683,13 +645,12 @@
 
   // ============ CONFIG ============
   const urlParams = new URLSearchParams(location.search);
-  const PRODUCT_ID = urlParams.get("product") || "argo_actions";
   const AGENT_NAME = "Argos";
   // Backend : origin (même domaine) par défaut, override via ?backend=
   const BACKEND_URL = (urlParams.get("backend") || location.origin).replace(/\/$/, "");
 
   const TOKEN_ENDPOINT     = BACKEND_URL + "/api/token";
-  const PROMPT_ENDPOINT    = BACKEND_URL + "/api/prompt?product=" + encodeURIComponent(PRODUCT_ID) + "&agent_name=" + encodeURIComponent(AGENT_NAME);
+  const PROMPT_ENDPOINT    = BACKEND_URL + "/api/prompt?agent_name=" + encodeURIComponent(AGENT_NAME);
   const PRODUCTS_ENDPOINT  = BACKEND_URL + "/api/products";
   const STRATEGIST_ENDPOINT= BACKEND_URL + "/api/strategist";
   const UIDIRECTOR_ENDPOINT= BACKEND_URL + "/api/ui-director";
@@ -715,15 +676,16 @@
     coachInFlight: false,
     uiDirectorInFlight: false,
     lastDossier: {},
-    imagesByCardKey: {},   // usage_card → image object
-    productMeta: null,
-    productCatalog: [],    // tous les produits, pour le switcher
+    // Catalog multi-produits (4 produits chargés au boot)
+    catalog: {},            // { product_id → entry }
+    imagesByCardKey: {},    // union des usage_card de tous les produits
+    cardProductMap: {},     // usage_card → product_id (pour savoir quel produit l'a fourni)
+    currentRecommendedProduct: null,  // mis à jour par le coach
     systemPrompt: "",
-    productSwitchInitial: true,
   };
 
   // Champs de dossier connus (pour calcul du % de complétion)
-  const DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte", "vigilance", "questions_cles"];
+  const DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte", "vigilance", "publication_recommandee"];
 
   // ============ UTILS ============
   function escapeHtml(s) {
@@ -899,7 +861,9 @@
   function updateProgress(dossier) {
     let filled = 0, total = DOSSIER_FIELDS.length;
     for (const k of DOSSIER_FIELDS) {
-      const v = dossier[k];
+      let v = dossier[k];
+      // Publication recommandée peut venir du state si le coach a tranché avant l'UI director
+      if (k === "publication_recommandee" && !v && state.currentRecommendedProduct) v = state.currentRecommendedProduct;
       if (v === null || v === undefined || v === "") continue;
       if (Array.isArray(v) && v.length === 0) continue;
       filled++;
@@ -938,6 +902,13 @@
     addSection("profil_detecte", "badge",     dossier.profil_detecte, "Profil détecté");
     addSection("vigilance",      "list",      dossier.vigilance, "Points de vigilance");
     addSection("questions_cles", "list",      dossier.questions_cles, "Questions clés");
+
+    // Publication recommandée (seulement si UI Director ou coach a tranché)
+    let pubReco = dossier.publication_recommandee;
+    if (!pubReco && state.currentRecommendedProduct && state.catalog[state.currentRecommendedProduct]) {
+      pubReco = state.catalog[state.currentRecommendedProduct].name;
+    }
+    if (pubReco) addSection("publication_recommandee", "highlight", pubReco, "Publication recommandée");
 
     // Render
     $dossierBody.innerHTML = "";
@@ -1118,15 +1089,23 @@
   }
 
   function buildOfferCard(card) {
-    if (!state.productMeta) return null;
-    const pm = state.productMeta;
+    // La carte offre dépend du produit actuellement recommandé par le coach.
+    const pid = state.currentRecommendedProduct;
+    const pm = pid ? state.catalog[pid] : null;
+    if (!pm) {
+      card.innerHTML =
+        '<span class="smart-card-badge">Argo Éditions</span>' +
+        '<h4>4 publications, 1 méthode</h4>' +
+        '<p>Argos va identifier celle qui vous correspond.</p>';
+      return card;
+    }
     const offers = pm.offers || {};
     const tierA = offers.A || Object.values(offers)[0];
     const lmTitle = pm.lead_magnet || "";
     const priceLabel = tierA ? (tierA.label || (tierA.price_eur + "€/" + (tierA.period || "an"))) : "";
 
     card.innerHTML =
-      '<span class="smart-card-badge">Offre</span>' +
+      '<span class="smart-card-badge">Offre recommandée</span>' +
       '<h4>' + escapeHtml(pm.name || "Publication") + '</h4>' +
       (pm.expert ? '<p>Par <strong>' + escapeHtml(pm.expert) + '</strong></p>' : '') +
       (lmTitle ? '<p style="margin-top:8px;">Bonus offert : <strong style="color:var(--fg);">' + escapeHtml(lmTitle) + '</strong></p>' : '') +
@@ -1136,11 +1115,12 @@
   }
 
   function buildGuaranteeCard(card) {
-    const pm = state.productMeta;
-    const guarantees = (pm && pm.config_guarantees) || [];
+    // Si on a un produit recommandé, on prend SES garanties, sinon générique.
+    const pid = state.currentRecommendedProduct;
+    const guarantees = (pid && state.catalog[pid] && state.catalog[pid].guarantees) || [];
     const list = guarantees.length
       ? guarantees.map(g => '<p style="padding-left:14px; position:relative;"><span style="color:var(--gold); position:absolute; left:0;">✓</span> ' + escapeHtml(g) + '</p>').join('')
-      : '<p>Vous pouvez essayer sans risque et vous faire rembourser si la publication ne vous convient pas.</p>';
+      : '<p>Toutes les publications Argo sont sans engagement, avec une garantie satisfait ou remboursé.</p>';
 
     card.innerHTML =
       '<span class="smart-card-badge">Garantie</span>' +
@@ -1174,7 +1154,6 @@
       turn_number: state.userTurnCount,
       mode,
       session_id: state.sessionId,
-      product_id: PRODUCT_ID,
       agent_name: AGENT_NAME,
     };
 
@@ -1190,9 +1169,15 @@
           state.coachDirective = d;
           const signal = d.directive_prochain_tour?.signal_closing;
           if (signal === "vert") showClosingCta();
-          // Affiche la fiche produit en cas d'intent ferme
-          const tier = d.produit?.tier_recommande;
-          if (tier && d.produit?.certitude === "ferme") {
+
+          // Enregistre le produit recommandé par le coach (dès que certitude moyen/ferme)
+          const recommande = d.produit?.recommande;
+          const certitude  = d.produit?.certitude;
+          if (recommande && (certitude === "moyen" || certitude === "ferme")) {
+            state.currentRecommendedProduct = recommande;
+          }
+          // Affiche la fiche produit en cas d'intent ferme seulement
+          if (recommande && certitude === "ferme") {
             showSmartCard("offer_card");
           }
         }
@@ -1215,7 +1200,6 @@
       body: JSON.stringify({
         history: state.conversationLog.slice(),
         previous_dossier: state.lastDossier,
-        product_id: PRODUCT_ID,
         agent_name: AGENT_NAME,
       }),
     })
@@ -1290,11 +1274,10 @@
         state.isConnected = true;
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " parle…";
-        // Message d'ouverture forcé
-        const productName = (state.productMeta && state.productMeta.name) || "notre publication";
+        // Message d'ouverture : générique (on ne sait pas encore quel produit recommander).
         ws.send(JSON.stringify({
           realtimeInput: {
-            text: 'Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : "Bonjour, ici ' + AGENT_NAME + ', le concierge IA d\'Argo Éditions. Avant que je vous présente ' + productName + ', puis-je vous demander votre prénom ?". Rien d\'autre. Tu attends sa réponse.'
+            text: 'Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : "Bonjour, ici ' + AGENT_NAME + ', le concierge IA d\'Argo Éditions. Avant d\'aller plus loin, puis-je vous demander votre prénom ?". Rien d\'autre. Tu attends sa réponse.'
           }
         }));
         startMic();
@@ -1311,7 +1294,6 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 session_id: state.sessionId,
-                product_id: PRODUCT_ID,
                 query: fc.args?.raison || "",
               }),
             })
@@ -1487,7 +1469,7 @@
       started_at: state.conversationStartedAt,
       ended_at: new Date().toISOString(),
       messages: state.conversationLog.slice(),
-      product_id: PRODUCT_ID,
+      product_id: state.currentRecommendedProduct, // produit final recommandé (ou null)
     };
     try {
       if (navigator.sendBeacon) {
@@ -1510,59 +1492,33 @@
     if (state.isConnected) { try { saveConversation(); } catch {} }
   });
 
-  // ============ PRODUCT SWITCHER + CATALOG ============
-  const $switcher = $("product-switcher");
-
-  function renderProductSwitcher(products) {
-    $switcher.innerHTML = "";
-    for (const p of products) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.dataset.productId = p.product_id;
-      btn.textContent = p.name;
-      if (p.product_id === PRODUCT_ID) btn.classList.add("active");
-      btn.addEventListener("click", () => {
-        const url = new URL(location.href);
-        url.searchParams.set("product", p.product_id);
-        location.href = url.toString();
-      });
-      $switcher.appendChild(btn);
-    }
-  }
-
-  function applyProductMeta(entry) {
-    state.productMeta = {
-      product_id: entry.product_id,
-      name: entry.name,
-      expert: entry.expert,
-      offers: entry.offers,
-      lead_magnet: entry.lead_magnet,
-      config_guarantees: entry.guarantees || [],
-    };
-    // Images from catalog — {usage_card: {url, description, role}}
-    state.imagesByCardKey = entry.images_by_card || {};
-
-    // Update textual hooks
-    $("product-name-intro").textContent = entry.name;
-    $("product-name-strong").textContent = entry.name;
-    document.title = AGENT_NAME + " · " + entry.name + " · Argo Éditions";
-  }
+  // ============ CATALOG LOADING (4 produits en mémoire) ============
 
   async function bootstrap() {
     try {
       const catRes = await fetch(PRODUCTS_ENDPOINT);
       const catJson = await catRes.json();
-      const products = (catJson.products || []).sort((a, b) => a.product_id.localeCompare(b.product_id));
-      state.productCatalog = products;
-      renderProductSwitcher(products);
+      const products = catJson.products || [];
 
-      const entry = products.find(p => p.product_id === PRODUCT_ID) || products[0];
-      if (!entry) throw new Error("Aucun produit dans le catalog");
-      applyProductMeta(entry);
+      // Indexer le catalog par product_id + construire l'union des cartes
+      state.catalog = {};
+      state.imagesByCardKey = {};
+      state.cardProductMap = {};
+      for (const p of products) {
+        state.catalog[p.product_id] = p;
+        const ibc = p.images_by_card || {};
+        for (const [cardKey, imgMeta] of Object.entries(ibc)) {
+          // Si deux produits utilisent le même cardKey (rare, mais possible pour images partagées),
+          // on garde le premier rencontré et on mappe la clé au premier produit.
+          if (!state.imagesByCardKey[cardKey]) {
+            state.imagesByCardKey[cardKey] = imgMeta;
+            state.cardProductMap[cardKey] = p.product_id;
+          }
+        }
+      }
+      console.log("[Argo] Catalog loaded:", Object.keys(state.catalog), "— total cards:", Object.keys(state.imagesByCardKey).length);
     } catch (err) {
-      console.error("Catalog load failed:", err);
-      $("product-name-intro").textContent = "nos publications";
-      $("product-name-strong").textContent = "cette publication";
+      console.error("[Argo] Catalog load failed:", err);
     }
   }
 
