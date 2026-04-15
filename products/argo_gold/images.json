@@ -1,0 +1,97 @@
+{
+  "product_id": "argo_gold",
+  "source_url": "https://investir.argo-editions.com/hyper-climax-gold/index.html",
+  "video": {
+    "platform": "Vidyard",
+    "id": "yNbn7F2mkTghAqPmGWEnSA",
+    "title": "PSA-260114-Hyper Climax Gold-SHR - Maquette 03",
+    "duration": "24:38",
+    "embed_url": "https://play.vidyard.com/yNbn7F2mkTghAqPmGWEnSA",
+    "thumbnail_url": "https://play.vidyard.com/yNbn7F2mkTghAqPmGWEnSA.jpg"
+  },
+  "images": [
+    {
+      "id": "bg_gold",
+      "url": "https://cdn.argo-editions.com/uploads/background-gold.png",
+      "role": "background",
+      "description": "Fond or (background page Hyper Climax Gold)"
+    },
+    {
+      "id": "or_vs_bons_tresor",
+      "url": "https://cdn.argo-editions.com/uploads/or-bons-tresor-us-banques-centrales.png",
+      "role": "proof_chart",
+      "description": "1ère fois en 30 ans : Banques centrales détiennent plus d'or que de Bons du Trésor US",
+      "usage_card": "proof_detonateur_1"
+    },
+    {
+      "id": "or_offre_demande",
+      "url": "https://cdn.argo-editions.com/uploads/or-mondial.jpg",
+      "role": "proof_chart",
+      "description": "Offre/demande mondiale de l'or — pénurie structurelle",
+      "usage_card": "proof_detonateur_2"
+    },
+    {
+      "id": "cours_historique_or",
+      "url": "https://cdn.argo-editions.com/uploads/cours-historique-or.jpg",
+      "role": "proof_chart",
+      "description": "Cours historique de l'or sur 55 ans — plus haut absolu dépassé",
+      "usage_card": "proof_historique"
+    },
+    {
+      "id": "cours_or_5ans",
+      "url": "https://cdn.argo-editions.com/uploads/cours-or-2020s.png",
+      "role": "proof_chart",
+      "description": "Cours de l'or sur 5 ans — 3 zones (consolidation, hausse, Hyper Climax Run)",
+      "usage_card": "proof_detonateur_3"
+    },
+    {
+      "id": "perf_vista_gold",
+      "url": "https://cdn.argo-editions.com/uploads/cours-vista-gold.png",
+      "role": "proof_chart",
+      "description": "Vista Gold Corp +1 248% en 1 an (x13)",
+      "usage_card": "proof_vista"
+    },
+    {
+      "id": "perf_ssr_mining",
+      "url": "https://cdn.argo-editions.com/uploads/cours-ssr-mining.png",
+      "role": "proof_chart",
+      "description": "SSR Mining +5 428% en 2 ans (x55)",
+      "usage_card": "proof_ssr"
+    },
+    {
+      "id": "perf_forsys_metals",
+      "url": "https://cdn.argo-editions.com/uploads/cours-forsys-metals.png",
+      "role": "proof_chart",
+      "description": "Forsys Metals +10 900% en 10 mois (x110)",
+      "usage_card": "proof_forsys"
+    },
+    {
+      "id": "dan_ferris",
+      "url": "https://cdn.argo-editions.com/uploads/dan-ferris.png",
+      "role": "authority",
+      "description": "Portrait Dan Ferris, 'Crocodile de Wall Street'",
+      "usage_card": "authority_ferris"
+    },
+    {
+      "id": "minieres_or_dossier",
+      "url": "https://cdn.argo-editions.com/uploads/minieres-or-shr-pad.png",
+      "role": "product_shot",
+      "description": "Dossier bonus Minières d'Or 2026 (valeur 299€, offert)",
+      "usage_card": "bonus_minieres"
+    },
+    {
+      "id": "titans_bourse_dossier",
+      "url": "https://cdn.argo-editions.com/uploads/titans-bourse-shr-pad.png",
+      "role": "product_shot",
+      "description": "Dossier bonus Les Titans de la Bourse — 10 actions croissance (valeur 997€, offert)",
+      "usage_card": "bonus_titans"
+    },
+    {
+      "id": "rapport_uranium_dossier",
+      "url": "https://cdn.argo-editions.com/uploads/rapport-uranium-shr-pad.png",
+      "role": "product_shot",
+      "description": "Dossier bonus Rapport Uranium — 2 actions confidentielles (valeur 299€, offert)",
+      "usage_card": "bonus_uranium"
+    }
+  ]
+}

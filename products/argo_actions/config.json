@@ -1,0 +1,104 @@
+{
+  "product_id": "argo_actions",
+  "slug": "argo-actions",
+  "publisher": "Argo Éditions",
+  "product_name": "Actions Gagnantes",
+  "vertical": "actions",
+  "positioning": "Recherche en investissement actions — sélection mensuelle par Whitney Tilson (formé par Warren Buffett).",
+  "signatory": "Marc Schneider",
+  "lead_expert": {
+    "name": "Whitney Tilson",
+    "role": "Directeur d'Actions Gagnantes depuis 2024",
+    "credentials": [
+      "20+ ans à Wall Street",
+      "Ex-Kase Capital (hedge fund, 18 ans)",
+      "Formé et mentoré par Warren Buffett",
+      "A travaillé en direct avec Barack Obama sur sa politique financière",
+      "Ami du milliardaire Bill Ackman"
+    ],
+    "notable_wins_official": [
+      { "asset": "AAPL", "return_pct": 47400 },
+      { "asset": "NFLX", "return_pct": 8900 },
+      { "asset": "AMZN", "return_pct": 7600 }
+    ]
+  },
+  "analyst_team": [
+    {
+      "profile": "Spécialiste de la gestion d'entreprises",
+      "track_record": "30 ans d'expérience, a fait passer le CA de son entreprise (logiciels informatiques) de 40 M$ à plus d'1 MILLIARD $"
+    },
+    {
+      "profile": "Ex-trader star",
+      "track_record": "Passé par Goldman Sachs et Barclays, titulaire d'un CFA et d'un MBA en finance quantitative, trade avec succès depuis l'adolescence"
+    },
+    {
+      "profile": "Ancien auditeur des Big Four",
+      "track_record": "Spécialiste des négociations entre la SEC et les entreprises — capacité d'anticipation hors-normes"
+    },
+    {
+      "profile": "Avocat d'affaires",
+      "track_record": "Spécialisé dans les contrats mobiliers, les lois antitrust et les taux d'intérêt ; a conseillé le gouvernement américain sur sa politique d'aide au développement international"
+    }
+  ],
+  "origin": "Créé en 1999 à Baltimore (USA)",
+  "cumulative_performance_since_1999_pct": 3264,
+  "sectors": [
+    "Nouvelles technologies",
+    "Entreprises à forte rentabilité",
+    "Logiciels de pointe",
+    "Banque et assurance",
+    "Placements anti-crise",
+    "Placements anti-inflation"
+  ],
+  "exclusivity": "Seul service à proposer ces dossiers au public francophone.",
+  "lead_magnet": {
+    "title": "Bouclier Suisse",
+    "subtitle": "La méthode simple et 100% légale pour sécuriser votre épargne en Suisse",
+    "standalone_price_eur": 399
+  },
+  "offers": {
+    "A": {
+      "price_eur": 149,
+      "period": "an",
+      "label": "149€/an",
+      "positioning": "Offre standard — prix d'entrée pour découvrir la publication",
+      "tacite_reconduction": true
+    },
+    "B": {
+      "price_eur": 299,
+      "period": "an",
+      "label": "299€/an",
+      "positioning": "Offre longue / public plus aisé — valeur normale non remisée",
+      "tacite_reconduction": true
+    }
+  },
+  "cadence": "Mensuel (1 nouveau dossier action par mois)",
+  "portfolio_size": "40+ actions",
+  "track_record": {
+    "historical_cumulative": "+3264% depuis 1999 (6x le S&P500)",
+    "notable_wins": [
+      { "ticker": "AAPL", "entry_year": 2008, "multiple": "x475" },
+      { "ticker": "AMZN", "entry_year": 2000, "multiple": "x77" },
+      { "ticker": "NFLX", "entry_year": 2012, "return_pct": 8900 },
+      { "ticker": "SODA", "entry_year": 2016, "return_pct": 1100 },
+      { "ticker": "GGP",  "entry_year": null, "return_pct": 1600 }
+    ]
+  },
+  "guarantees": [
+    "Remboursement intégral sous 3 mois si changement d'avis",
+    "Si reco < S&P500 + Stoxx600 sur 1 an → 1 an offert (annuel uniquement)",
+    "Résiliation immédiate par email, sans préavis"
+  ],
+  "attack_angles": [
+    "Peur : faillite État français / ponction épargne / Euro Numérique",
+    "Refuge : Suisse hors UE, hors SEPA, CHF solide",
+    "Performance : track record Whitney Tilson",
+    "Autorité : Tilson formé par Buffett, conseiller Obama",
+    "Risque nul : double garantie + sans engagement"
+  ],
+  "source_url": "https://investir.argo-editions.com/bouclier-suisse/index.html",
+  "files": {
+    "sales_letter": "sales_letter.md",
+    "images": "images.json"
+  }
+}

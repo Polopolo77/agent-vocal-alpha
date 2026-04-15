@@ -1,0 +1,161 @@
+{
+  "product_id": "argo_alpha",
+  "slug": "argo-alpha",
+  "publisher": "Argo Éditions",
+  "product_name": "Alpha - Agent IA d'Investissement",
+  "vertical": "tech_ia_actions",
+  "positioning": "Premier Agent IA d'Investissement dédié aux particuliers. Développé par Stansberry Research, supervisé par Whitney Tilson. Gère un portefeuille de 20 actions Russell 1000 avec rebalancing trimestriel automatique.",
+  "signatory": "Marc Schneider",
+  "tech_partner": {
+    "name": "Stansberry Research",
+    "description": "Plus grande firme de recherche financière indépendante des États-Unis (30 ans d'existence, partenariat exclusif avec Argo depuis l'origine)"
+  },
+  "lead_expert": {
+    "name": "Whitney Tilson",
+    "nickname": "L'Héritier de Warren Buffett",
+    "role": "Superviseur humain (relecture finale du portefeuille avant publication)",
+    "credentials": [
+      "Formé et conseillé par Warren Buffett",
+      "Conseiller financier de Barack Obama",
+      "Ami proche de Bill Ackman (rencontrés à Harvard)"
+    ],
+    "notable_wins": [
+      { "asset": "AAPL", "year": 2008, "entry_price_usd": 0.35, "multiple": "x700" },
+      { "asset": "AMZN", "year": 2000, "entry_price_usd": 2.41, "multiple": "x90" },
+      { "asset": "NFLX", "year": 2012, "return_pct": 8900 },
+      { "asset": "GGP",  "year": 2016, "return_pct": 1600 },
+      { "asset": "SODA", "return_pct": 1100 }
+    ]
+  },
+  "historical_inspiration": {
+    "figure": "Jim Simons",
+    "fund": "Renaissance Technologies",
+    "stats": {
+      "avg_annual_return_since_1988_pct": 63,
+      "vs_sp500": "6x mieux (S&P +10%/an)",
+      "vs_buffett": "3x mieux (Buffett +20%/an)",
+      "crisis_2008": "Renaissance +98% vs S&P -38%",
+      "illustration": "1 000 $ en 1988 = 46 milliards $ en 2024"
+    },
+    "accessibility": "Inaccessible : Renaissance Institutional demande 10M$ minimum + parrainage d'un des 600 membres"
+  },
+  "methodology": {
+    "step_1_universe": "Russell 1000 (1000 plus grandes entreprises américaines)",
+    "step_2_scoring": {
+      "name": "Stansberry Score",
+      "scale": "0-100",
+      "criteria": [
+        "Efficience du capital (génère-t-elle beaucoup de cash avec peu de moyens ?)",
+        "Santé financière (qualité des bénéfices, risque de faillite caché)",
+        "Valorisation (flux de trésorerie réels, prix juste)",
+        "Momentum (dynamique haussière ou baissière)"
+      ],
+      "entry_threshold": 85,
+      "exit_threshold": 80,
+      "filter_result": "~90% du marché éliminé, ~100 actions restantes"
+    },
+    "step_3_ai": {
+      "inputs": ["historique de performance", "volatilité", "corrélations"],
+      "process": "Clustering en familles statistiques, sélection des meilleures par cluster",
+      "output": "Portefeuille de 20 actions, chacune exactement 5% du total"
+    },
+    "step_4_rebalancing": {
+      "frequency": "Trimestrielle (tous les 3 mois)",
+      "actions": ["Recalcul des scores", "Re-test des corrélations", "Arbitrages si besoin"],
+      "risk_management": "Stop-loss automatique à un seuil estimé par l'IA"
+    },
+    "human_checkpoint": "Une seule intervention humaine : relecture finale du portefeuille par Whitney Tilson avant publication"
+  },
+  "simulated_performance": {
+    "wins": [
+      { "asset": "Cadence Design Systems", "score": 77, "return_pct": 550 },
+      { "asset": "Synopsys",                "score": 78, "return_pct": 450 },
+      { "asset": "Agnico Eagle Mines",      "score": 90, "return_pct": 73, "period_months": 12 },
+      { "asset": "Nvidia (depuis 2017)",    "score": 74, "return_pct": 6400, "multiple": "x65" }
+    ],
+    "avoided_losses": [
+      { "asset": "Rezolve AI", "score": 37, "return_pct": -70 },
+      { "asset": "Jet AI",     "score": 17, "return_pct": -93 }
+    ],
+    "global_5y": {
+      "alpha_vs_sp500_pts": 50,
+      "alpha_vs_berkshire_pts": 26,
+      "concrete_illustration": "100 000$ en 2017 → 339 000$ aujourd'hui"
+    }
+  },
+  "offers": {
+    "A": {
+      "price_eur": 496,
+      "period": "an",
+      "label": "496€/an",
+      "positioning": "Offre annuelle standard de lancement",
+      "tacite_reconduction": true
+    },
+    "B": {
+      "price_eur": 997,
+      "period": "an",
+      "label": "997€/an (premium)",
+      "positioning": "Tier annuel premium pour public aisé"
+    },
+    "C": {
+      "price_eur": 149,
+      "period": "trimestre",
+      "label": "149€/trim",
+      "positioning": "Étalement du paiement, fallback objection engagement"
+    },
+    "D": {
+      "price_eur": 299,
+      "period": "trimestre",
+      "label": "299€/trim (premium)",
+      "positioning": "Tier trimestriel premium"
+    }
+  },
+  "note_landing_only": "La landing publique mentionne aussi une offre 'à vie' à 1496€ (paiement unique). Cette offre n'est PAS dans le catalog V1 officiel, ne pas la proposer via le Concierge IA.",
+  "offer_window_days": 7,
+  "cadence": "Trimestrielle (rebalancing) + mensuelle (rapport) + site web 24/7",
+  "portfolio_size": "20 actions du Russell 1000, 5% chacune",
+  "delivery": {
+    "primary_channel": "Telegram (canal privé crypté)",
+    "secondary_channel": "Email (toutes les recos sont aussi envoyées par email)",
+    "onboarding_time": "Moins de 10 minutes (guide pas-à-pas fourni)",
+    "inclusions": [
+      "Guide de démarrage complet (installation, explication Stansberry Score, guide d'achat en un ordre)",
+      "Calculateur d'allocation de départ (tableau dynamique selon somme investie)",
+      "Rapport mensuel Stansberry (actualité, suivi, décisions expliquées)",
+      "Dossier trimestriel détaillé avec nouvelle répartition",
+      "Accès au site web privé avec archives"
+    ]
+  },
+  "guarantees": [
+    "Satisfait ou remboursé 3 mois (90 jours) inconditionnel",
+    "Sans engagement — résiliation par email, accès conservé jusqu'au terme payé"
+  ],
+  "attack_angles": [
+    "Thèse : l'IA a tué l'investisseur humain",
+    "Précédent Simons / Renaissance : +63%/an depuis 40 ans, impossible d'y accéder (10M$ min)",
+    "Démocratisation : Alpha = même calibre, accessible aux particuliers",
+    "Méthode rigoureuse : Russell 1000 + 4 critères + IA + 20 actions + rebalancing trim",
+    "Preuves chiffrées : Nvidia +6400%, Alpha bat Berkshire de 26pts",
+    "Protection : évite les hype stocks (Rezolve -70%, Jet AI -93%)",
+    "Autorité humaine : Whitney Tilson (Buffett/Obama)",
+    "Prix choc : 496€/an vs 2996€ public, ou 1496€ à vie",
+    "Risque nul : SAR 3 mois + sans engagement",
+    "Urgence : fenêtre 7 jours"
+  ],
+  "source_url": "https://investir.argo-editions.com/projet-alpha/index.html",
+  "video_sales_letter": {
+    "platform": "Vidyard",
+    "duration": "33:15",
+    "embed_url": "https://play.vidyard.com/zZUHEZ2qzBjYJN5XbVJbsz",
+    "cta_timecode_seconds": 1789
+  },
+  "files": {
+    "sales_letter": "sales_letter.md",
+    "images": "images.json"
+  },
+  "cross_product_notes": {
+    "shared_expert_with": "argo_actions (Whitney Tilson supervise les deux)",
+    "positioning_vs_actions_gagnantes": "Alpha = automatisation IA. Actions Gagnantes = sélection humaine mensuelle par Tilson. Complémentaires pour prospect qui veut le meilleur des deux approches.",
+    "positioning_vs_profits_asymetriques": "Alpha = sûr, systématique, gros caps US. PSA = asymétrique, small-caps et cryptos, potentiel plus extrême. Alpha = moteur principal, PSA = booster."
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "product_id": "argo_crypto",
+  "source_url": "https://investir.argo-editions.com/fin-du-travail/index.html",
+  "video": {
+    "platform": "Vidyard",
+    "id": "tYdhtu6bp9i1Lp2BfiQpu2",
+    "title": "ARO-260217-LDV Fin du travail - PSA - Maquette 01",
+    "duration": "16:20",
+    "embed_url": "https://play.vidyard.com/tYdhtu6bp9i1Lp2BfiQpu2",
+    "thumbnail_url": "https://play.vidyard.com/tYdhtu6bp9i1Lp2BfiQpu2.jpg"
+  },
+  "images": [
+    {
+      "id": "bg_flammes",
+      "url": "https://cdn.argo-editions.com/uploads/fond-ldv-flammes.jpg",
+      "role": "background",
+      "description": "Fond flammes (background page Fin du Travail)"
+    },
+    {
+      "id": "menace_ia_fmi",
+      "url": "https://cdn.argo-editions.com/uploads/menace-ia-emplois-fmi.png",
+      "role": "proof_chart",
+      "description": "Rapport FMI — 60% des emplois menacés par l'IA d'ici 2035",
+      "usage_card": "proof_fmi_emplois"
+    },
+    {
+      "id": "articles_ia_chomage",
+      "url": "https://cdn.argo-editions.com/uploads/articles-ia-chomage.png",
+      "role": "proof_press",
+      "description": "Captures articles de presse sur les emplois touchés par l'IA",
+      "usage_card": "proof_metiers_touches"
+    },
+    {
+      "id": "cours_nvidia_10ans",
+      "url": "https://cdn.argo-editions.com/uploads/cours-nvidia-10ans.png",
+      "role": "proof_chart",
+      "description": "Cours Nvidia sur 10 ans (2015-2025) — +30 000%",
+      "usage_card": "proof_nvidia_reference"
+    },
+    {
+      "id": "wade_portrait",
+      "url": "https://cdn.argo-editions.com/uploads/wade-2024.jpg",
+      "role": "authority",
+      "description": "Portrait Eric Wade (2024)",
+      "usage_card": "authority_wade"
+    },
+    {
+      "id": "24_recos_wade",
+      "url": "https://cdn.argo-editions.com/uploads/24-recos-wade.png",
+      "role": "proof_chart",
+      "description": "Tableau des 24 recommandations Eric Wade >+1000% depuis 2017",
+      "usage_card": "proof_track_record_wade"
+    },
+    {
+      "id": "fin_du_travail_pad",
+      "url": "https://cdn.argo-editions.com/uploads/fin-du-travail-pad.png",
+      "role": "product_shot",
+      "description": "Visuel dossier La Fin du Travail (lead magnet 299€ offert)",
+      "usage_card": "product_lead_magnet"
+    },
+    {
+      "id": "logo_psa",
+      "url": "https://cdn.argo-editions.com/uploads/logo-psa.png",
+      "role": "logo",
+      "description": "Logo Profits Asymétriques",
+      "usage_card": "product_logo"
+    },
+    {
+      "id": "portefeuille_psa_tablette",
+      "url": "https://cdn.argo-editions.com/uploads/portefeuille-psa-tablette.png",
+      "role": "product_shot",
+      "description": "Portefeuille Profits Asymétriques sur tablette — 30+ actions, 7 cryptos",
+      "usage_card": "proof_portefeuille"
+    },
+    {
+      "id": "site_psa_pc",
+      "url": "https://cdn.argo-editions.com/uploads/site-psa-pc.png",
+      "role": "product_shot",
+      "description": "Site privé Profits Asymétriques (dashboard PC)",
+      "usage_card": "product_site_prive"
+    },
+    {
+      "id": "pack_fin_du_travail_psa",
+      "url": "https://cdn.argo-editions.com/uploads/pack-fin-du-travail-psa.png",
+      "role": "product_shot",
+      "description": "Pack complet Fin du Travail + Profits Asymétriques",
+      "usage_card": "product_bundle"
+    },
+    {
+      "id": "garantie",
+      "url": "https://cdn.argo-editions.com/uploads/garantie.png",
+      "role": "proof_symbol",
+      "description": "Badge triple garantie Argo Éditions",
+      "usage_card": "guarantee_badge"
+    }
+  ]
+}

@@ -1,0 +1,214 @@
+{
+  "product_id": "argo_gold",
+  "slug": "argo-gold",
+  "publisher": "Argo Éditions",
+  "product_name": "Stratégie Haut Rendement",
+  "vertical": "or_minieres_uranium",
+  "positioning": "Service de recherche en investissement sur les cycles haussiers extrêmes — or, minières, uranium. Dirigé par Dan Ferris ('Crocodile de Wall Street'). Tier premium de la gamme Argo.",
+  "signatory": "Marc Schneider",
+  "lead_expert": {
+    "name": "Dan Ferris",
+    "nickname": "Le Crocodile de Wall Street",
+    "philosophy": "Attendre immobile, ne bondir que sur la crème. L'humain le plus proche d'un algorithme, combiné à du discernement humain.",
+    "background": "Investit depuis les années 90. Tête pensante du groupe Stansberry Research. Suit une approche d'analyse fondamentale ultra-rigoureuse — analyse les documents financiers (4 à 6 mois par entreprise en moyenne) plutôt que le discours du PDG.",
+    "visibility": "Animateur d'un podcast d'investissement très suivi, rédacteur d'une newsletter hebdomadaire gratuite, auteur de plusieurs guides et manuels d'investissement.",
+    "credentials": [
+      "Surperforme le marché sans discontinuer depuis 2002",
+      "Suivi par les milliardaires Leon Cooperman, Joel Greenblatt, Seth Klarman",
+      "4 à 6 mois d'analyse par entreprise avant recommandation"
+    ],
+    "notable_wins": [
+      { "asset": "Posco ADR",                    "return_pct": 100 },
+      { "asset": "Blair",                        "return_pct": 111 },
+      { "asset": "Gateway",                      "return_pct": 124 },
+      { "asset": "Intel",                        "return_pct": 133 },
+      { "asset": "Encana",                       "return_pct": 138 },
+      { "asset": "Icahn Enterprises",            "return_pct": 142 },
+      { "asset": "AB InBev",                     "return_pct": 150 },
+      { "asset": "Johnson & Johnson",            "return_pct": 157 },
+      { "asset": "Altria Group",                 "return_pct": 174 },
+      { "asset": "Bitcoin",                      "return_pct": 187 },
+      { "asset": "Apple",                        "return_pct": 190 },
+      { "asset": "Alexander and Baldwin",        "return_pct": 201 },
+      { "asset": "Realty Income Corporation",    "return_pct": 212 },
+      { "asset": "International Royalty Corp",   "return_pct": 248 },
+      { "asset": "Prestige Consumer Healthcare", "return_pct": 406 },
+      { "asset": "Constellation Brands",         "return_pct": 629 }
+    ],
+    "uranium_previous_cycle": [
+      { "gain_pct": 93000 },
+      { "gain_pct": 101900 },
+      { "asset": "Laramide Resources", "gain_pct": 161000 }
+    ]
+  },
+  "thesis": {
+    "title": "Hyper Climax Run sur l'or (phénomène tous les 45 ans)",
+    "last_occurrence_year": 1980,
+    "last_occurrence_return": "x100 en quelques mois",
+    "target_price_usd_per_ounce": "10 000 - 12 500 $",
+    "duration_estimated_months": "6 à 18",
+    "culmination_year": 2026,
+    "three_detonators": [
+      {
+        "id": "banques_centrales",
+        "title": "Banques centrales BRICS en guerre monétaire",
+        "facts": [
+          "Plus de 1000 tonnes/an d'achats (jamais vu depuis des décennies)",
+          "Chine +100t au S1 2025",
+          "Inde +70t",
+          "Russie utilise l'or pour contourner le Dollar",
+          "1ère fois en 30 ans : Banques centrales détiennent plus d'or que de Bons du Trésor US"
+        ]
+      },
+      {
+        "id": "penurie",
+        "title": "Pénurie structurelle",
+        "facts": [
+          "Demande record 2024 : 4 740 tonnes",
+          "Gisements exploités au maximum",
+          "Peak Gold (Ian Tefler, PDG Goldcorp)",
+          "Fin des méga-gisements faciles à trouver"
+        ]
+      },
+      {
+        "id": "analyse_technique",
+        "title": "Configuration graphique Hyper Climax Run",
+        "facts": [
+          "Cours au plus haut absolu depuis 55 ans",
+          "3 zones : consolidation (→2023) puis hausse (2024-2025) puis exponentielle (maintenant)",
+          "Durée max du run : 18 mois"
+        ]
+      }
+    ],
+    "leverage_mechanism": {
+      "name": "Effet de levier opérationnel des minières",
+      "explanation": "Coûts fixes élevés (salaires, maintenance, énergie). Au-delà d'un seuil, tout gain = profit pur.",
+      "ratio": "+50% sur l'or → +300%+ sur le profit par once"
+    },
+    "reference_performances_mines": [
+      { "company": "Vista Gold Corp",    "return_pct": 1248,  "multiple": "x13",  "period": "1 an" },
+      { "company": "SSR Mining",          "return_pct": 5428,  "multiple": "x55",  "period": "2 ans" },
+      { "company": "Forsys Metals",      "return_pct": 10900, "multiple": "x110", "period": "10 mois" }
+    ]
+  },
+  "billionaires_positioning": [
+    { "name": "Ray Dalio",        "role": "Fondateur Bridgewater (plus grand fonds spéculatif mondial)", "position": "Énormes positions or" },
+    { "name": "Jeffrey Gundlach", "role": "Roi des obligations",                                          "position": "Recommande 25% des actifs en or" },
+    { "name": "David Bateman",    "role": "Milliardaire crypto",                                          "position": "1 Md$ métaux précieux dont 420 M$ en or" }
+  ],
+  "billionaires_subtle_game": "Achats d'or publics → faire monter le cours → faire exploser le levier opérationnel des minières (leur vraie cible).",
+  "product_inclusions": {
+    "main_access": [
+      "Site internet privé avec tous les dossiers mensuels",
+      "Portefeuille boursier mis à jour chaque mois (31 actions)",
+      "Taux de réussite actuel : >75% (24/31 dans le vert)",
+      "Alertes d'achat et de vente"
+    ],
+    "bonuses": [
+      {
+        "title": "Dossier Minières d'Or 2026",
+        "content": "2 sociétés minières recommandées par Dan Ferris",
+        "value_eur": 299
+      },
+      {
+        "title": "Les Titans de la Bourse",
+        "content": "10 actions de croissance solides pour portefeuille long terme",
+        "value_eur": 997
+      },
+      {
+        "title": "Rapport secret Uranium",
+        "content": "2 actions confidentielles (track cycle précédent : +93 000%, +101 900%, +161 000% sur Laramide)",
+        "value_eur": 299
+      }
+    ],
+    "total_bonus_value_eur": 1595
+  },
+  "public_price_eur_per_year": 2000,
+  "discount_label": "-50% verrouillé à vie tant qu'abonné",
+  "offers": {
+    "A": {
+      "price_eur": 997,
+      "period": "an",
+      "label": "997€/an",
+      "positioning": "Offre annuelle standard de lancement (-50% vs 2000€ public)",
+      "tacite_reconduction": true
+    },
+    "B": {
+      "price_eur": 1997,
+      "period": "an",
+      "label": "1997€/an (premium)",
+      "positioning": "Tier annuel premium pour public aisé",
+      "note_visibility": "Non affiché sur la landing publique, proposition commerciale directe"
+    },
+    "C": {
+      "price_eur": 299,
+      "period": "trimestre",
+      "label": "299€/trim",
+      "positioning": "Étalement du paiement, fallback objection engagement"
+    },
+    "D": {
+      "price_eur": 599,
+      "period": "trimestre",
+      "label": "599€/trim (premium)",
+      "positioning": "Tier trimestriel premium",
+      "note_visibility": "Non affiché sur la landing publique"
+    }
+  },
+  "places_limit": 500,
+  "urgency_reason": "Investissement sur petites capitalisations minières — pression acheteuse massive fausserait les cours",
+  "cadence": "Mensuelle (nouveau dossier + mise à jour portefeuille). Arbitrages applicables en 10 minutes par mois.",
+  "portfolio_size": "31 actions à l'achat (dont 24 en plus-value, >75% de réussite)",
+  "starter_kit": "Kit de démarrage avec les 10 actions que Dan Ferris estime prioritaires pour le fond de portefeuille",
+  "long_term_performance": {
+    "annual_avg_return_pct": 11.9,
+    "period": "Depuis 2002, malgré les krachs de 2008 et 2022",
+    "positioning": "Plus que n'importe quel produit d'investissement grand public sur 20 ans"
+  },
+  "strategy_pillars": [
+    {
+      "id": "interets_croises",
+      "name": "Intérêts Croisés",
+      "description": "Version 'sous stéroïdes' des intérêts composés. Au lieu de réinvestir les intérêts sur la même action qui les a versés, on les réinvestit sur celle qui offre le meilleur rendement à l'instant T. Suivi des marchés en temps réel par Dan Ferris et ses équipes."
+    },
+    {
+      "id": "investissement_value",
+      "name": "Investissement Value",
+      "description": "Entrer sur une position quand le marché la sous-estime, attendre quelques mois. Minimise les risques : entreprises déjà matures et rentables plutôt que petites caps spéculatives. Peut néanmoins viser des gains jusqu'à +629% (Constellation Brands)."
+    }
+  ],
+  "parent_product_us": {
+    "name": "Extreme Value",
+    "since_year": 2002,
+    "note": "Stratégie Haut Rendement est la version française d'Extreme Value, créé et animé par Dan Ferris depuis 2002"
+  },
+  "guarantees": [
+    "Prix verrouillé à vie à -50% tant qu'abonné",
+    "Garantie de performance : si <70% des recos en plus-value sur 12 mois → 1 an offert"
+  ],
+  "attack_angles": [
+    "Urgence historique : Hyper Climax Run (tous les 45 ans, précédent 1980 x100)",
+    "3 détonateurs simultanés : banques centrales BRICS, pénurie (Peak Gold), analyse technique",
+    "Levier opérationnel minières : gains exponentiels vs or physique (max x3)",
+    "Preuves x13/x55/x110 sur Vista/SSR/Forsys",
+    "Autorité Dan Ferris : 20+ ans de surperformance, suivi par milliardaires",
+    "Mimétisme élite : Dalio, Gundlach (25%), Bateman (1 Md$)",
+    "Bonus massif : 1 595 € offerts (3 dossiers)",
+    "Urgence 500 premiers inscrits",
+    "Risque nul : prix à vie + garantie 70% perf ou 1 an offert"
+  ],
+  "source_url": "https://investir.argo-editions.com/hyper-climax-gold/index.html",
+  "video_sales_letter": {
+    "platform": "Vidyard",
+    "duration": "24:38",
+    "embed_url": "https://play.vidyard.com/yNbn7F2mkTghAqPmGWEnSA"
+  },
+  "files": {
+    "sales_letter": "sales_letter.md",
+    "images": "images.json"
+  },
+  "cross_product_notes": {
+    "positioning_in_catalog": "Tier premium de la gamme Argo — prix le plus élevé (997€/an), cible le prospect aisé/expérimenté",
+    "complementarity_with_alpha": "Alpha = cœur systématique IA grosses caps US. SHR = booster concentré or/minières/uranium. Duo idéal pour patrimoine ambitieux.",
+    "complementarity_with_others": "AGA (actions value Tilson) + PSA (asymétrie small-caps/crypto Wade) + Alpha (IA systématique) + SHR (or/uranium Ferris) = 4 couches complémentaires."
+  }
+}

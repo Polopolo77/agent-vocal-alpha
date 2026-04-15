@@ -1,207 +1,71 @@
-import os
-import json
-import sqlite3
+"""
+server.py — Backend aiohttp pour le Concierge IA Argo Éditions (multi-produits).
+
+Endpoints :
+  GET  /api/products                → catalog des produits prêts (liste pour sélecteur UI)
+  POST /api/token                    → clé Gemini Live (non-sensible, destinée au client)
+  GET  /api/prompt?product=<id>      → SYSTEM_INSTRUCTION complet pour Gemini Live
+  POST /api/strategist               → coach (analyse conversation) — requiert product_id
+  POST /api/ui-director              → décisions visuelles (card + dossier) — requiert product_id
+  POST /api/briefing                 → tool calling : coach cache + recherche BM25 lettre de vente
+  POST /api/save-conversation        → sauvegarde SQLite du transcript
+  GET  /api/conversations            → admin : 100 dernières conversations
+  GET  /{static}                     → assets frontend
+
+Au démarrage :
+  - SQLite initialisé
+  - Registre des produits chargé (products/catalog.json + chunks BM25)
+"""
+
+from __future__ import annotations
+
 import asyncio
-from datetime import datetime, timedelta, timezone
+import json
+import logging
+import os
+import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 from aiohttp import web
 from dotenv import load_dotenv
 from google import genai
 
+from products_loader import init as init_products, REGISTRY
+from prompts import (
+    DEFAULT_AGENT_NAME,
+    build_briefing_from_cache,
+    build_coach_prompt,
+    build_full_agent_prompt,
+    build_ui_director_prompt,
+)
+
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger("argo")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 DB_PATH = Path(__file__).parent / "conversations.db"
 
-# Cache global du dernier briefing coach par session
-# Key: session_id, Value: { directive JSON, timestamp }
-coach_cache = {}
+# Modèle Gemini Live pour l'agent vocal (côté client)
+LIVE_MODEL = "gemini-3.1-flash-live-preview"
 
-# Modèle rapide et économique pour le coach en arrière-plan.
-# gemini-2.5-flash-lite : plus rapide et rate limit plus élevé que 2.5-flash,
-# parfait pour la classification structurée en JSON.
+# Modèle rapide pour coach et UI director
 COACH_MODEL = "gemini-2.5-flash-lite"
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+# Cache global : { session_id: { "directive": JSON, "product_id": str, "timestamp": str, "turn": int } }
+coach_cache: dict[str, dict] = {}
+
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 
-# ============ COACH PROMPT ============
-COACH_PROMPT = """Tu es un coach commercial silencieux et AGRESSIF dans tes recommandations. Tu analyses les conversations entre Alpha et un prospect sur le site Héritage Éditions.
+# =============================================================================
+# Database
+# =============================================================================
 
-Ton rôle : analyser l'historique et renvoyer un JSON avec des directives tactiques PRÉCISES et CHALLENGEANTES. Tu ne te contentes pas de décrire — tu PRESCRIS.
-
-Tu dois pousser Alpha à :
-- Poser des questions qui font RÉFLÉCHIR le prospect sur le coût de son inaction
-- Utiliser les contradictions du prospect comme levier de conviction
-- Proposer des comparaisons percutantes (ex: "99€ c'est moins qu'un café par semaine")
-- Créer de l'urgence éthique basée sur des faits réels
-- Challenger les hésitations au lieu de les valider
-- Recommander fermement UN produit, pas un menu
-
-Tu dois aussi recommander quelle CARTE VISUELLE afficher au prospect (voir champ card_a_afficher).
-
-═══════════════════════════════════════════════
-CONTEXTE PRODUITS HÉRITAGE ÉDITIONS
-═══════════════════════════════════════════════
-
-- fortune_strategique : 99€/an (99€ tarif de lancement au lieu de 299€). Recommandations mensuelles actions + crypto, accès au portefeuille Ian King, vidéos hebdo sous-titrées FR. Cible : débutant à intermédiaire, horizon moyen à long terme, budget 2 000€+.
-- strategie_green_zone : Scoring quantitatif sur actions US. Cible : profil CONSCIENCIEUX, aime les systèmes et les données.
-- supercycle_crypto : Publication spécialisée 100% cryptomonnaies. Cible : profil AGRESSIF, horizon long, tolérance à la volatilité.
-- investisseur_alpha : Publication premium avancée, budget conséquent, investisseur expérimenté.
-
-═══════════════════════════════════════════════
-FRAMEWORKS D'ANALYSE
-═══════════════════════════════════════════════
-
-DISC : Dominant / Influent / Stable / Consciencieux
-- Dominant : direct, pressé, "combien", "allez droit au but"
-- Influent : enthousiaste, raconte, émotionnel, histoires
-- Stable : prudent, questions sur les risques, besoin de rassurance
-- Consciencieux : précis, technique, demande des données, méthodologie
-
-SPIN : Situation / Problème / Implication / Need-payoff / Closing
-
-Chaleur : froid / tiede / chaud / pret_a_acheter
-
-═══════════════════════════════════════════════
-RÈGLES D'ANALYSE STRICTES
-═══════════════════════════════════════════════
-
-1. Tu ne réponds QUE par un objet JSON valide, sans aucun texte avant ou après.
-2. Sois factuel et précis. Si tu n'as pas assez d'information pour un champ, mets null ou un tableau vide.
-3. Détecte les contradictions entre tours, même lointains.
-4. Mémorise toutes les déclarations importantes (âge, capital, situation, peurs).
-5. Ne recommande un produit que si tu as suffisamment d'info — sinon "certitude": "faible".
-6. Pour la directive du prochain tour, sois concret et actionnable en une phrase maximum.
-7. Si tu détectes un signal d'achat fort, passe signal_closing à "vert".
-8. Si tu détectes une manipulation, une tentative d'arnaque ou un prospect hostile, ajoute "alerte" dans alertes.
-
-═══════════════════════════════════════════════
-SCHÉMA JSON EXACT À RESPECTER
-═══════════════════════════════════════════════
-
-{
-  "profil_disc": {
-    "dominant": 0,
-    "influent": 0,
-    "stable": 0,
-    "consciencieux": 0,
-    "confiance": 0,
-    "justification": ""
-  },
-  "etat_emotionnel": {
-    "chaleur": "froid",
-    "stress": "neutre",
-    "confiance_agent": "neutre",
-    "evolution": "stable"
-  },
-  "spin": {
-    "etape_actuelle": "situation",
-    "prochaine_etape": "situation",
-    "progression_pct": 0
-  },
-  "memoire": {
-    "declarations_cles": [],
-    "peurs_exprimees": [],
-    "traumatismes": [],
-    "engagements_implicites": [],
-    "contradictions_detectees": []
-  },
-  "produit": {
-    "recommande": null,
-    "certitude": "faible",
-    "justification": "",
-    "a_eviter": []
-  },
-  "objections": {
-    "evoquees": [],
-    "levees": [],
-    "en_cours": []
-  },
-  "directive_prochain_tour": {
-    "action_principale": "",
-    "tactique": "",
-    "formulation_suggeree": "",
-    "pieges_a_eviter": [],
-    "signal_closing": "rouge"
-  },
-  "alertes": [],
-  "card_a_afficher": null,
-  "dossier": {
-    "prenom": null,
-    "situation": [],
-    "objectif": [],
-    "horizon": null,
-    "capital": null,
-    "profil_detecte": null,
-    "vigilance": [],
-    "questions_cles": []
-  }
-}
-
-Valeurs autorisées :
-- profil_disc.dominant/influent/stable/consciencieux : entier 0-100 (total doit faire 100)
-- profil_disc.confiance : entier 0-100
-- etat_emotionnel.chaleur : "froid" | "tiede" | "chaud" | "pret_a_acheter"
-- etat_emotionnel.stress : "detendu" | "neutre" | "tendu" | "enerve"
-- etat_emotionnel.confiance_agent : "mefiant" | "neutre" | "ouvert" | "confiant"
-- etat_emotionnel.evolution : "amelioration" | "stable" | "deterioration"
-- spin.etape_actuelle / prochaine_etape : "situation" | "probleme" | "implication" | "need_payoff" | "closing"
-- produit.recommande : "fortune_strategique" | "strategie_green_zone" | "supercycle_crypto" | "investisseur_alpha" | null
-- produit.certitude : "faible" | "moyen" | "ferme"
-- directive_prochain_tour.signal_closing : "rouge" | "orange" | "vert"
-
-Pour objections.evoquees : liste toutes les objections que le prospect a exprimées depuis le début (même brièvement).
-Pour objections.levees : parmi les evoquees, celles qu'Alpha a déjà traitées avec succès (prospect a acquiescé ou n'y est pas revenu).
-Pour objections.en_cours : celles qui ne sont pas encore levées et qu'Alpha doit traiter.
-
-Pour dossier : ATTENTION, le dossier est AFFICHÉ AU PROSPECT sur son écran. Il peut lire chaque mot. Tu dois donc écrire UNIQUEMENT des faits neutres et factuels que le prospect a dit lui-même. JAMAIS d'analyse interne, JAMAIS de stratégie, JAMAIS de jugement.
-
-INTERDIT dans le dossier :
-- "Probablement orienté résultats, mais à confirmer" → trop analytique
-- "S'assurer que sa définition est réaliste" → note interne
-- "Profil à creuser" → stratégique
-- Toute phrase qui contient "probablement", "à confirmer", "s'assurer", "vérifier", "attention"
-
-AUTORISÉ dans le dossier :
-- Des faits bruts que le prospect a dits : "Investit en ETF", "PEA ouvert", "Retraité"
-- Des mots simples pour le profil : "Prudent", "Équilibré", "Dynamique" (UN mot, pas une phrase)
-- Des citations presque textuelles de ce qu'il a dit
-
-Les champs :
-- prenom : juste le prénom, rien d'autre (ex: "Paul")
-- situation : faits bruts sur sa situation (ex: "Investit en ETF depuis 3 ans", "PEA ouvert", "Retraité depuis 2 ans")
-- objectif : ce qu'il a dit vouloir (ex: "Complément de revenu", "Préparer sa retraite")
-- horizon : horizon mentionné (ex: "3-5 ans", "Long terme")
-- capital : ce qu'il a dit (ex: "Environ 10 000€", "Budget à définir")
-- profil_detecte : UN MOT seulement (ex: "Prudent" ou "Dynamique" ou "Équilibré")
-- vigilance : ses inquiétudes TELLES QU'IL LES A EXPRIMÉES (ex: "Peur de perdre", "Ne connaît pas la crypto")
-- questions_cles : ses questions mot pour mot (ex: "C'est combien ?", "Comment ça marche ?")
-
-Le dossier doit être CUMULATIF : les infos des tours précédents sont conservées et enrichies.
-
-Pour card_a_afficher : recommande UNE carte visuelle à afficher au prospect. Valeurs possibles :
-- "proof_153" : quand Alpha mentionne la performance +153% → affiche le chiffre en gros
-- "proof_palantir" : quand Alpha mentionne Palantir +250% → affiche le chiffre
-- "story_aime" : quand Alpha raconte l'histoire d'Aimé en Belgique → affiche le témoignage
-- "comparison_cgp" : quand le prospect dit "trop cher" ou compare avec un conseiller → tableau comparatif Fortune Stratégique vs CGP
-- "comparison_etf" : quand le prospect parle d'ETF ou de gestion passive → tableau comparatif
-- "guarantee" : quand le prospect a peur du risque ou hésite → bouclier garantie 30 jours
-- "product_fortune" : quand le moment est venu de présenter Fortune Stratégique → fiche produit
-- null : aucune carte à afficher ce tour
-
-═══════════════════════════════════════════════
-HISTORIQUE DE CONVERSATION À ANALYSER
-═══════════════════════════════════════════════
-
-"""
-
-
-# ============ DATABASE ============
-def init_db():
-    """Create the conversations table if it doesn't exist."""
+def init_db() -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -211,259 +75,236 @@ def init_db():
             ended_at TEXT NOT NULL,
             duration_seconds INTEGER,
             message_count INTEGER,
+            product_id TEXT,
             transcript TEXT NOT NULL,
             ip_address TEXT,
             user_agent TEXT
         )
     """)
+    # Migration : ajouter product_id si absent
+    cursor.execute("PRAGMA table_info(conversations)")
+    cols = {row[1] for row in cursor.fetchall()}
+    if "product_id" not in cols:
+        cursor.execute("ALTER TABLE conversations ADD COLUMN product_id TEXT")
     conn.commit()
     conn.close()
-    print(f"Database ready at: {DB_PATH}")
+    log.info("Database ready at %s", DB_PATH)
 
 
-# ============ ENDPOINTS ============
-async def handle_token(request):
-    """Provide API key for the frontend to connect to Gemini Live."""
-    if not GEMINI_API_KEY:
-        return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
-    return web.json_response(
-        {"token": GEMINI_API_KEY, "model": "gemini-3.1-flash-live-preview"}
+# =============================================================================
+# Helpers
+# =============================================================================
+
+def _format_history(history: list[dict]) -> str:
+    return "\n".join(
+        f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
+        for m in history
     )
 
 
-async def handle_save_conversation(request):
-    """Save a conversation transcript to SQLite."""
+def _require_product(data: dict) -> tuple[str | None, web.Response | None]:
+    """Return (product_id, None) or (None, error_response)."""
+    pid = data.get("product_id")
+    if not pid:
+        return None, web.json_response(
+            {"error": "missing product_id"},
+            status=400,
+        )
+    if pid not in REGISTRY.products:
+        return None, web.json_response(
+            {"error": f"unknown product_id: {pid}", "available": REGISTRY.list_ready()},
+            status=404,
+        )
+    return pid, None
+
+
+# =============================================================================
+# Endpoints
+# =============================================================================
+
+async def handle_token(request: web.Request) -> web.Response:
+    """Provide API key for the frontend to connect to Gemini Live."""
+    if not GEMINI_API_KEY:
+        return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
+    return web.json_response({"token": GEMINI_API_KEY, "model": LIVE_MODEL})
+
+
+async def handle_list_products(request: web.Request) -> web.Response:
+    """List all ready products with minimal metadata. Used by the test page selector."""
+    products = []
+    for pid, p in REGISTRY.products.items():
+        products.append({
+            "product_id": pid,
+            "slug": p.slug,
+            "name": p.config.get("product_name", p.product_name),
+            "vertical": p.vertical,
+            "expert": p.config.get("lead_expert", {}).get("name"),
+            "offers": p.config.get("offers", {}),
+            "lead_magnet": (
+                p.config.get("lead_magnet", {}).get("title")
+                if isinstance(p.config.get("lead_magnet"), dict)
+                else p.config.get("lead_magnet")
+            ),
+        })
+    return web.json_response({
+        "catalog_version": REGISTRY.catalog.get("version"),
+        "products": products,
+    })
+
+
+async def handle_prompt(request: web.Request) -> web.Response:
+    """Return the SYSTEM_INSTRUCTION for a given product."""
+    product_id = request.query.get("product")
+    agent_name = request.query.get("agent_name", DEFAULT_AGENT_NAME)
+
+    if not product_id:
+        return web.json_response(
+            {"error": "missing ?product=<id> query param", "available": REGISTRY.list_ready()},
+            status=400,
+        )
+    p = REGISTRY.get(product_id)
+    if not p:
+        return web.json_response(
+            {"error": f"unknown product: {product_id}", "available": REGISTRY.list_ready()},
+            status=404,
+        )
+
+    prompt = build_full_agent_prompt(p, agent_name=agent_name)
+    return web.json_response({
+        "prompt": prompt,
+        "product_id": product_id,
+        "product_name": p.config.get("product_name", p.product_name),
+        "expert": p.config.get("lead_expert", {}).get("name"),
+        "agent_name": agent_name,
+        "voice": "Puck",
+        "live_model": LIVE_MODEL,
+    })
+
+
+async def handle_strategist(request: web.Request) -> web.Response:
+    """Coach: analyze the conversation and return tactical directives as JSON."""
+    if not client:
+        return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
     try:
         data = await request.json()
-        started_at = data.get("started_at", "")
-        ended_at = data.get("ended_at", datetime.now(timezone.utc).isoformat())
-        messages = data.get("messages", [])
+        pid, err = _require_product(data)
+        if err:
+            return err
 
-        if not messages:
-            return web.json_response({"status": "skipped", "reason": "empty"}, status=200)
-
-        # Calculate duration
-        try:
-            start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
-            end_dt = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
-            duration = int((end_dt - start_dt).total_seconds())
-        except Exception:
-            duration = 0
-
-        # Format transcript as readable text
-        transcript_text = "\n".join([
-            f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
-            for m in messages
-        ])
-
-        # Also store the raw JSON for later analysis
-        transcript_json = json.dumps(messages, ensure_ascii=False)
-
-        ip = request.headers.get("X-Forwarded-For", request.remote or "")
-        user_agent = request.headers.get("User-Agent", "")[:500]
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO conversations
-            (started_at, ended_at, duration_seconds, message_count, transcript, ip_address, user_agent)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            started_at,
-            ended_at,
-            duration,
-            len(messages),
-            transcript_json,
-            ip,
-            user_agent,
-        ))
-        conversation_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-
-        print(f"\n========== NOUVELLE CONVERSATION #{conversation_id} ==========")
-        print(f"Durée: {duration}s | Messages: {len(messages)}")
-        print(transcript_text)
-        print("=" * 60)
-
-        return web.json_response({"status": "saved", "id": conversation_id})
-    except Exception as e:
-        print(f"Error saving conversation: {e}")
-        return web.json_response({"error": str(e)}, status=500)
-
-
-async def handle_strategist(request):
-    """Call Gemini 2.5 Flash as a background coach to analyze the conversation.
-
-    Input JSON:
-      { "history": [ {"role": "user"|"alpha", "text": "..."}, ... ],
-        "turn_number": int,
-        "mode": "mid_call" | "post_call" }
-
-    Output JSON: the coach's analysis according to COACH_PROMPT schema.
-    """
-    try:
-        data = await request.json()
         history = data.get("history", [])
-        turn_number = data.get("turn_number", 0)
-        mode = data.get("mode", "mid_call")
-
         if not history:
             return web.json_response({"error": "empty history"}, status=400)
 
-        # Format the history for the coach
-        history_text = "\n".join([
-            f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
-            for m in history
-        ])
+        turn_number = data.get("turn_number", 0)
+        mode = data.get("mode", "mid_call")
+        agent_name = data.get("agent_name", DEFAULT_AGENT_NAME)
+        session_id = data.get("session_id", "default")
 
-        # Build the final prompt
-        full_prompt = COACH_PROMPT + history_text
+        p = REGISTRY.get(pid)
+        history_text = _format_history(history)
+        base = build_coach_prompt(p, agent_name=agent_name)
 
-        # Add mode-specific instructions
         if mode == "post_call":
-            full_prompt += "\n\n═══════════════════════════════════════════════\nMODE POST-CALL\n═══════════════════════════════════════════════\n\nLa conversation est TERMINÉE. Tu génères le rapport final. Remplis tous les champs avec l'état final, et dans directive_prochain_tour.action_principale mets un résumé des 3 points clés à faire remonter à l'équipe Héritage."
+            suffix = (
+                "\n\n═══════════════════════════════════════════════\n"
+                "MODE POST-CALL\n"
+                "═══════════════════════════════════════════════\n\n"
+                "La conversation est TERMINÉE. Tu génères le rapport final. Remplis tous les champs "
+                "avec l'état final, et dans directive_prochain_tour.action_principale mets un résumé "
+                "des 3 points clés à faire remonter à l'équipe Argo."
+            )
         else:
-            full_prompt += f"\n\n═══════════════════════════════════════════════\nTOUR ACTUEL : {turn_number}\n═══════════════════════════════════════════════\n\nAlpha doit maintenant répondre au dernier message du prospect. Donne-lui la directive tactique la plus utile pour ce tour précis."
+            suffix = (
+                f"\n\n═══════════════════════════════════════════════\n"
+                f"TOUR ACTUEL : {turn_number}\n"
+                "═══════════════════════════════════════════════\n\n"
+                f"{agent_name} doit maintenant répondre au dernier message du prospect. "
+                f"Donne-lui la directive tactique la plus utile pour ce tour précis."
+            )
 
-        # Call Gemini 2.5 Flash with JSON mode
+        full_prompt = base + history_text + suffix
+
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
                 model=COACH_MODEL,
                 contents=full_prompt,
                 config={
                     "response_mime_type": "application/json",
-                    "temperature": 0.3,  # déterministe
+                    "temperature": 0.3,
                     "max_output_tokens": 8192,
-                    "thinking_config": {"thinking_budget": 0},  # pas de raisonnement, juste JSON
+                    "thinking_config": {"thinking_budget": 0},
                 },
             )
         )
 
-        # Parse the JSON output
         try:
             coach_output = json.loads(response.text)
         except Exception as parse_err:
-            print(f"Coach JSON parse error: {parse_err}")
-            print(f"Raw output: {response.text[:500]}")
-            return web.json_response({
-                "error": "invalid_json_from_coach",
-                "raw": response.text[:500],
-            }, status=500)
+            log.warning("Coach JSON parse error: %s", parse_err)
+            log.warning("Raw output: %s", response.text[:500])
+            return web.json_response(
+                {"error": "invalid_json_from_coach", "raw": response.text[:500]},
+                status=500,
+            )
 
-        # Log for debugging
-        print(f"\n--- COACH tour {turn_number} ({mode}) ---")
-        print(f"Profil: {coach_output.get('profil_disc', {}).get('justification', '?')}")
-        print(f"Chaleur: {coach_output.get('etat_emotionnel', {}).get('chaleur', '?')}")
-        print(f"Produit: {coach_output.get('produit', {}).get('recommande', '?')}")
-        print(f"Directive: {coach_output.get('directive_prochain_tour', {}).get('action_principale', '?')}")
+        # Logs
+        log.info(
+            "COACH [%s/%s] turn=%s archetype=%s chaleur=%s tier=%s",
+            pid,
+            mode,
+            turn_number,
+            coach_output.get("archetype_detecte"),
+            coach_output.get("etat_emotionnel", {}).get("chaleur"),
+            coach_output.get("produit", {}).get("tier_recommande"),
+        )
 
-        # Cache the directive for the tool calling endpoint
-        session_id = data.get("session_id", "default")
         coach_cache[session_id] = {
             "directive": coach_output,
+            "product_id": pid,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "turn": turn_number,
         }
 
         return web.json_response(coach_output)
     except Exception as e:
-        print(f"Coach error: {e}")
+        log.exception("Coach error")
         return web.json_response({"error": str(e)}, status=500)
 
 
-UI_DIRECTOR_PROMPT = """Tu es un réalisateur UI. Tu reçois l'historique d'une conversation entre Alpha (agent vocal) et un prospect. Tu décides quoi afficher à l'écran du prospect.
-
-Tu renvoies UNIQUEMENT un JSON valide, rien d'autre.
-
-═══════════════════
-CARTES DISPONIBLES
-═══════════════════
-- "proof_153" : afficher quand Alpha mentionne +153% ou la performance globale
-- "proof_palantir" : afficher quand Alpha mentionne Palantir ou +250%
-- "story_aime" : afficher quand Alpha raconte l'histoire d'un abonné belge ou mentionne Aimé
-- "comparison_cgp" : afficher quand le prospect dit "trop cher", compare avec un conseiller, ou questionne le prix
-- "comparison_etf" : afficher quand le prospect parle d'ETF, de gestion passive, ou compare
-- "guarantee" : afficher quand le prospect exprime une peur, hésite sur le risque, ou dit "et si ça marche pas"
-- "product_fortune" : afficher quand Alpha recommande Fortune Stratégique et que le prospect semble intéressé
-- null : rien à afficher ce tour
-
-═══════════════════
-DOSSIER (visible par le prospect)
-═══════════════════
-Le dossier est AFFICHÉ au prospect. Écris UNIQUEMENT des faits neutres qu'il a dits lui-même.
-INTERDIT : analyses internes, "à confirmer", "probablement", stratégie.
-
-Champs :
-- prenom : son prénom s'il l'a donné, sinon null
-- situation : liste de faits bruts ["Investit en ETF", "PEA ouvert"]
-- objectif : ce qu'il veut ["Complément de revenu"]
-- horizon : "3-5 ans" ou null
-- capital : "10 000€" ou null
-- profil_detecte : UN MOT : "Prudent" ou "Dynamique" ou "Équilibré" ou "Agressif" ou null
-- vigilance : ses peurs telles qu'il les a dites ["Peur de perdre"]
-
-Le dossier doit être CUMULATIF MAIS AUSSI CORRIGEABLE :
-- Si le prospect donne une nouvelle info → AJOUTE-la
-- Si le prospect CORRIGE une info précédente ("en fait c'est plutôt 5 000€", "non je suis pas prudent, je veux du rendement") → REMPLACE l'ancienne valeur par la nouvelle
-- Si le prospect CONTREDIT quelque chose du dossier précédent → SUPPRIME l'ancienne info et mets la nouvelle
-- Si une info du dossier précédent n'est plus pertinente → RETIRE-la
-
-Tu reçois le dossier précédent en contexte. Tu dois le renvoyer MIS À JOUR, pas juste recopié. C'est un document VIVANT.
-
-═══════════════════
-SCHÉMA JSON
-═══════════════════
-{
-  "card_a_afficher": null,
-  "dossier": {
-    "prenom": null,
-    "situation": [],
-    "objectif": [],
-    "horizon": null,
-    "capital": null,
-    "profil_detecte": null,
-    "vigilance": []
-  }
-}
-
-═══════════════════
-HISTORIQUE
-═══════════════════
-
-"""
-
-
-async def handle_ui_director(request):
-    """Fast UI agent: decides what to show on screen at each turn.
-
-    Runs at EVERY turn, with a very short prompt (~500 tokens)
-    for maximum speed (~500ms response time).
-    """
+async def handle_ui_director(request: web.Request) -> web.Response:
+    """Fast UI agent: decides what card to show + what to write in the dossier."""
+    if not client:
+        return web.json_response({"card_a_afficher": None, "dossier": {}})
     try:
         data = await request.json()
+        pid, err = _require_product(data)
+        if err:
+            # Pas critique : on renvoie juste une réponse vide plutôt qu'une erreur
+            return web.json_response({"card_a_afficher": None, "dossier": {}})
+
         history = data.get("history", [])
         previous_dossier = data.get("previous_dossier", {})
+        agent_name = data.get("agent_name", DEFAULT_AGENT_NAME)
 
         if not history:
             return web.json_response({"card_a_afficher": None, "dossier": {}})
 
-        # Only send the last 6 messages for speed (UI director doesn't need full history)
+        p = REGISTRY.get(pid)
         recent = history[-6:] if len(history) > 6 else history
-        history_text = "\n".join([
-            f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
-            for m in recent
-        ])
+        history_text = _format_history(recent)
 
-        # Include previous dossier so the director can enrich it
         if previous_dossier:
-            history_text += "\n\n═══════════════════\nDOSSIER PRÉCÉDENT (à enrichir, pas remplacer)\n═══════════════════\n" + json.dumps(previous_dossier, ensure_ascii=False)
+            history_text += (
+                "\n\n═══════════════════\nDOSSIER PRÉCÉDENT (à enrichir/corriger, pas effacer)\n"
+                "═══════════════════\n"
+                + json.dumps(previous_dossier, ensure_ascii=False)
+            )
 
-        full_prompt = UI_DIRECTOR_PROMPT + history_text
+        full_prompt = build_ui_director_prompt(p, agent_name=agent_name) + history_text
 
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
-                model=COACH_MODEL,  # Same fast model
+                model=COACH_MODEL,
                 contents=full_prompt,
                 config={
                     "response_mime_type": "application/json",
@@ -481,75 +322,106 @@ async def handle_ui_director(request):
 
         return web.json_response(result)
     except Exception as e:
-        print(f"UI Director error: {e}")
+        log.exception("UI Director error")
         return web.json_response({"card_a_afficher": None, "dossier": {}})
 
 
-async def handle_briefing(request):
-    """Return the latest cached coach directive for tool calling.
+async def handle_briefing(request: web.Request) -> web.Response:
+    """
+    Tool calling endpoint: returns the coach directive + BM25 hits for the query.
 
-    Called by the widget when Gemini Live triggers obtenir_briefing.
-    Returns the last coach analysis (always cached, no LLM call, ~0ms).
+    Input JSON: {
+      "session_id": str,
+      "query": str,              # preferred (new)
+      "user_message": str,       # legacy fallback
+      "product_id": str | null,  # optional override; else uses coach cache's product
+    }
     """
     try:
         data = await request.json()
         session_id = data.get("session_id", "default")
-        user_message = data.get("user_message", "")
+        query = (data.get("query") or data.get("user_message") or "").strip()
+        product_id_override = data.get("product_id")
 
         cached = coach_cache.get(session_id)
+        product_id = product_id_override or (cached.get("product_id") if cached else None)
+        product = REGISTRY.get(product_id) if product_id else None
 
-        if cached and cached["directive"]:
-            d = cached["directive"]
-            # Build a compact briefing for Alpha
-            disc = d.get("profil_disc", {})
-            emot = d.get("etat_emotionnel", {})
-            prod = d.get("produit", {})
-            obj = d.get("objections", {})
-            mem = d.get("memoire", {})
-            dir_ = d.get("directive_prochain_tour", {})
+        # BM25 search
+        bm25_hits = []
+        if product and query:
+            bm25_hits = REGISTRY.search(product_id, query, k=4)
 
-            # Determine dominant DISC profile
-            scores = {"Dominant": disc.get("dominant", 0), "Influent": disc.get("influent", 0),
-                       "Stable": disc.get("stable", 0), "Consciencieux": disc.get("consciencieux", 0)}
-            dom = max(scores, key=scores.get) if max(scores.values()) > 0 else "inconnu"
-
-            briefing = {
-                "coach": {
-                    "profil_prospect": f"{dom} ({max(scores.values())}%)",
-                    "chaleur": emot.get("chaleur", "inconnue"),
-                    "confiance_agent": emot.get("confiance_agent", "neutre"),
-                    "produit_cible": prod.get("recommande") or "pas encore déterminé",
-                    "certitude_produit": prod.get("certitude", "faible"),
-                    "objections_en_cours": obj.get("en_cours", []),
-                    "contradictions": mem.get("contradictions_detectees", []),
-                    "action_recommandee": dir_.get("action_principale", ""),
-                    "formulation_suggeree": dir_.get("formulation_suggeree", ""),
-                    "pieges_a_eviter": dir_.get("pieges_a_eviter", []),
-                    "signal_closing": dir_.get("signal_closing", "rouge"),
-                },
-                "meta": {
-                    "coach_turn": cached["turn"],
-                    "coach_timestamp": cached["timestamp"],
-                },
-            }
-        else:
-            briefing = {
-                "coach": None,
-                "meta": {"note": "Pas encore de directive coach. Utilise ton propre jugement."},
-            }
-
+        briefing = build_briefing_from_cache(cached, bm25_hits, query, product=product)
         return web.json_response(briefing)
     except Exception as e:
+        log.exception("Briefing error")
         return web.json_response({"error": str(e)}, status=500)
 
 
-async def handle_list_conversations(request):
-    """List all saved conversations (simple admin view)."""
+async def handle_save_conversation(request: web.Request) -> web.Response:
+    """Save a conversation transcript to SQLite."""
+    try:
+        data = await request.json()
+        started_at = data.get("started_at", "")
+        ended_at = data.get("ended_at", datetime.now(timezone.utc).isoformat())
+        messages = data.get("messages", [])
+        product_id = data.get("product_id")
+
+        if not messages:
+            return web.json_response({"status": "skipped", "reason": "empty"}, status=200)
+
+        try:
+            start_dt = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            end_dt = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
+            duration = int((end_dt - start_dt).total_seconds())
+        except Exception:
+            duration = 0
+
+        transcript_text = "\n".join(
+            f"[{m.get('role', '?').upper()}] {m.get('text', '')}" for m in messages
+        )
+        transcript_json = json.dumps(messages, ensure_ascii=False)
+
+        ip = request.headers.get("X-Forwarded-For", request.remote or "")
+        user_agent = request.headers.get("User-Agent", "")[:500]
+
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO conversations
+            (started_at, ended_at, duration_seconds, message_count, product_id, transcript, ip_address, user_agent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            started_at, ended_at, duration, len(messages),
+            product_id, transcript_json, ip, user_agent,
+        ))
+        conversation_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        log.info(
+            "CONV #%s saved | product=%s duration=%ss messages=%d",
+            conversation_id, product_id, duration, len(messages),
+        )
+        # Transcript aussi en log pour debug
+        print(f"\n========== CONVERSATION #{conversation_id} (product={product_id}) ==========")
+        print(transcript_text)
+        print("=" * 60)
+
+        return web.json_response({"status": "saved", "id": conversation_id})
+    except Exception as e:
+        log.exception("Save conversation error")
+        return web.json_response({"error": str(e)}, status=500)
+
+
+async def handle_list_conversations(request: web.Request) -> web.Response:
+    """List latest 100 conversations (simple admin view)."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, started_at, duration_seconds, message_count, transcript
+        SELECT id, started_at, duration_seconds, message_count, product_id, transcript
         FROM conversations
         ORDER BY id DESC
         LIMIT 100
@@ -568,44 +440,21 @@ async def handle_list_conversations(request):
             "started_at": row["started_at"],
             "duration_seconds": row["duration_seconds"],
             "message_count": row["message_count"],
+            "product_id": row["product_id"],
             "messages": messages,
         })
     return web.json_response({"conversations": conversations})
 
 
-async def handle_prompt(request):
-    """Serve the system instruction from heritage-widget.js."""
-    try:
-        widget_path = FRONTEND_DIR / "heritage-widget.js"
-        if not widget_path.is_file():
-            return web.json_response({"error": "widget not found"}, status=404)
-        code = widget_path.read_text(encoding="utf-8")
-        marker_start = "const SYSTEM_INSTRUCTION = `"
-        idx = code.find(marker_start)
-        if idx < 0:
-            return web.json_response({"error": "prompt not found"}, status=404)
-        start = idx + len(marker_start)
-        end = code.find("`;", start)
-        prompt = code[start:end]
-        return web.json_response({"prompt": prompt})
-    except Exception as e:
-        return web.json_response({"error": str(e)}, status=500)
-
-
-async def handle_static(request):
+async def handle_static(request: web.Request) -> web.Response:
     """Serve static frontend files."""
-    path = request.match_info.get("path", "index.html")
-    if not path or path == "/":
-        path = "index.html"
+    path = request.match_info.get("path", "index.html") or "index.html"
 
     file_path = (FRONTEND_DIR / path).resolve()
     if not str(file_path).startswith(str(FRONTEND_DIR.resolve())):
         return web.Response(status=403)
-
-    # If it's a directory (e.g. /presentation/), serve its index.html
     if file_path.is_dir():
         file_path = file_path / "index.html"
-
     if not file_path.is_file():
         return web.Response(status=404, text="Not found")
 
@@ -613,42 +462,48 @@ async def handle_static(request):
         ".html": "text/html",
         ".css": "text/css",
         ".js": "application/javascript",
+        ".json": "application/json",
         ".png": "image/png",
         ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
         ".svg": "image/svg+xml",
         ".ico": "image/x-icon",
     }
     ext = file_path.suffix.lower()
     content_type = content_types.get(ext, "application/octet-stream")
-
     return web.FileResponse(file_path, headers={"Content-Type": content_type})
 
 
-# ============ APP SETUP ============
+# =============================================================================
+# App setup
+# =============================================================================
+
 app = web.Application()
+app.router.add_get("/api/products", handle_list_products)
 app.router.add_post("/api/token", handle_token)
-app.router.add_post("/api/save-conversation", handle_save_conversation)
+app.router.add_get("/api/prompt", handle_prompt)
 app.router.add_post("/api/strategist", handle_strategist)
 app.router.add_post("/api/ui-director", handle_ui_director)
 app.router.add_post("/api/briefing", handle_briefing)
-app.router.add_get("/api/prompt", handle_prompt)
+app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_get("/api/conversations", handle_list_conversations)
 app.router.add_get("/", handle_static)
 app.router.add_get("/{path:.*}", handle_static)
 
-# CORS headers for cross-origin requests (if widget on external site)
-async def cors_middleware(app, handler):
-    async def middleware_handler(request):
-        if request.method == "OPTIONS":
-            return web.Response(headers={
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type",
-            })
-        response = await handler(request)
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        return response
-    return middleware_handler
+
+# CORS — le widget peut être embarqué sur un domaine externe
+@web.middleware
+async def cors_middleware(request: web.Request, handler):
+    if request.method == "OPTIONS":
+        return web.Response(headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        })
+    response = await handler(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
 
 app.middlewares.append(cors_middleware)
 app.router.add_route("OPTIONS", "/{path:.*}", lambda r: web.Response())
@@ -656,10 +511,17 @@ app.router.add_route("OPTIONS", "/{path:.*}", lambda r: web.Response())
 
 if __name__ == "__main__":
     init_db()
+    reg = init_products()
+    log.info(
+        "Loaded %d products: %s",
+        len(reg.products),
+        ", ".join(reg.list_ready()),
+    )
+
     if not GEMINI_API_KEY:
-        print("WARNING: GEMINI_API_KEY not set. Create a .env file with your key.")
-        print("Get one at: https://aistudio.google.com/apikey")
-    # Railway / Render / Heroku pass the port via the PORT env var
+        log.warning("GEMINI_API_KEY not set. Create a .env file with your key.")
+        log.warning("Get one at: https://aistudio.google.com/apikey")
+
     port = int(os.getenv("PORT", "8000"))
-    print(f"Server starting on port {port}")
+    log.info("Server starting on port %d", port)
     web.run_app(app, host="0.0.0.0", port=port)

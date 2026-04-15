@@ -1,0 +1,272 @@
+{
+  "product_id": "argo_alpha",
+  "source_url": "https://investir.argo-editions.com/projet-alpha/index.html",
+  "video": {
+    "platform": "Vidyard",
+    "id": "zZUHEZ2qzBjYJN5XbVJbsz",
+    "title": "AIA-260312-Lancement Alpha - Maquette 01",
+    "duration": "33:15",
+    "embed_url": "https://play.vidyard.com/zZUHEZ2qzBjYJN5XbVJbsz",
+    "thumbnail_url": "https://play.vidyard.com/zZUHEZ2qzBjYJN5XbVJbsz.jpg",
+    "cta_timecode_seconds": 1789,
+    "cta_timecode_human": "29:49"
+  },
+  "images": [
+    {
+      "id": "bg_alpha",
+      "url": "https://cdn.argo-editions.com/uploads/background-alpha.jpg",
+      "role": "background",
+      "description": "Fond page Alpha (vert)"
+    },
+    {
+      "id": "jim_simons",
+      "url": "https://cdn.argo-editions.com/uploads/jim-simons.png",
+      "role": "authority",
+      "description": "Portrait Jim Simons (Renaissance Technologies)",
+      "usage_card": "story_simons"
+    },
+    {
+      "id": "renaissance_technologies",
+      "url": "https://cdn.argo-editions.com/uploads/renaissance-technologies.png",
+      "role": "authority",
+      "description": "Logo Renaissance Technologies",
+      "usage_card": "authority_renaissance"
+    },
+    {
+      "id": "renaissance_vs_sp500",
+      "url": "https://cdn.argo-editions.com/uploads/renaissance-technologies-vs-sp500.jpg",
+      "role": "proof_chart",
+      "description": "Performance Renaissance +98% vs S&P -38% en 2008",
+      "usage_card": "proof_renaissance_2008"
+    },
+    {
+      "id": "perf_lumentum",
+      "url": "https://cdn.argo-editions.com/uploads/perf-lumentum.jpeg",
+      "role": "proof_chart",
+      "description": "Lumentum Holdings +548% — succès passé Argo",
+      "usage_card": "proof_lumentum"
+    },
+    {
+      "id": "perf_delysium",
+      "url": "https://cdn.argo-editions.com/uploads/perf-delysium.jpg",
+      "role": "proof_chart",
+      "description": "Crypto Delysium +1160% en 55 jours — succès passé Argo",
+      "usage_card": "proof_delysium"
+    },
+    {
+      "id": "logo_stansberry",
+      "url": "https://cdn.argo-editions.com/uploads/logo-stansberry-research.png",
+      "role": "authority",
+      "description": "Logo Stansberry Research (partenaire tech d'Alpha)",
+      "usage_card": "authority_stansberry"
+    },
+    {
+      "id": "methode_russell",
+      "url": "https://cdn.argo-editions.com/uploads/methode-alpha-1.png",
+      "role": "diagram",
+      "description": "Étape 1 méthode Alpha : Russell 1000 comme terrain de jeu",
+      "usage_card": "method_russell_1000"
+    },
+    {
+      "id": "methode_4_criteres",
+      "url": "https://cdn.argo-editions.com/uploads/methode-alpha-2.png",
+      "role": "diagram",
+      "description": "Étape 2 : 4 critères du Stansberry Score (efficience, santé, valorisation, momentum)",
+      "usage_card": "method_4_criteres"
+    },
+    {
+      "id": "stansberry_score",
+      "url": "https://cdn.argo-editions.com/uploads/stansberry-score.png",
+      "role": "diagram",
+      "description": "Échelle du Stansberry Score 0-100",
+      "usage_card": "method_score_echelle"
+    },
+    {
+      "id": "methode_ia_piste",
+      "url": "https://cdn.argo-editions.com/uploads/methode-alpha-3.png",
+      "role": "diagram",
+      "description": "Étape 3 : L'IA construit le portefeuille (clustering, 20 actions 5% chacune)",
+      "usage_card": "method_ia_portefeuille"
+    },
+    {
+      "id": "perf_cadence",
+      "url": "https://cdn.argo-editions.com/uploads/perf-cadence-design-systems.png",
+      "role": "proof_chart",
+      "description": "Cadence Design Systems — score Alpha 77 → +550%",
+      "usage_card": "proof_cadence"
+    },
+    {
+      "id": "perf_synopsys",
+      "url": "https://cdn.argo-editions.com/uploads/perf-synopsys.png",
+      "role": "proof_chart",
+      "description": "Synopsys — score Alpha 78 → +450%",
+      "usage_card": "proof_synopsys"
+    },
+    {
+      "id": "perf_agnico",
+      "url": "https://cdn.argo-editions.com/uploads/perf-agnico-eagle-mines.png",
+      "role": "proof_chart",
+      "description": "Agnico Eagle Mines — score Alpha 90 → +73% en 12 mois",
+      "usage_card": "proof_agnico"
+    },
+    {
+      "id": "perf_nvidia_alpha",
+      "url": "https://cdn.argo-editions.com/uploads/perf-nvidia-alpha.png",
+      "role": "proof_chart",
+      "description": "Nvidia — score Alpha 74 en 2017 → +6400% (x65)",
+      "usage_card": "proof_nvidia_alpha"
+    },
+    {
+      "id": "contre_perf_rezolve",
+      "url": "https://cdn.argo-editions.com/uploads/contre-perf-rezolve-ai.png",
+      "role": "proof_chart",
+      "description": "Rezolve AI — score Alpha 37 → -70% (évitement)",
+      "usage_card": "proof_evit_rezolve"
+    },
+    {
+      "id": "contre_perf_jet_ai",
+      "url": "https://cdn.argo-editions.com/uploads/contre-perf-jet-ai.png",
+      "role": "proof_chart",
+      "description": "Jet AI — score Alpha 17 → -93% (évitement)",
+      "usage_card": "proof_evit_jet"
+    },
+    {
+      "id": "cours_sp500_5ans",
+      "url": "https://cdn.argo-editions.com/uploads/cours-sp500-5-ans.png",
+      "role": "proof_chart",
+      "description": "Cours S&P 500 sur 5 ans (base de comparaison)",
+      "usage_card": "proof_sp500_ref"
+    },
+    {
+      "id": "alpha_berkshire_sp500",
+      "url": "https://cdn.argo-editions.com/uploads/alpha-berkshire-sp500.jpg",
+      "role": "proof_chart",
+      "description": "Comparatif Alpha vs Berkshire vs S&P 500 — Alpha +50 pts vs marché",
+      "usage_card": "proof_alpha_vs_all"
+    },
+    {
+      "id": "100k_to_339k",
+      "url": "https://cdn.argo-editions.com/uploads/100k-to-339k.png",
+      "role": "proof_chart",
+      "description": "Illustration 100K$ 2017 → 339K$ aujourd'hui avec Alpha",
+      "usage_card": "proof_roi_concret"
+    },
+    {
+      "id": "alpha_telegram",
+      "url": "https://cdn.argo-editions.com/uploads/alpha-telegram.png",
+      "role": "product_shot",
+      "description": "Canal Alpha sur Telegram",
+      "usage_card": "delivery_telegram"
+    },
+    {
+      "id": "rejoindre_telegram",
+      "url": "https://cdn.argo-editions.com/uploads/rejoindre-telegram-alpha.png",
+      "role": "product_shot",
+      "description": "Tutoriel pour rejoindre Telegram Alpha",
+      "usage_card": "delivery_tuto"
+    },
+    {
+      "id": "whitney_tilson",
+      "url": "https://cdn.argo-editions.com/uploads/whitney-tilson.png",
+      "role": "authority",
+      "description": "Portrait Whitney Tilson (superviseur humain d'Alpha)",
+      "usage_card": "authority_tilson"
+    },
+    {
+      "id": "tilson_buffett",
+      "url": "https://cdn.argo-editions.com/uploads/whitney-tilson-warren-buffett.png",
+      "role": "authority",
+      "description": "Whitney Tilson avec Warren Buffett",
+      "usage_card": "authority_tilson_buffett"
+    },
+    {
+      "id": "tilson_obama",
+      "url": "https://cdn.argo-editions.com/uploads/whitney-tilson-barack-obama.png",
+      "role": "authority",
+      "description": "Whitney Tilson avec Barack Obama",
+      "usage_card": "authority_tilson_obama"
+    },
+    {
+      "id": "perf_apple_tilson",
+      "url": "https://cdn.argo-editions.com/uploads/perf-apple-tilson.png",
+      "role": "proof_chart",
+      "description": "Apple acheté par Tilson en 2008 — x700",
+      "usage_card": "proof_tilson_apple",
+      "shared_with": ["argo_actions"]
+    },
+    {
+      "id": "perf_amazon_tilson",
+      "url": "https://cdn.argo-editions.com/uploads/perf-amazon-tilson.png",
+      "role": "proof_chart",
+      "description": "Amazon acheté par Tilson en 2000 — x90",
+      "usage_card": "proof_tilson_amazon",
+      "shared_with": ["argo_actions"]
+    },
+    {
+      "id": "perf_sodastream_tilson",
+      "url": "https://cdn.argo-editions.com/uploads/perf-sodastream-tilson.png",
+      "role": "proof_chart",
+      "description": "SodaStream Tilson — +1100%",
+      "usage_card": "proof_tilson_sodastream",
+      "shared_with": ["argo_actions"]
+    },
+    {
+      "id": "perf_ggp_tilson",
+      "url": "https://cdn.argo-editions.com/uploads/perf-general-growth-tilson.png",
+      "role": "proof_chart",
+      "description": "General Growth Properties Tilson — +1600%",
+      "usage_card": "proof_tilson_ggp",
+      "shared_with": ["argo_actions"]
+    },
+    {
+      "id": "perf_netflix_tilson",
+      "url": "https://cdn.argo-editions.com/uploads/perf-netflix-tilson.png",
+      "role": "proof_chart",
+      "description": "Netflix Tilson 2012 — +8900%",
+      "usage_card": "proof_tilson_netflix",
+      "shared_with": ["argo_actions"]
+    },
+    {
+      "id": "guide_demarrage",
+      "url": "https://cdn.argo-editions.com/uploads/guide-demarrage-alpha.png",
+      "role": "product_shot",
+      "description": "Guide de démarrage complet Alpha",
+      "usage_card": "product_guide"
+    },
+    {
+      "id": "calculateur_allocation",
+      "url": "https://cdn.argo-editions.com/uploads/portefeuille-alpha-laptop.png",
+      "role": "product_shot",
+      "description": "Calculateur d'allocation de départ (tableau dynamique)",
+      "usage_card": "product_calculateur"
+    },
+    {
+      "id": "rapport_mensuel",
+      "url": "https://cdn.argo-editions.com/uploads/rapport-mensuel-alpha-acces-initial.png",
+      "role": "product_shot",
+      "description": "Rapport mensuel aux investisseurs",
+      "usage_card": "product_rapport_mensuel"
+    },
+    {
+      "id": "recap_alpha",
+      "url": "https://cdn.argo-editions.com/uploads/recap-alpha.png",
+      "role": "product_shot",
+      "description": "Récap trimestriel avec nouvelle répartition",
+      "usage_card": "product_recap_trim"
+    },
+    {
+      "id": "garantie_90_jours",
+      "url": "https://cdn.argo-editions.com/uploads/garantie-90-jours.png",
+      "role": "proof_symbol",
+      "description": "Badge garantie satisfait ou remboursé 90 jours",
+      "usage_card": "guarantee_badge"
+    },
+    {
+      "id": "banniere_alpha",
+      "url": "https://cdn.argo-editions.com/uploads/banniere-alpha.png",
+      "role": "brand",
+      "description": "Bannière Alpha (pied de page)",
+      "usage_card": "brand_banner"
+    }
+  ]
+}

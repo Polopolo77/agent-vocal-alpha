@@ -1,0 +1,84 @@
+{
+  "version": "v1.0",
+  "publisher": "Argo Éditions",
+  "last_updated": "2026-04-15",
+  "note": "Catalogue V1 complet. Chaque produit a son dossier dans ./products/<slug>/ avec config.json, sales_letter.md, images.json.",
+  "products": [
+    {
+      "product_id": "argo_actions",
+      "slug": "argo-actions",
+      "product_name": "Actions Gagnantes",
+      "lead_magnet": "Bouclier Suisse",
+      "vertical": "actions",
+      "expert": "Whitney Tilson",
+      "offers": {
+        "A": { "price_eur": 149, "period": "an" },
+        "B": { "price_eur": 299, "period": "an" }
+      },
+      "status": "READY",
+      "files": {
+        "sales_letter": "products/argo_actions/sales_letter.md",
+        "config":       "products/argo_actions/config.json",
+        "images":       "products/argo_actions/images.json"
+      }
+    },
+    {
+      "product_id": "argo_crypto",
+      "slug": "argo-crypto",
+      "product_name": "Profits Asymétriques",
+      "lead_magnet": "La Fin du Travail",
+      "vertical": "crypto_tech_ia_physique",
+      "expert": "Eric Wade",
+      "offers": {
+        "A": { "price_eur": 129, "period": "an" },
+        "B": { "price_eur": 299, "period": "an" }
+      },
+      "status": "READY",
+      "files": {
+        "sales_letter": "products/argo_crypto/sales_letter.md",
+        "config":       "products/argo_crypto/config.json",
+        "images":       "products/argo_crypto/images.json"
+      }
+    },
+    {
+      "product_id": "argo_alpha",
+      "slug": "argo-alpha",
+      "product_name": "Alpha - Agent IA d'Investissement",
+      "lead_magnet": "Le Projet Alpha",
+      "vertical": "tech_ia_actions",
+      "expert": "Whitney Tilson (superviseur) + Stansberry Research (IA)",
+      "offers": {
+        "A": { "price_eur": 496, "period": "an" },
+        "B": { "price_eur": 997, "period": "an" },
+        "C": { "price_eur": 149, "period": "trimestre" },
+        "D": { "price_eur": 299, "period": "trimestre" }
+      },
+      "status": "READY",
+      "files": {
+        "sales_letter": "products/argo_alpha/sales_letter.md",
+        "config":       "products/argo_alpha/config.json",
+        "images":       "products/argo_alpha/images.json"
+      }
+    },
+    {
+      "product_id": "argo_gold",
+      "slug": "argo-gold",
+      "product_name": "Stratégie Haut Rendement",
+      "lead_magnet": "Hyper Climax Gold",
+      "vertical": "or_minieres_uranium",
+      "expert": "Dan Ferris",
+      "offers": {
+        "A": { "price_eur": 997,  "period": "an" },
+        "B": { "price_eur": 1997, "period": "an" },
+        "C": { "price_eur": 299,  "period": "trimestre" },
+        "D": { "price_eur": 599,  "period": "trimestre" }
+      },
+      "status": "READY",
+      "files": {
+        "sales_letter": "products/argo_gold/sales_letter.md",
+        "config":       "products/argo_gold/config.json",
+        "images":       "products/argo_gold/images.json"
+      }
+    }
+  ]
+}

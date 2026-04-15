@@ -1,0 +1,172 @@
+{
+  "product_id": "argo_actions",
+  "source_url": "https://investir.argo-editions.com/bouclier-suisse/index.html",
+  "images": [
+    {
+      "id": "bg_swiss",
+      "url": "https://cdn.argo-editions.com/uploads/fond-gris-swi-1.jpg",
+      "role": "background",
+      "description": "Fond gris suisse (background page)"
+    },
+    {
+      "id": "bg_or",
+      "url": "https://cdn.argo-editions.com/uploads/background-or.jpg",
+      "role": "background",
+      "description": "Fond or (background alternatif)"
+    },
+    {
+      "id": "dette_france",
+      "url": "https://cdn.argo-editions.com/uploads/dette-france.png",
+      "role": "proof_chart",
+      "description": "Graphique de l'évolution de la dette publique française (3400 Md€, 115% PIB)",
+      "usage_card": "proof_dette"
+    },
+    {
+      "id": "articles_fmi",
+      "url": "https://cdn.argo-editions.com/uploads/articles-fmi.png",
+      "role": "proof_press",
+      "description": "Captures d'articles de presse sur l'avertissement du FMI à la France",
+      "usage_card": "proof_fmi"
+    },
+    {
+      "id": "sandrine_rousseau",
+      "url": "https://cdn.argo-editions.com/uploads/declaration-sandrine-rousseau.png",
+      "role": "proof_quote",
+      "description": "Déclaration Sandrine Rousseau sur la taxation de l'épargne",
+      "usage_card": "proof_politique_gauche"
+    },
+    {
+      "id": "pierre_moscovici",
+      "url": "https://cdn.argo-editions.com/uploads/declaration-pierre-moscovici.png",
+      "role": "proof_quote",
+      "description": "Déclaration Pierre Moscovici (Président Cour des Comptes) sur impôt épargne",
+      "usage_card": "proof_moscovici"
+    },
+    {
+      "id": "bfm_lagarde",
+      "url": "https://cdn.argo-editions.com/uploads/bfm-tv.png",
+      "role": "proof_press",
+      "description": "Annonce Christine Lagarde sur le lancement de l'Euro Numérique (BFM TV)",
+      "usage_card": "proof_euro_numerique"
+    },
+    {
+      "id": "swiss_flag",
+      "url": "https://cdn.argo-editions.com/uploads/swiss-flag.png",
+      "role": "symbol",
+      "description": "Drapeau suisse",
+      "usage_card": "story_suisse"
+    },
+    {
+      "id": "excedents_suisse",
+      "url": "https://cdn.argo-editions.com/uploads/excedents-budgetaires-suisse.png",
+      "role": "proof_chart",
+      "description": "Excédents budgétaires des localités suisses",
+      "usage_card": "proof_solidite_suisse"
+    },
+    {
+      "id": "cours_franc_euro",
+      "url": "https://cdn.argo-editions.com/uploads/cours-franc-euro.png",
+      "role": "proof_chart",
+      "description": "Graphique CHF/EUR sur 20 ans — Euro -38% vs CHF",
+      "usage_card": "proof_chf_vs_eur"
+    },
+    {
+      "id": "bouclier_suisse_pad",
+      "url": "https://cdn.argo-editions.com/uploads/bouclier-suisse-pad.png",
+      "role": "product_shot",
+      "description": "Visuel du rapport Bouclier Suisse (lead magnet 399€)",
+      "usage_card": "product_lead_magnet"
+    },
+    {
+      "id": "bouclier_aga_bundle",
+      "url": "https://cdn.argo-editions.com/uploads/bouclier-suisse-logo-aga.png",
+      "role": "product_shot",
+      "description": "Bundle Bouclier Suisse + Actions Gagnantes logo",
+      "usage_card": "product_bundle"
+    },
+    {
+      "id": "pile_numeros_aga",
+      "url": "https://cdn.argo-editions.com/uploads/pile-numeros-aga.png",
+      "role": "product_shot",
+      "description": "Pile des numéros mensuels Actions Gagnantes",
+      "usage_card": "product_main"
+    },
+    {
+      "id": "portefeuille_aga",
+      "url": "https://cdn.argo-editions.com/uploads/portefeuille-aga-pad.png",
+      "role": "product_shot",
+      "description": "Portefeuille Actions Gagnantes (40+ actions)",
+      "usage_card": "proof_portefeuille"
+    },
+    {
+      "id": "recap_bundle",
+      "url": "https://cdn.argo-editions.com/uploads/recap-bouclier-suisse.png",
+      "role": "product_shot",
+      "description": "Récap visuel de l'offre bundle (698€ → 149€)",
+      "usage_card": "product_offer"
+    },
+    {
+      "id": "tilson_portrait",
+      "url": "https://cdn.argo-editions.com/uploads/tilson.png",
+      "role": "authority",
+      "description": "Portrait Whitney Tilson",
+      "usage_card": "authority_tilson"
+    },
+    {
+      "id": "tilson_buffett",
+      "url": "https://cdn.argo-editions.com/uploads/tilson-buffett.png",
+      "role": "authority",
+      "description": "Whitney Tilson avec Warren Buffett",
+      "usage_card": "authority_buffett"
+    },
+    {
+      "id": "tilson_obama",
+      "url": "https://cdn.argo-editions.com/uploads/tilson-obama.png",
+      "role": "authority",
+      "description": "Whitney Tilson à la Maison Blanche avec Barack Obama",
+      "usage_card": "authority_obama"
+    },
+    {
+      "id": "tilson_ackman",
+      "url": "https://cdn.argo-editions.com/uploads/tilson-ackman.png",
+      "role": "authority",
+      "description": "Whitney Tilson avec Bill Ackman",
+      "usage_card": "authority_ackman"
+    },
+    {
+      "id": "perf_netflix",
+      "url": "https://cdn.argo-editions.com/uploads/perf-netflix-tilson.png",
+      "role": "proof_chart",
+      "description": "Performance Netflix : +8900% (x90)",
+      "usage_card": "proof_netflix"
+    },
+    {
+      "id": "perf_general_growth",
+      "url": "https://cdn.argo-editions.com/uploads/perf-general-growth-tilson.png",
+      "role": "proof_chart",
+      "description": "Performance General Growth Properties : +1600% (x17)",
+      "usage_card": "proof_ggp"
+    },
+    {
+      "id": "perf_sodastream",
+      "url": "https://cdn.argo-editions.com/uploads/perf-sodastream-tilson.png",
+      "role": "proof_chart",
+      "description": "Performance SodaStream 2016 : +1100% (x12)",
+      "usage_card": "proof_sodastream"
+    },
+    {
+      "id": "perf_apple",
+      "url": "https://cdn.argo-editions.com/uploads/perf-apple-tilson.png",
+      "role": "proof_chart",
+      "description": "Performance Apple depuis 2008 : x475 (2000€ → presque 1 million €)",
+      "usage_card": "proof_apple"
+    },
+    {
+      "id": "perf_amazon",
+      "url": "https://cdn.argo-editions.com/uploads/perf-amazon-tilson.png",
+      "role": "proof_chart",
+      "description": "Performance Amazon depuis 2000 : x77 (2000€ → 154 000€)",
+      "usage_card": "proof_amazon"
+    }
+  ]
+}

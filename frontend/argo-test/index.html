@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test · Concierge IA Argo Éditions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background:
+        radial-gradient(ellipse at top right, rgba(218, 165, 32, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom left, rgba(100, 150, 200, 0.04) 0%, transparent 50%),
+        linear-gradient(180deg, #0a0a0a 0%, #0d0d0d 100%);
+      color: #f0f0f0;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 60px 24px 180px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(218, 165, 32, 0.1);
+      border: 1px solid rgba(218, 165, 32, 0.3);
+      color: #daa520;
+      padding: 8px 16px;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: #daa520;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, #daa520, #b8860b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: #999;
+      margin-bottom: 48px;
+      max-width: 760px;
+    }
+
+    /* ========== Sélecteur de produit ========== */
+    .product-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .product-card {
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 14px;
+      padding: 22px;
+      cursor: pointer;
+      transition: border-color .25s, transform .15s, background .25s;
+      position: relative;
+    }
+
+    .product-card:hover {
+      border-color: rgba(218, 165, 32, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .product-card.selected {
+      border-color: rgba(218, 165, 32, 0.7);
+      background: linear-gradient(180deg, rgba(218, 165, 32, 0.06), #111);
+    }
+
+    .product-card .slug {
+      font-size: 0.68rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+    }
+
+    .product-card h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.35rem;
+      color: #daa520;
+      margin-bottom: 8px;
+    }
+
+    .product-card .expert {
+      font-size: 0.85rem;
+      color: #bbb;
+      margin-bottom: 12px;
+    }
+
+    .product-card .offers {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .product-card .offers strong { color: #ddd; }
+
+    .selected-banner {
+      display: none;
+      background: rgba(218, 165, 32, 0.08);
+      border: 1px solid rgba(218, 165, 32, 0.3);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 32px;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .selected-banner.active { display: flex; }
+
+    .selected-banner .info { flex: 1; }
+    .selected-banner h4 {
+      color: #daa520;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    .selected-banner p {
+      color: #bbb;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* ========== Cartes ========== */
+    .card {
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #daa520;
+      margin-bottom: 16px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .card p {
+      color: #bbb;
+      margin-bottom: 12px;
+    }
+    .card p:last-child { margin-bottom: 0; }
+
+    .card ul { list-style: none; padding: 0; margin-top: 8px; }
+    .card li {
+      color: #bbb;
+      padding: 6px 0;
+      padding-left: 24px;
+      position: relative;
+    }
+    .card li::before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #daa520;
+      font-weight: 700;
+    }
+
+    .code {
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #daa520;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    /* ========== Scénarios ========== */
+    .scenarios {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .scenario {
+      background: #0f0f0f;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 18px;
+      transition: border-color .25s;
+    }
+    .scenario:hover { border-color: rgba(218, 165, 32, 0.35); }
+    .scenario-label {
+      font-size: 0.68rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 6px;
+    }
+    .scenario h4 {
+      font-size: 0.95rem;
+      color: #daa520;
+      margin-bottom: 8px;
+    }
+    .scenario p {
+      font-size: 0.85rem;
+      color: #999;
+      font-style: italic;
+      margin: 0;
+    }
+
+    /* ========== Footer ========== */
+    footer {
+      margin-top: 48px;
+      padding-top: 32px;
+      border-top: 1px solid #1a1a1a;
+      color: #555;
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .arrow-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: #daa520;
+      font-weight: 600;
+      padding: 14px 22px;
+      background: rgba(218, 165, 32, 0.08);
+      border: 1px solid rgba(218, 165, 32, 0.3);
+      border-radius: 12px;
+      margin-top: 16px;
+      font-size: 0.95rem;
+    }
+    .big-arrow {
+      font-size: 1.4rem;
+      animation: bounce 1.5s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translate(0, 0); }
+      50%      { transform: translate(6px, 6px); }
+    }
+
+    /* Script slot placeholder (dev info) */
+    .dev-note {
+      background: #0a0a0a;
+      border: 1px dashed #333;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 0.8rem;
+      color: #777;
+      font-family: 'Courier New', monospace;
+      margin-top: 16px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="badge">Mode test · Multi-produits · V1</div>
+    <h1>Concierge IA <span>Argo Éditions</span><br>Page de test interne</h1>
+    <p class="subtitle">
+      Sélectionne un produit ci-dessous. Le widget vocal se recharge avec le bon prompt système, le bon expert,
+      et le bon briefing BM25. Clique ensuite sur le bouton "Parler à un conseiller" en bas à droite pour démarrer la conversation.
+    </p>
+
+    <div id="selected-banner" class="selected-banner">
+      <div class="info">
+        <h4 id="banner-name">—</h4>
+        <p id="banner-meta">—</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>1. Choisis un produit à tester</h2>
+      <div id="product-selector" class="product-selector">
+        <div style="color:#666; padding:24px;">Chargement du catalog…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. Teste un scénario</h2>
+      <p style="margin-bottom:14px;">Les mêmes scénarios fonctionnent pour les 4 produits — le concierge s'adapte.</p>
+      <div class="scenarios">
+        <div class="scenario">
+          <div class="scenario-label">Test 1 · Dominant</div>
+          <h4>Pressé, veut le prix</h4>
+          <p>"Bonjour. J'ai pas le temps. Donnez-moi juste le prix et la performance."</p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 2 · Stable</div>
+          <h4>Retraité prudent</h4>
+          <p>"J'ai 67 ans, j'ai vu votre publicité. J'ai peur des arnaques, c'est vraiment sérieux ?"</p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 3 · Débutant</div>
+          <h4>N'a jamais investi</h4>
+          <p>"Je n'ai jamais investi de ma vie. Je ne comprends rien à la bourse. Est-ce que c'est pour moi ?"</p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 4 · Sceptique</div>
+          <h4>Promesses exagérées</h4>
+          <p>"Les +6400% ou +110x, ça sent l'arnaque à plein nez. Vous êtes sérieux ?"</p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 5 · Objection</div>
+          <h4>Trop cher</h4>
+          <p>"149€ par an c'est quand même cher pour une newsletter, non ?"</p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 6 · Hors-sujet</div>
+          <h4>Recadrage</h4>
+          <p>"Dites-moi, vous pensez quoi de la politique en ce moment ?"<br><em style="color:#666">→ doit refuser et recentrer.</em></p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 7 · Closing</div>
+          <h4>Prêt à acheter direct</h4>
+          <p>"Ok, ça m'intéresse. Comment je m'inscris ?"<br><em style="color:#666">→ doit arrêter les questions et closer.</em></p>
+        </div>
+        <div class="scenario">
+          <div class="scenario-label">Test 8 · Abonné existant</div>
+          <h4>Déjà client ailleurs</h4>
+          <p>"Je suis déjà abonné à Actions Gagnantes, pourquoi prendre celui-ci en plus ?"</p>
+        </div>
+      </div>
+      <div class="arrow-cta">
+        <span>Le bouton du widget apparaît en bas à droite</span>
+        <span class="big-arrow">↘</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3. Notes techniques</h2>
+      <ul>
+        <li>Backend par défaut : <span class="code" id="backend-url">…</span></li>
+        <li>Prompt système : chargé à chaque connexion via <span class="code">GET /api/prompt?product=&lt;id&gt;</span></li>
+        <li>BM25 : exécuté côté serveur, exposé via <span class="code">POST /api/briefing</span> (tool calling)</li>
+        <li>Coach : appel async toutes les 2 user turns via <span class="code">POST /api/strategist</span></li>
+        <li>UI Director : appel à chaque user turn via <span class="code">POST /api/ui-director</span></li>
+        <li>Les conversations sont sauvées en SQLite (<span class="code">/api/save-conversation</span>) + Google Sheets (via Apps Script)</li>
+      </ul>
+      <div class="dev-note" id="dev-note">
+&lt;!-- Le widget est injecté en bas de page avec : --&gt;<br>
+&lt;script src="/argo-widget.js" data-product="…" data-agent-name="Argos"&gt;&lt;/script&gt;
+      </div>
+    </div>
+
+    <footer>
+      Page de test interne · Argo Éditions · Concierge IA V1
+    </footer>
+  </div>
+
+  <!-- Le widget est (re)chargé dynamiquement quand on clique un produit -->
+  <script>
+    (function () {
+      const selector = document.getElementById("product-selector");
+      const banner = document.getElementById("selected-banner");
+      const bannerName = document.getElementById("banner-name");
+      const bannerMeta = document.getElementById("banner-meta");
+      const devNote = document.getElementById("dev-note");
+      const backendUrlEl = document.getElementById("backend-url");
+
+      // Backend : prod par défaut, override via ?backend=http://localhost:8000
+      const urlParams = new URLSearchParams(location.search);
+      const BACKEND = urlParams.get("backend") || "https://web-production-572b6.up.railway.app";
+      backendUrlEl.textContent = BACKEND;
+
+      // Produit initial : via ?product=... ou argo_actions par défaut
+      let currentProduct = urlParams.get("product") || "argo_actions";
+
+      function formatOffers(offers) {
+        return Object.entries(offers || {})
+          .map(([tier, o]) => {
+            const label = o.label || (o.price_eur + "€/" + (o.period || "an"));
+            return `<strong>${tier}</strong> ${label}`;
+          })
+          .join(" · ");
+      }
+
+      function renderProducts(products) {
+        selector.innerHTML = "";
+        products.forEach(p => {
+          const card = document.createElement("div");
+          card.className = "product-card" + (p.product_id === currentProduct ? " selected" : "");
+          card.dataset.productId = p.product_id;
+          card.innerHTML = `
+            <div class="slug">${p.product_id}</div>
+            <h3>${p.name}</h3>
+            <div class="expert">Expert : ${p.expert || "—"}</div>
+            <div class="offers">${formatOffers(p.offers)}</div>
+          `;
+          card.addEventListener("click", () => selectProduct(p));
+          selector.appendChild(card);
+        });
+
+        const initial = products.find(p => p.product_id === currentProduct) || products[0];
+        if (initial) selectProduct(initial, false);
+      }
+
+      function selectProduct(p, scroll = true) {
+        currentProduct = p.product_id;
+        // Update URL without reload for shareability
+        const url = new URL(location.href);
+        url.searchParams.set("product", p.product_id);
+        history.replaceState(null, "", url);
+
+        // Update selection UI
+        document.querySelectorAll(".product-card").forEach(c => {
+          c.classList.toggle("selected", c.dataset.productId === p.product_id);
+        });
+
+        banner.classList.add("active");
+        bannerName.textContent = `Produit sélectionné : ${p.name}`;
+        bannerMeta.textContent = `Expert : ${p.expert || "—"} · Lead magnet : ${p.lead_magnet || "—"} · Tiers : ${Object.keys(p.offers || {}).join(", ")}`;
+
+        // Update dev note
+        devNote.innerHTML = `&lt;script src="/argo-widget.js" data-product="${p.product_id}" data-backend-url="${BACKEND}" data-agent-name="Argos"&gt;&lt;/script&gt;`;
+
+        // (Re)inject widget script
+        reloadWidget(p.product_id);
+      }
+
+      function reloadWidget(productId) {
+        // Remove old widget entirely (button + overlay + script)
+        document.querySelectorAll("#heritage-widget-btn, #heritage-overlay, #heritage-debug, #argo-widget-loader").forEach(el => el.remove());
+
+        const script = document.createElement("script");
+        script.id = "argo-widget-loader";
+        script.src = "/argo-widget.js";
+        script.dataset.product = productId;
+        script.dataset.backendUrl = BACKEND;
+        script.dataset.agentName = "Argos";
+        document.body.appendChild(script);
+      }
+
+      // Fetch catalog
+      fetch(BACKEND + "/api/products")
+        .then(r => r.json())
+        .then(data => {
+          const products = (data.products || []).sort((a, b) => a.product_id.localeCompare(b.product_id));
+          if (products.length === 0) {
+            selector.innerHTML = '<div style="color:#c33; padding:24px;">Aucun produit trouvé. Vérifie que le backend est lancé.</div>';
+            return;
+          }
+          renderProducts(products);
+        })
+        .catch(err => {
+          console.error("Catalog fetch failed:", err);
+          selector.innerHTML = `<div style="color:#c33; padding:24px;">Erreur : ${err.message}. Vérifie que ${BACKEND}/api/products répond.</div>`;
+        });
+    })();
+  </script>
+
+</body>
+</html>

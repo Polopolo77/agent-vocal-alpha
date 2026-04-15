@@ -1,0 +1,111 @@
+{
+  "product_id": "argo_crypto",
+  "slug": "argo-crypto",
+  "publisher": "Argo Éditions",
+  "product_name": "Profits Asymétriques",
+  "vertical": "crypto_tech_ia_physique",
+  "positioning": "Recherche en investissement asymétrique — petites capitalisations Tech/IA physique et cryptomonnaies, par Eric Wade (formateur de milliardaires US).",
+  "signatory": "Marc Schneider",
+  "lead_expert": {
+    "name": "Eric Wade",
+    "nickname": "Le Business Angel de la Tech",
+    "background": "Entrepreneur du net et investisseur chevronné. Études de finance, courtier dans plusieurs grands groupes américains. Business angel tourné vers la blockchain, a monté plusieurs entreprises de minage de Bitcoin et d'Ethereum.",
+    "credentials": [
+      "Acheté wallstreet.com pour 7$ en 1990, revendu 1 million $",
+      "Conseille start-ups et projets blockchain",
+      "Suivi par Leon Cooperman, Joel Greenblatt, Seth Klarman",
+      "24 recommandations >+1000% depuis 2017 (record exceptionnel)"
+    ],
+    "notable_wins": [
+      { "asset": "Polymath", "return_pct": 3180 },
+      { "asset": "Harmony",  "return_pct": 8079 },
+      { "asset": "Enjin",    "return_pct": 11127 },
+      { "asset": "Luna",     "return_pct": 34056 }
+    ]
+  },
+  "co_expert": {
+    "name": "John Engel",
+    "role": "Binôme d'Eric Wade — spécialiste biotech",
+    "background": "Ex-cadre dirigeant biotech. Master of Science à Johns Hopkins University. Longue carrière dans la pharma, a développé lui-même plusieurs nouvelles thérapies. Dirige depuis plusieurs années le service Innovations Report qui analyse toutes les tendances sur les marchés technologiques."
+  },
+  "support_team": "Dizaines d'analystes qui épaulent Wade et Engel pour identifier les bouleversements technologiques à venir et les meilleures opportunités financières.",
+  "sectors": ["5G", "Cloud", "Biotech", "IA", "Réalité Augmentée", "Blockchain / cryptos"],
+  "exclusivity": "Seuls à proposer ces dossiers au public francophone.",
+  "lead_magnet": {
+    "title": "La Fin du Travail",
+    "subtitle": "Le dossier confidentiel — nom, ticker, prix d'achat de l'entreprise IA physique visée à +7000%",
+    "standalone_price_eur": 299
+  },
+  "offers": {
+    "A": {
+      "price_eur": 129,
+      "period": "an",
+      "label": "129€/an (SEPA)",
+      "positioning": "Offre standard -50% — tacite reconduction au même prix",
+      "tacite_reconduction": true,
+      "payment_method": "SEPA"
+    },
+    "A_cc": {
+      "price_eur": 134,
+      "period": "an",
+      "label": "134€/an (CB 1 clic)",
+      "positioning": "Variante CB de l'offre A, +5€ pour frais de traitement carte",
+      "payment_method": "CB"
+    },
+    "B": {
+      "price_eur": 299,
+      "period": "an",
+      "label": "299€/an (premium)",
+      "positioning": "Abonnement longue durée / public plus aisé",
+      "tacite_reconduction": true
+    }
+  },
+  "normal_price_eur": 259,
+  "cadence": "Mensuel (nouveau dossier + mise à jour portefeuille chaque mois)",
+  "portfolio_size": "30+ actions + 7 cryptomonnaies",
+  "thesis": {
+    "title": "La Fin du Travail & les Rentiers de l'IA",
+    "core": [
+      "60% des emplois menacés par l'IA d'ici 2035 (FMI)",
+      "4ème Révolution Industrielle en cours",
+      "Trois classes émergentes : Robots, Rentiers, Esclaves (Revenu Universel)",
+      "Seule issue : posséder le capital — actions des entreprises qui dominent l'IA"
+    ],
+    "target_opportunity": {
+      "sector": "Semi-conducteurs IA physique (MCU/MPU, pas GPU)",
+      "size_vs_nvidia": "71x plus petite",
+      "potential": "+7000% (x71)",
+      "rationale": "Aucun concurrent direct, marché cible ~50 000 Md$ (automobile, IoT, robots, drones, santé connectée...)"
+    },
+    "reference_win": {
+      "asset": "Nvidia",
+      "period": "2015-2025",
+      "return": "+30 000%",
+      "illustration": "1 000€ en 2015 = 300 000€ aujourd'hui"
+    }
+  },
+  "guarantees": [
+    "Prix verrouillé à -50% à vie tant qu'abonné",
+    "Sans engagement — résiliation immédiate par email",
+    "Satisfait ou Remboursé 3 mois, sans justification"
+  ],
+  "attack_angles": [
+    "Peur existentielle : fin du travail, mise en esclavage par Revenu Universel",
+    "Opportunité historique : devenir Rentier de l'IA plutôt qu'Esclave",
+    "Précédent Nvidia : +30 000% en 10 ans, exemple concret",
+    "Asymétrie : action cible 71x plus petite, potentiel +7 000%",
+    "Autorité : Eric Wade, track record extraordinaire (24 recos >+1000%)",
+    "Urgence naturelle : places limitées (petites caps sensibles à la pression acheteuse)",
+    "Risque nul : triple garantie"
+  ],
+  "source_url": "https://investir.argo-editions.com/fin-du-travail/index.html",
+  "video_sales_letter": {
+    "platform": "Vidyard",
+    "duration": "16:20",
+    "embed_url": "https://play.vidyard.com/tYdhtu6bp9i1Lp2BfiQpu2"
+  },
+  "files": {
+    "sales_letter": "sales_letter.md",
+    "images": "images.json"
+  }
+}
