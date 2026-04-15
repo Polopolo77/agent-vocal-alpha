@@ -213,6 +213,15 @@ def build_agent_overlay(product: Product) -> str:
     # Summary (cheat sheet tiré du MD)
     summary = product.summary_section.strip() if product.summary_section else ""
 
+    # Bloc cross-sell conditionnel (pré-construit pour éviter un backslash dans
+    # l'expression d'une f-string, interdit par Python 3.11).
+    nl = "\n"
+    cross_block = (
+        "## Positionnement vs autres produits Argo" + nl + nl + cross_str
+        if cross_str
+        else ""
+    )
+
     overlay = f"""## Identité du produit
 
 - **Nom :** {name}
@@ -241,7 +250,7 @@ def build_agent_overlay(product: Product) -> str:
 
 {angles_str}
 
-{("## Positionnement vs autres produits Argo\n\n" + cross_str) if cross_str else ""}
+{cross_block}
 
 ## Fiche récapitulative (cheat sheet de la lettre de vente)
 
