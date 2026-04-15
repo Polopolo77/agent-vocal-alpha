@@ -130,9 +130,30 @@ async def handle_token(request: web.Request) -> web.Response:
 
 
 async def handle_list_products(request: web.Request) -> web.Response:
-    """List all ready products with minimal metadata. Used by the test page selector."""
+    """
+    List all ready products with the data the frontend needs to render.
+
+    - Minimal metadata (id, name, vertical, expert, offers, lead_magnet).
+    - `guarantees` list from config.
+    - `images_by_card` dict mapping UI Director's `card_a_afficher` values
+      to image metadata (url + description + role), so the page can
+      render smart cards without a second fetch.
+    """
     products = []
     for pid, p in REGISTRY.products.items():
+        # Build usage_card → image mapping
+        images_by_card: dict[str, dict] = {}
+        for img in (p.images.get("images", []) if isinstance(p.images, dict) else []):
+            key = img.get("usage_card")
+            if not key:
+                continue
+            if key not in images_by_card:
+                images_by_card[key] = {
+                    "url": img.get("url"),
+                    "description": img.get("description", ""),
+                    "role": img.get("role", ""),
+                }
+
         products.append({
             "product_id": pid,
             "slug": p.slug,
@@ -145,6 +166,8 @@ async def handle_list_products(request: web.Request) -> web.Response:
                 if isinstance(p.config.get("lead_magnet"), dict)
                 else p.config.get("lead_magnet")
             ),
+            "guarantees": p.config.get("guarantees", []),
+            "images_by_card": images_by_card,
         })
     return web.json_response({
         "catalog_version": REGISTRY.catalog.get("version"),
