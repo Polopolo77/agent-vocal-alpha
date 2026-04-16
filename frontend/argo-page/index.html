@@ -559,7 +559,7 @@
     letter-spacing: 1px;
   }
 
-  .dossier-body { display: flex; flex-direction: column; gap: 16px; }
+  .dossier-body { display: flex; flex-direction: column; gap: 0; }
   .dossier-empty {
     color: var(--muted);
     font-size: 0.85rem;
@@ -567,56 +567,76 @@
     line-height: 1.6;
   }
 
-  .dossier-section { animation: dossier-fade-in 0.4s ease-out; }
+  .dossier-section {
+    animation: dossier-fade-in 0.4s ease-out;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .dossier-section:last-child { border-bottom: none; }
   @keyframes dossier-fade-in { from { opacity: 0; transform: translateX(-8px);} to { opacity: 1; transform: none;} }
 
   .dossier-label {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: var(--muted);
-    letter-spacing: 1.5px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #5a5854;
+    letter-spacing: 2px;
     text-transform: uppercase;
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dossier-label::before {
+    content: "";
+    width: 12px;
+    height: 1px;
+    background: var(--gold);
+    flex-shrink: 0;
   }
 
   .dossier-value {
     font-size: 0.95rem;
     line-height: 1.5;
     color: var(--fg);
+    padding-left: 20px;
   }
   .dossier-value.highlight {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     color: var(--gold);
     font-weight: 500;
+    padding-left: 20px;
   }
   .dossier-badge {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 5px 14px;
     border: 1px solid var(--gold);
     color: var(--gold);
     border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 1px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
+    margin-left: 20px;
+    background: var(--gold-dim);
   }
 
   .dossier-item {
     display: block;
-    padding: 4px 0;
-    padding-left: 14px;
+    padding: 5px 0 5px 20px;
     position: relative;
-    font-size: 0.92rem;
-    color: #ddd;
+    font-size: 0.9rem;
+    color: #d4d0c8;
     line-height: 1.5;
   }
   .dossier-item::before {
     content: "";
     position: absolute;
-    left: 0; top: 12px;
-    width: 6px; height: 1px;
+    left: 6px; top: 14px;
+    width: 5px; height: 5px;
+    border-radius: 50%;
     background: var(--gold);
+    opacity: 0.6;
   }
   /* Item nouvellement ajouté : glow + typewriter cursor */
   .dossier-item.new {
@@ -678,19 +698,33 @@
 
   .smart-card {
     pointer-events: auto;
-    background: linear-gradient(180deg, rgba(22,22,22,0.96), rgba(12,12,12,0.96));
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(212,180,90,0.2);
-    border-radius: 18px;
-    padding: 22px 24px;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(212,180,90,0.06);
+    background: linear-gradient(180deg, rgba(20,20,20,0.97), rgba(10,10,10,0.97));
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(212,180,90,0.25);
+    border-radius: 20px;
+    padding: 26px 28px;
+    box-shadow:
+      0 16px 50px rgba(0,0,0,0.7),
+      0 0 1px rgba(212,180,90,0.3),
+      inset 0 1px 0 rgba(255,255,255,0.04);
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
-    transition: opacity 0.6s cubic-bezier(.16,.78,.31,.98),
-                transform 0.6s cubic-bezier(.16,.78,.31,.98);
+    transform: translateY(30px) scale(0.92);
+    transition: opacity 0.7s cubic-bezier(.16,.78,.31,.98),
+                transform 0.7s cubic-bezier(.16,.78,.31,.98);
   }
-  .smart-card.visible { opacity: 1; transform: none; }
-  .smart-card.exiting  { opacity: 0; transform: translateY(-10px) scale(0.94); }
+  .smart-card.visible {
+    opacity: 1;
+    transform: none;
+    animation: card-glow-in 0.8s ease-out;
+  }
+  .smart-card.exiting {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.92);
+  }
+  @keyframes card-glow-in {
+    0%   { box-shadow: 0 16px 50px rgba(0,0,0,0.7), 0 0 30px rgba(212,180,90,0.25); }
+    100% { box-shadow: 0 16px 50px rgba(0,0,0,0.7), 0 0 1px rgba(212,180,90,0.3); }
+  }
 
   .smart-card-badge {
     display: inline-block;
@@ -1247,8 +1281,8 @@
 
   // ============ SMART CARDS (droite, stack 2 max) ============
   const $smartCardArea = $("smart-card-area");
-  const MAX_STACK = 2;          // combien de cartes visibles simultanément
-  const STANDARD_LIFESPAN_MS = 25000;
+  const MAX_STACK = 3;          // plus de cartes visibles pour l'effet wow
+  const STANDARD_LIFESPAN_MS = 20000;
   let activeCards = [];         // { key, el, timeout }
 
   function showSmartCard(cardData) {
@@ -1436,13 +1470,7 @@
     // La carte offre dépend du produit actuellement recommandé par le coach.
     const pid = state.currentRecommendedProduct;
     const pm = pid ? state.catalog[pid] : null;
-    if (!pm) {
-      card.innerHTML =
-        '<span class="smart-card-badge">Argo Éditions</span>' +
-        '<h4>4 publications, 1 méthode</h4>' +
-        '<p>Argos va identifier celle qui vous correspond.</p>';
-      return card;
-    }
+    if (!pm) return null; // pas de carte offre si pas de produit choisi
     const offers = pm.offers || {};
     const tierA = offers.A || Object.values(offers)[0];
     const lmTitle = pm.lead_magnet || "";
@@ -1726,6 +1754,8 @@
         addMessage("alpha", state.pendingBotText.trim(), true);
         // B2 : détecte si le prix vient d'être donné
         checkSilenceAfterPrice(state.pendingBotText);
+        // Cards en temps réel PENDANT qu'Argos parle (throttled à 1 appel toutes les 8s)
+        triggerCardsWhileSpeaking();
       }
 
       // Turn complete
@@ -1743,8 +1773,9 @@
           currentUserMsg = null;
           state.userTurnCount++;
 
-          // D1 : Coach + UI agents en PARALLÈLE
-          if (state.userTurnCount >= 2) callUIAgents();
+          // UI agents dès le tour 1 (pas 2)
+          callUIAgents();
+          // Coach selon règle
           if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
 
           // C1 : funnel events
@@ -1834,6 +1865,29 @@
       $("status").textContent = "Erreur : " + err.message;
       setTimeout(disconnect, 3000);
     }
+  }
+
+  // ============ CARDS EN TEMPS RÉEL PENDANT QU'ARGOS PARLE ============
+  var lastCardsCallTime = 0;
+  function triggerCardsWhileSpeaking() {
+    var now = Date.now();
+    if (now - lastCardsCallTime < 8000) return; // throttle 8s
+    if (state.pendingBotText.length < 40) return; // pas assez de texte
+    lastCardsCallTime = now;
+    // Appel cards SEUL (pas dossier) avec le texte en cours
+    var history = state.conversationLog.slice();
+    history.push({ role: "alpha", text: state.pendingBotText.trim() });
+    fetch(CARDS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history: history }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        var cardData = result ? (result.card || result.card_a_afficher) : null;
+        if (cardData) showSmartCard(cardData);
+      })
+      .catch(function() {});
   }
 
   // ============ BARRE DE CHALEUR (A1) ============
