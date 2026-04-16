@@ -1773,8 +1773,8 @@
           currentUserMsg = null;
           state.userTurnCount++;
 
-          // UI agents dès le tour 1 (pas 2)
-          callUIAgents();
+          // UI agents à partir du tour 2 (tour 1 = juste prénom, rien à montrer)
+          if (state.userTurnCount >= 2) callUIAgents();
           // Coach selon règle
           if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
 
@@ -1867,27 +1867,53 @@
     }
   }
 
-  // ============ CARDS EN TEMPS RÉEL PENDANT QU'ARGOS PARLE ============
-  var lastCardsCallTime = 0;
+  // ============ CARDS TEMPS RÉEL — matching local (zéro latence) ============
+  var lastLocalCardTime = 0;
+  var localCardShown = new Set(); // évite doublons
+
+  // Mapping mot-clé → carte à afficher (instantané, pas de LLM)
+  var LOCAL_CARD_TRIGGERS = [
+    { keywords: ["whitney tilson", "tilson"],         card: { template: "expert_portrait", image_key: "authority_tilson", title: "Whitney Tilson", subtitle: "Formé par Warren Buffett", items: ["+47 400% sur Apple", "+8 900% sur Netflix", "20+ ans à Wall Street"] } },
+    { keywords: ["eric wade", "wade"],                card: { template: "expert_portrait", image_key: "authority_wade", title: "Eric Wade", subtitle: "Le Business Angel de la Tech", items: ["wallstreet.com : 7$ → 1M$", "24 recos > +1000%", "Polymath +3 180%"] } },
+    { keywords: ["dan ferris", "ferris", "crocodile"], card: { template: "expert_portrait", image_key: "authority_ferris", title: "Dan Ferris", subtitle: "Le Crocodile de Wall Street", items: ["Surperforme depuis 2002", "Constellation +629%", "Apple +190%"] } },
+    { keywords: ["jim simons", "simons", "renaissance"], card: { template: "proof_number", image_key: "jim_simons", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
+    { keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", image_key: "proof_tilson_netflix", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
+    { keywords: ["apple", "47400", "47 400"],         card: { template: "proof_number", image_key: "proof_tilson_apple", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
+    { keywords: ["nvidia", "6400", "6 400", "30000", "30 000"], card: { template: "proof_number", image_key: "perf_nvidia_alpha", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017" } },
+    { keywords: ["polymath", "3180", "3 180"],        card: { template: "proof_number", image_key: "proof_track_record_wade", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
+    { keywords: ["harmony", "8079", "8 079"],         card: { template: "proof_number", image_key: "proof_track_record_wade", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
+    { keywords: ["lumentum", "548"],                  card: { template: "proof_number", image_key: "proof_lumentum", title: "+548%", subtitle: "Lumentum Holdings — Argo Éditions" } },
+    { keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", image_key: "proof_dette", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
+    { keywords: ["or ", " or,", "gold", "minières", "minieres", "détonateur"], card: { template: "proof_number", image_key: "cours_historique_or", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
+    { keywords: ["bouclier suisse", "suisse", "sécuriser votre épargne"], card: { template: "proof_number", image_key: "product_lead_magnet", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
+    { keywords: ["fin du travail", "60%", "emplois", "rentier"], card: { template: "opportunity", image_key: "fin_du_travail_pad", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
+    { keywords: ["garantie", "remboursé", "3 mois", "sans risque"], card: "guarantee_generic" },
+    { keywords: ["149", "129", "496", "997"],         card: "offer_card" },
+  ];
+
   function triggerCardsWhileSpeaking() {
     var now = Date.now();
-    if (now - lastCardsCallTime < 8000) return; // throttle 8s
-    if (state.pendingBotText.length < 40) return; // pas assez de texte
-    lastCardsCallTime = now;
-    // Appel cards SEUL (pas dossier) avec le texte en cours
-    var history = state.conversationLog.slice();
-    history.push({ role: "alpha", text: state.pendingBotText.trim() });
-    fetch(CARDS_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ history: history }),
-    })
-      .then(function(r) { return r.json(); })
-      .then(function(result) {
-        var cardData = result ? (result.card || result.card_a_afficher) : null;
-        if (cardData) showSmartCard(cardData);
-      })
-      .catch(function() {});
+    if (now - lastLocalCardTime < 4000) return; // throttle 4s
+    var text = (state.pendingBotText || "").toLowerCase();
+    if (text.length < 20) return;
+
+    for (var i = 0; i < LOCAL_CARD_TRIGGERS.length; i++) {
+      var trigger = LOCAL_CARD_TRIGGERS[i];
+      var matched = false;
+      for (var j = 0; j < trigger.keywords.length; j++) {
+        if (text.indexOf(trigger.keywords[j].toLowerCase()) >= 0) { matched = true; break; }
+      }
+      if (!matched) continue;
+
+      // Dédup : pas 2 fois la même carte
+      var cardKey = typeof trigger.card === "string" ? trigger.card : (trigger.card.image_key || trigger.card.title);
+      if (localCardShown.has(cardKey)) continue;
+
+      localCardShown.add(cardKey);
+      lastLocalCardTime = now;
+      showSmartCard(trigger.card);
+      return; // une seule carte à la fois
+    }
   }
 
   // ============ BARRE DE CHALEUR (A1) ============
