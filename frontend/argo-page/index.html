@@ -40,15 +40,21 @@
       #0b0b0b;
   }
 
-  /* ============ LAYOUT CENTRAL ============ */
+  /* ============ LAYOUT ============ */
+  /* Avant l'appel : centré classique */
   .page {
     max-width: 780px;
     margin: 0 auto;
     padding: 48px 28px 120px;
-    transition: transform 0.55s cubic-bezier(.16,.78,.31,.98);
+    transition: max-width 0.55s cubic-bezier(.16,.78,.31,.98),
+                margin 0.55s cubic-bezier(.16,.78,.31,.98);
   }
-  body.dossier-open .page {
-    transform: translateX(100px);
+
+  /* Pendant l'appel : le .page passe en colonne droite */
+  body.in-call .page {
+    max-width: 440px;
+    margin: 0 0 0 auto;
+    padding: 28px 24px 100px 16px;
   }
 
   /* ============ HEADER / BRAND ============ */
@@ -190,6 +196,15 @@
     min-height: 18px;
   }
 
+  /* Pendant l'appel : orb plus petit pour la colonne droite */
+  body.in-call .orb-container { width: 200px; height: 200px; margin-top: 16px; margin-bottom: 12px; }
+  body.in-call .orb { width: 140px; height: 140px; }
+  body.in-call .orb-ring { width: 170px; height: 170px; }
+  body.in-call .orb-ring:nth-child(2) { width: 200px; height: 200px; }
+  body.in-call .headline { font-size: 1.4rem; margin-bottom: 8px; }
+  body.in-call .intro { display: none; }
+  body.in-call .brand { margin-bottom: 16px; font-size: 0.7rem; }
+
   /* ============ BUTTONS ============ */
   .actions { text-align: center; margin-top: 28px; }
 
@@ -289,7 +304,7 @@
   }
   #closing-cta a:hover { transform: translateY(-1px); }
 
-  /* ============ DOSSIER PANEL (left) ============ */
+  /* ============ DOSSIER PANEL (gauche fixe) ============ */
   #dossier-panel {
     position: fixed;
     top: 0; left: 0;
@@ -308,6 +323,8 @@
   #dossier-panel.open { transform: translateX(0); }
   #dossier-panel::-webkit-scrollbar { width: 4px; }
   #dossier-panel::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
+
+  /* Quand le dossier s'ouvre, le body ne translateX plus (le .page est déjà à droite via in-call) */
 
   .dossier-header {
     border-bottom: 1px solid var(--line);
@@ -443,38 +460,47 @@
   }
   @keyframes blink { 0%,50% { opacity: 1;} 51%,100% { opacity: 0;} }
 
-  /* ============ SMART CARDS (right stack) ============ */
+  /* ============ SMART CARDS (centre, entre dossier et orb) ============ */
   #smart-card-area {
     position: fixed;
-    right: 24px;
+    left: 400px;           /* après le dossier (380px + 20px gap) */
     top: 50%;
     transform: translateY(-50%);
-    width: 360px;
-    z-index: 50;
+    width: calc(100vw - 400px - 460px); /* espace entre dossier et colonne droite */
+    min-width: 280px;
+    max-width: 480px;
+    z-index: 30;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
+    padding: 0 20px;
     pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
   }
-  @media (max-height: 780px) {
-    #smart-card-area { top: 90px; transform: none; }
+  body.in-call #smart-card-area {
+    opacity: 1;
+  }
+  /* Avant l'appel : caché */
+  body:not(.in-call) #smart-card-area {
+    display: none;
   }
 
   .smart-card {
     pointer-events: auto;
-    background: linear-gradient(180deg, rgba(22,22,22,0.95), rgba(14,14,14,0.95));
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(212,180,90,0.25);
-    border-radius: 16px;
-    padding: 20px 22px;
-    box-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 0 18px rgba(212,180,90,0.08);
+    background: linear-gradient(180deg, rgba(22,22,22,0.96), rgba(12,12,12,0.96));
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(212,180,90,0.2);
+    border-radius: 18px;
+    padding: 22px 24px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(212,180,90,0.06);
     opacity: 0;
-    transform: translateX(28px) scale(0.96);
-    transition: opacity 0.55s cubic-bezier(.16,.78,.31,.98),
-                transform 0.55s cubic-bezier(.16,.78,.31,.98);
+    transform: translateY(20px) scale(0.95);
+    transition: opacity 0.6s cubic-bezier(.16,.78,.31,.98),
+                transform 0.6s cubic-bezier(.16,.78,.31,.98);
   }
   .smart-card.visible { opacity: 1; transform: none; }
-  .smart-card.exiting  { opacity: 0; transform: translateX(28px) scale(0.94); }
+  .smart-card.exiting  { opacity: 0; transform: translateY(-10px) scale(0.94); }
 
   .smart-card-badge {
     display: inline-block;
@@ -499,10 +525,11 @@
   }
   .smart-card img {
     display: block;
-    max-width: 100%;
+    width: 100%;
     height: auto;
-    border-radius: 10px;
-    margin: 8px 0 12px;
+    border-radius: 12px;
+    margin: 10px 0 14px;
+    border: 1px solid var(--line);
   }
   .smart-card .big-number {
     font-family: 'Cormorant Garamond', serif;
@@ -545,20 +572,35 @@
     letter-spacing: 1px;
   }
 
-  /* ============ MOBILE ============ */
-  @media (max-width: 720px) {
-    #dossier-panel { width: 100%; }
-    body.dossier-open .page { transform: none; filter: blur(2px); }
+  /* ============ MOBILE / TABLETTE ============ */
+  @media (max-width: 1100px) {
+    /* Sur écran moyen : smart cards passent sous l'orb, dossier en overlay */
+    body.in-call .page {
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 20px 16px 100px;
+    }
     #smart-card-area {
       position: fixed;
-      top: auto;
+      left: 16px; right: 16px;
       bottom: 16px;
-      right: 16px;
-      left: 16px;
-      width: auto;
+      top: auto;
       transform: none;
-      max-height: 48vh;
+      width: auto;
+      max-width: none;
+      min-width: unset;
+      max-height: 35vh;
+      overflow-y: auto;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 10px;
     }
+    #smart-card-area .smart-card { max-width: 320px; }
+    #dossier-panel { width: 320px; }
+  }
+  @media (max-width: 720px) {
+    #dossier-panel { width: 100%; }
+    body.dossier-open .page { filter: blur(2px); }
     .how-it-works { grid-template-columns: 1fr; max-height: 400px; }
     body.in-call .how-it-works { max-height: 0; }
   }
