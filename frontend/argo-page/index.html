@@ -1575,7 +1575,11 @@
           var recommande = d.produit && d.produit.recommande;
           var certitude  = d.produit && d.produit.certitude;
           if (recommande && (certitude === "moyen" || certitude === "ferme")) {
-            state.currentRecommendedProduct = recommande;
+            if (state.currentRecommendedProduct !== recommande) {
+              state.currentRecommendedProduct = recommande;
+              // AUTO-INJECTION : fetch le briefing et l'envoie à Gemini via WebSocket
+              injectProductBriefing(recommande);
+            }
           }
           // Affiche la fiche produit en cas d'intent ferme
           if (recommande && certitude === "ferme") {
@@ -1879,6 +1883,65 @@
       $("status").textContent = "Erreur : " + err.message;
       setTimeout(disconnect, 3000);
     }
+  }
+
+  // ============ AUTO-INJECTION BRIEFING PRODUIT ============
+  var briefingInjected = false;
+  function injectProductBriefing(productId) {
+    if (briefingInjected) return;
+    briefingInjected = true;
+    console.log("[Argo] Fetching briefing for injection:", productId);
+
+    fetch(BRIEFING_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: state.sessionId, query: "opportunité complète arguments de vente" }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(briefing) {
+        if (!state.ws || state.ws.readyState !== 1) return;
+
+        // Construire le message d'injection avec les vrais arguments
+        var sources = briefing.sources || [];
+        var produit = briefing.produit_cible || {};
+        var coach = briefing.coach || {};
+
+        var lines = ["[BRIEFING PRODUIT — utilise ces arguments pour les phases 6a, 6b, 6c. Ne les invente PAS.]"];
+        lines.push("Produit recommandé : " + (produit.nom || productId));
+        lines.push("Expert : " + (produit.expert || ""));
+        lines.push("Lead magnet : " + (produit.lead_magnet || ""));
+        lines.push("");
+
+        if (sources.length > 0) {
+          lines.push("=== ARGUMENTS DE LA LETTRE DE VENTE (cite-les textuellement) ===");
+          for (var i = 0; i < sources.length; i++) {
+            lines.push("[" + sources[i].section + "] " + (sources[i].excerpt || "").slice(0, 500));
+            lines.push("");
+          }
+        }
+
+        // Ajouter les infos du catalog
+        var pm = state.catalog[productId];
+        if (pm) {
+          var offers = pm.offers || {};
+          var tierA = offers.A || Object.values(offers)[0] || {};
+          lines.push("=== OFFRE ===");
+          lines.push("Prix tier A : " + (tierA.label || tierA.price_eur + "€/an"));
+          lines.push("Bonus offert : " + (pm.lead_magnet || ""));
+          var guarantees = pm.guarantees || [];
+          if (guarantees.length) lines.push("Garanties : " + guarantees.join(" | "));
+        }
+
+        var injectionText = lines.join("\n");
+        console.log("[Argo] Injecting briefing:", injectionText.length, "chars");
+
+        state.ws.send(JSON.stringify({
+          realtimeInput: { text: injectionText }
+        }));
+      })
+      .catch(function(err) {
+        console.warn("[Argo] Briefing injection failed:", err);
+      });
   }
 
   // ============ CARDS TEMPS RÉEL — matching local (zéro latence) ============
