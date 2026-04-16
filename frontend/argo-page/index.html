@@ -1092,7 +1092,7 @@
       timeoutId = setTimeout(function() { hideSmartCard(key); }, STANDARD_LIFESPAN_MS);
     }
 
-    activeCards.push({ key: cardKey, el: cardEl, timeout: timeoutId });
+    activeCards.push({ key: key, el: cardEl, timeout: timeoutId });
 
     // Si dépassement du stack, retirer la plus ancienne NON-product
     while (activeCards.length > MAX_STACK) {
