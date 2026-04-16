@@ -51,8 +51,15 @@
                 margin 0.55s cubic-bezier(.16,.78,.31,.98);
   }
 
-  /* Pendant l'appel : le .page passe en colonne droite */
+  /* Pendant l'appel AVANT que le dossier s'ouvre : reste centré */
   body.in-call .page {
+    transition: max-width 0.6s cubic-bezier(.16,.78,.31,.98),
+                margin 0.6s cubic-bezier(.16,.78,.31,.98),
+                padding 0.6s cubic-bezier(.16,.78,.31,.98);
+  }
+
+  /* Quand le dossier s'ouvre : le .page glisse à droite pour laisser la place */
+  body.dossier-open .page {
     max-width: 440px;
     margin: 0 0 0 auto;
     padding: 28px 24px 100px 16px;
@@ -198,14 +205,14 @@
     min-height: 18px;
   }
 
-  /* Pendant l'appel : orb plus petit pour la colonne droite */
-  body.in-call .orb-container { width: 200px; height: 200px; margin-top: 16px; margin-bottom: 12px; }
-  body.in-call .orb { width: 140px; height: 140px; }
-  body.in-call .orb-ring { width: 170px; height: 170px; }
-  body.in-call .orb-ring:nth-child(2) { width: 200px; height: 200px; }
-  body.in-call .headline { font-size: 1.4rem; margin-bottom: 8px; }
-  body.in-call .intro { display: none; }
-  body.in-call .brand { margin-bottom: 16px; font-size: 0.7rem; }
+  /* Quand le dossier s'ouvre : orb plus petit pour la colonne droite */
+  body.dossier-open .orb-container { width: 200px; height: 200px; margin-top: 16px; margin-bottom: 12px; }
+  body.dossier-open .orb { width: 140px; height: 140px; }
+  body.dossier-open .orb-ring { width: 170px; height: 170px; }
+  body.dossier-open .orb-ring:nth-child(2) { width: 200px; height: 200px; }
+  body.dossier-open .headline { font-size: 1.4rem; margin-bottom: 8px; }
+  body.dossier-open .headline::after { display: none; }
+  body.dossier-open .brand { margin-bottom: 16px; font-size: 0.7rem; }
 
   /* ============ BUTTONS ============ */
   .actions { text-align: center; margin-top: 28px; }
@@ -492,11 +499,11 @@
     opacity: 0;
     transition: opacity 0.5s;
   }
-  body.in-call #smart-card-area {
+  body.dossier-open #smart-card-area {
     opacity: 1;
   }
-  /* Avant l'appel : caché */
-  body:not(.in-call) #smart-card-area {
+  /* Caché tant que le dossier n'est pas ouvert */
+  body:not(.dossier-open) #smart-card-area {
     display: none;
   }
 
@@ -590,8 +597,8 @@
 
   /* ============ MOBILE / TABLETTE ============ */
   @media (max-width: 1100px) {
-    /* Sur écran moyen : smart cards passent sous l'orb, dossier en overlay */
-    body.in-call .page {
+    /* Sur écran moyen : smart cards passent en bas, dossier en overlay */
+    body.dossier-open .page {
       max-width: 100%;
       margin: 0 auto;
       padding: 20px 16px 100px;
@@ -738,7 +745,7 @@
   };
 
   // Champs de dossier connus (pour calcul du % de complétion)
-  const DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte", "vigilance", "publication_recommandee"];
+  const DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte", "vigilance"];
 
   // ============ UTILS ============
   function escapeHtml(s) {
@@ -916,7 +923,7 @@
     for (const k of DOSSIER_FIELDS) {
       let v = dossier[k];
       // Publication recommandée peut venir du state si le coach a tranché avant l'UI director
-      if (k === "publication_recommandee" && !v && state.currentRecommendedProduct) v = state.currentRecommendedProduct;
+      // publication_recommandee n'est plus affichée dans le dossier
       if (v === null || v === undefined || v === "") continue;
       if (Array.isArray(v) && v.length === 0) continue;
       filled++;
@@ -956,12 +963,8 @@
     addSection("vigilance",      "list",      dossier.vigilance, "Points de vigilance");
     addSection("questions_cles", "list",      dossier.questions_cles, "Questions clés");
 
-    // Publication recommandée (seulement si UI Director ou coach a tranché)
-    let pubReco = dossier.publication_recommandee;
-    if (!pubReco && state.currentRecommendedProduct && state.catalog[state.currentRecommendedProduct]) {
-      pubReco = state.catalog[state.currentRecommendedProduct].name;
-    }
-    if (pubReco) addSection("publication_recommandee", "highlight", pubReco, "Publication recommandée");
+    // Publication recommandée : NE PAS afficher dans le dossier visible.
+    // Le prospect ne doit pas voir quel produit le coach a choisi — c'est Argos qui le révèle vocalement.
 
     // Render
     $dossierBody.innerHTML = "";
