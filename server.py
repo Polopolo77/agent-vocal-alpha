@@ -37,7 +37,8 @@ from prompts import (
     build_briefing_from_cache,
     build_coach_prompt,
     build_full_agent_prompt,
-    build_ui_director_prompt,
+    build_ui_dossier_prompt,
+    build_ui_cards_prompt,
 )
 
 load_dotenv()
@@ -267,57 +268,89 @@ async def handle_strategist(request: web.Request) -> web.Response:
         return web.json_response({"error": str(e)}, status=500)
 
 
-async def handle_ui_director(request: web.Request) -> web.Response:
-    """Fast UI agent: decides what card to show + what to write in the dossier.
-
-    Multi-product native: knows all 4 products' cards and picks the right one
-    based on the conversation context (which product is being discussed).
-    """
+async def handle_ui_dossier(request: web.Request) -> web.Response:
+    """Ultra-fast dossier agent: extracts prospect info, cumulative + correctable."""
     if not client:
-        return web.json_response({"card_a_afficher": None, "dossier": {}})
+        return web.json_response({})
     try:
         data = await request.json()
         history = data.get("history", [])
         previous_dossier = data.get("previous_dossier", {})
-        agent_name = data.get("agent_name", DEFAULT_AGENT_NAME)
 
         if not history:
-            return web.json_response({"card_a_afficher": None, "dossier": {}})
+            return web.json_response({})
 
-        recent = history[-6:] if len(history) > 6 else history
+        recent = history[-8:] if len(history) > 8 else history
         history_text = _format_history(recent)
 
-        if previous_dossier:
-            history_text += (
-                "\n\n═══════════════════\nDOSSIER PRÉCÉDENT (à enrichir/corriger, pas effacer)\n"
-                "═══════════════════\n"
-                + json.dumps(previous_dossier, ensure_ascii=False)
-            )
-
-        full_prompt = build_ui_director_prompt(REGISTRY, agent_name=agent_name) + history_text
+        prompt = build_ui_dossier_prompt(previous_dossier, history_text)
 
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
                 model=COACH_MODEL,
-                contents=full_prompt,
+                contents=prompt,
                 config={
                     "response_mime_type": "application/json",
-                    "temperature": 0.2,
-                    "max_output_tokens": 1024,
+                    "temperature": 0.1,
+                    "max_output_tokens": 512,
                     "thinking_config": {"thinking_budget": 0},
                 },
             )
         )
 
         try:
-            result = json.loads(response.text)
+            return web.json_response(json.loads(response.text))
         except Exception:
-            return web.json_response({"card_a_afficher": None, "dossier": {}})
-
-        return web.json_response(result)
+            return web.json_response({})
     except Exception as e:
-        log.exception("UI Director error")
-        return web.json_response({"card_a_afficher": None, "dossier": {}})
+        log.exception("UI Dossier error")
+        return web.json_response({})
+
+
+async def handle_ui_cards(request: web.Request) -> web.Response:
+    """Ultra-fast cards agent: picks which visual card to display."""
+    if not client:
+        return web.json_response({"card": None})
+    try:
+        data = await request.json()
+        history = data.get("history", [])
+
+        if not history:
+            return web.json_response({"card": None})
+
+        recent = history[-4:] if len(history) > 4 else history
+        history_text = _format_history(recent)
+
+        prompt = build_ui_cards_prompt(REGISTRY, history_text)
+
+        response = await asyncio.to_thread(
+            lambda: client.models.generate_content(
+                model=COACH_MODEL,
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "temperature": 0.3,
+                    "max_output_tokens": 512,
+                    "thinking_config": {"thinking_budget": 0},
+                },
+            )
+        )
+
+        try:
+            return web.json_response(json.loads(response.text))
+        except Exception:
+            return web.json_response({"card": None})
+    except Exception as e:
+        log.exception("UI Cards error")
+        return web.json_response({"card": None})
+
+
+# Legacy compat: keep old endpoint working (calls both in sequence)
+async def handle_ui_director(request: web.Request) -> web.Response:
+    """Legacy endpoint — forwards to the two new agents."""
+    dossier_resp = await handle_ui_dossier(request)
+    # For legacy, just return dossier without card
+    return dossier_resp
 
 
 async def handle_briefing(request: web.Request) -> web.Response:
@@ -472,7 +505,9 @@ app.router.add_get("/api/products", handle_list_products)
 app.router.add_post("/api/token", handle_token)
 app.router.add_get("/api/prompt", handle_prompt)
 app.router.add_post("/api/strategist", handle_strategist)
-app.router.add_post("/api/ui-director", handle_ui_director)
+app.router.add_post("/api/ui-director", handle_ui_director)  # legacy
+app.router.add_post("/api/ui-dossier", handle_ui_dossier)
+app.router.add_post("/api/ui-cards", handle_ui_cards)
 app.router.add_post("/api/briefing", handle_briefing)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_get("/api/conversations", handle_list_conversations)

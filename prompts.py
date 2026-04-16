@@ -526,104 +526,72 @@ def build_coach_prompt(registry: ProductsRegistry, agent_name: str = DEFAULT_AGE
 
 
 # =============================================================================
-# UI DIRECTOR PROMPT
+# UI DOSSIER AGENT — ultra-court, focus correction + enrichissement dossier
 # =============================================================================
 
-BASE_UI_DIRECTOR_PROMPT = """Tu es un réalisateur UI. Tu reçois l'historique d'une conversation entre {{AGENT_NAME}} (concierge IA d'Argo Éditions) et un prospect.
+UI_DOSSIER_PROMPT = """Tu extrais les infos du prospect depuis une conversation. JSON uniquement, rien d'autre.
 
-Tu renvoies UNIQUEMENT un JSON valide, rien d'autre.
+RÈGLES :
+1. CUMULATIF : conserve les infos des tours précédents.
+2. CORRIGEABLE : si le prospect CONTREDIT une info → REMPLACE. Ex: "en fait je suis pas débutant" → retire "Débutant en crypto" de situation.
+3. Faits NEUTRES uniquement — ce que le prospect a DIT, pas ce que tu interprètes.
+4. vigilance = peurs liées à L'INVESTISSEMENT. PAS les réactions à l'agent.
+5. profil_detecte = UN MOT parmi : Prudent, Dynamique, Équilibré, Agressif, ou null.
 
-═══════════════════
-CARTES DISPONIBLES
-═══════════════════
+DOSSIER PRÉCÉDENT :
+{{PREVIOUS_DOSSIER}}
 
-**Cartes génériques (toujours disponibles) :**
-- "guarantee_generic" : quand le prospect exprime une peur du risque, hésite → badge garantie "Satisfait ou Remboursé"
-- "offer_card" : quand le produit a été révélé et que {{AGENT_NAME}} présente l'offre → fiche produit finale
+DERNIERS MESSAGES :
+{{HISTORY}}
 
-**Cartes par produit (à utiliser SEULEMENT quand le produit a été identifié par le coach) :**
-
-{{CARDS_BY_PRODUCT}}
-
-**RÈGLE IMPORTANTE : tu dois afficher une carte à CHAQUE TOUR dès le tour 2.**
-
-Ne renvoie `null` que si VRAIMENT rien ne correspond. Dès que {{AGENT_NAME}} mentionne un chiffre, un expert, une performance, une comparaison, un concept → affiche l'image correspondante.
-
-Ordre de priorité :
-1. Si {{AGENT_NAME}} cite un expert → affiche son portrait (authority_*)
-2. Si {{AGENT_NAME}} cite un chiffre de performance → affiche le graphique (proof_*)
-3. Si {{AGENT_NAME}} parle de la méthode → affiche le diagramme (method_*)
-4. Si le prospect a peur / hésite → affiche la garantie (guarantee_generic)
-5. Si {{AGENT_NAME}} présente l'offre → affiche la fiche produit (offer_card)
-
-Le but : le prospect doit VOIR des preuves visuelles pendant qu'{{AGENT_NAME}} parle. L'image arrive en même temps que les mots. Ça crée de la confiance et de l'impact.
-
-═══════════════════
-DOSSIER (visible par le prospect)
-═══════════════════
-Le dossier est AFFICHÉ au prospect. Écris UNIQUEMENT des faits neutres qu'il a dits lui-même.
-INTERDIT : analyses internes, "à confirmer", "probablement", stratégie.
-
-Champs :
-- prenom : son prénom s'il l'a donné, sinon null
-- situation : liste de faits bruts ["Investit en ETF", "PEA ouvert"]
-- objectif : ce qu'il veut ["Complément de revenu"]
-- horizon : "3-5 ans" ou null
-- capital : "10 000€" ou null
-- profil_detecte : UN MOT : "Prudent" ou "Dynamique" ou "Équilibré" ou "Agressif" ou null
-- vigilance : ses peurs LIÉES À L'INVESTISSEMENT UNIQUEMENT ["Peur de perdre", "Ne connaît pas la crypto"]. INTERDIT d'y mettre des réactions à l'agent ("intrusif", "bizarre", "pas à l'aise") — ce sont des feedbacks sur la conversation, PAS des vigilances financières
-- publication_recommandee : nom humain du produit recommandé si le coach/agent a tranché (ex: "Actions Gagnantes"), sinon null
-
-Dossier CUMULATIF + CORRIGEABLE (si le prospect corrige, tu REMPLACES).
-Tu reçois le dossier précédent en contexte. Tu le renvoies MIS À JOUR.
-
-═══════════════════
-SCHÉMA JSON
-═══════════════════
-{
-  "card": null,
-  "dossier": {
-    "prenom": null, "situation": [], "objectif": [],
-    "horizon": null, "capital": null, "profil_detecte": null,
-    "vigilance": []
-  }
-}
-
-Le champ "card" est soit `null` soit un OBJET avec ces champs :
-{
-  "image_key": "proof_netflix",
-  "template": "proof_number",
-  "title": "+8 900%",
-  "subtitle": "Performance Netflix — Whitney Tilson, 2012",
-  "quote": null,
-  "items": null
-}
-
-Templates disponibles et quand les utiliser :
-
-- **"proof_number"** : quand {{AGENT_NAME}} cite un chiffre de performance. `title` = le gros chiffre ("+548%", "x475"), `subtitle` = l'action + contexte, `image_key` = le graphique correspondant.
-
-- **"expert_portrait"** : quand {{AGENT_NAME}} nomme un expert pour la première fois. `title` = nom de l'expert, `subtitle` = son surnom/credential clé, `image_key` = son portrait, `items` = liste de 2-3 faits marquants (["Formé par Warren Buffett", "+47 400% sur Apple", "20+ ans à Wall Street"]).
-
-- **"opportunity"** : quand {{AGENT_NAME}} tease une opportunité. `title` = "Opportunité détectée", `subtitle` = description mystérieuse courte, `image_key` = image liée ou null.
-
-- **"comparison"** : quand {{AGENT_NAME}} compare (livret A vs investissement, CGP vs publication). `title` = le titre de la comparaison, `items` = ["Livret A : +2%/an = vous perdez face à l'inflation", "Avec Argo : +548% sur Lumentum*"].
-
-- **"testimonial"** : quand {{AGENT_NAME}} cite un abonné. `title` = null, `quote` = la citation exacte, `subtitle` = "— Nom, abonné depuis XXXX".
-
-- **"track_record"** : quand {{AGENT_NAME}} empile des preuves. `title` = "Track record {expert}", `items` = liste des performances (["Polymath +3 180%", "Harmony +8 079%", "Enjin +11 127%"]), `image_key` = le tableau des recos si disponible.
-
-IMPORTANT : remplis `image_key` avec une clé de la liste des cartes disponibles ci-dessus. Si aucune image ne correspond, mets `image_key: null` (la card s'affichera quand même avec le texte).
-
-═══════════════════
-HISTORIQUE
-═══════════════════
-
+JSON :
+{"prenom":null,"situation":[],"objectif":[],"horizon":null,"capital":null,"profil_detecte":null,"vigilance":[]}
 """
 
 
-def build_ui_director_prompt(registry: ProductsRegistry, agent_name: str = DEFAULT_AGENT_NAME) -> str:
-    """UI director prompt listant les cards de TOUS les produits, groupées par produit."""
+# =============================================================================
+# UI CARDS AGENT — ultra-court, focus cartes visuelles uniquement
+# =============================================================================
+
+BASE_UI_CARDS_PROMPT = """Tu choisis quelle carte visuelle afficher. JSON uniquement.
+
+Affiche une carte à CHAQUE TOUR. null seulement si rien ne correspond.
+
+Priorité :
+1. Expert cité → portrait (expert_portrait)
+2. Chiffre cité → graphique (proof_number)
+3. Méthode → diagramme
+4. Peur/hésitation → garantie (guarantee_generic)
+5. Offre → fiche produit (offer_card)
+
+CARTES DISPONIBLES :
+
+{{CARDS_BY_PRODUCT}}
+
+Génériques : "guarantee_generic", "offer_card"
+
+Templates : proof_number, expert_portrait, opportunity, comparison, testimonial, track_record
+
+Schéma :
+{"card": null} ou {"card": {"image_key":"...", "template":"...", "title":"...", "subtitle":"...", "quote":null, "items":null}}
+
+DERNIERS MESSAGES :
+{{HISTORY}}
+"""
+
+
+def build_ui_dossier_prompt(previous_dossier: dict, history_text: str) -> str:
+    """Prompt ultra-court pour le dossier agent."""
+    import json
+    return (
+        UI_DOSSIER_PROMPT
+        .replace("{{PREVIOUS_DOSSIER}}", json.dumps(previous_dossier, ensure_ascii=False) if previous_dossier else "{}")
+        .replace("{{HISTORY}}", history_text)
+    )
+
+
+def build_ui_cards_prompt(registry: ProductsRegistry, history_text: str) -> str:
+    """Prompt ultra-court pour le cards agent."""
     blocks: list[str] = []
     order = ["argo_actions", "argo_crypto", "argo_alpha", "argo_gold"]
     for pid in order:
@@ -633,27 +601,29 @@ def build_ui_director_prompt(registry: ProductsRegistry, agent_name: str = DEFAU
         cfg_name = p.config.get("product_name", pid)
         images = p.images.get("images", []) if isinstance(p.images, dict) else []
         card_lines: list[str] = []
-        seen_keys: set[str] = set()
+        seen: set[str] = set()
         for img in images:
             key = img.get("usage_card")
-            if not key or key in seen_keys:
+            if not key or key in seen:
                 continue
-            seen_keys.add(key)
-            desc = img.get("description", "").strip()
-            if len(desc) > 100:
-                desc = desc[:100] + "…"
-            card_lines.append(f'- "{key}" : {desc}')
-
+            seen.add(key)
+            desc = img.get("description", "")[:80]
+            card_lines.append(f'"{key}": {desc}')
         if card_lines:
-            blocks.append(f"**`{pid}` — {cfg_name} :**\n" + "\n".join(card_lines))
+            blocks.append(f"{cfg_name}: " + " | ".join(card_lines))
 
-    cards_block = "\n\n".join(blocks) if blocks else "(aucune carte produit)"
+    cards_block = "\n".join(blocks) if blocks else "(aucune)"
 
     return (
-        BASE_UI_DIRECTOR_PROMPT
-        .replace("{{AGENT_NAME}}", agent_name)
+        BASE_UI_CARDS_PROMPT
         .replace("{{CARDS_BY_PRODUCT}}", cards_block)
+        .replace("{{HISTORY}}", history_text)
     )
+
+
+# Legacy compat — kept for imports but no longer used
+def build_ui_director_prompt(registry: ProductsRegistry, agent_name: str = DEFAULT_AGENT_NAME) -> str:
+    return "DEPRECATED"
 
 
 # =============================================================================

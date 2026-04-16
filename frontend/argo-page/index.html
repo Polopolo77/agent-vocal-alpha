@@ -1325,50 +1325,61 @@
       });
   }
 
-  function callUIDirector() {
+  // 2 agents UI séparés, appelés en PARALLÈLE pour la vitesse
+  const DOSSIER_ENDPOINT = BACKEND_URL + "/api/ui-dossier";
+  const CARDS_ENDPOINT   = BACKEND_URL + "/api/ui-cards";
+
+  function callUIAgents() {
     if (state.uiDirectorInFlight) return;
     if (state.conversationLog.length < 2) return;
     state.uiDirectorInFlight = true;
     setThinking(true);
 
-    fetch(UIDIRECTOR_ENDPOINT, {
+    var historySlice = state.conversationLog.slice();
+
+    // Appel PARALLÈLE : dossier + cards en même temps
+    var dossierCall = fetch(DOSSIER_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        history: state.conversationLog.slice(),
+        history: historySlice,
         previous_dossier: state.lastDossier,
-        agent_name: AGENT_NAME,
       }),
-    })
-      .then(r => r.json())
-      .then(result => {
-        state.uiDirectorInFlight = false;
-        setThinking(false);
-        console.log("[Argo] UI Director response:", JSON.stringify(result).slice(0, 500));
-        if (!result) return;
+    }).then(function(r) { return r.json(); }).catch(function() { return {}; });
 
-        // Nouveau format : result.card (objet riche) ou legacy result.card_a_afficher (string)
-        var cardData = result.card || result.card_a_afficher;
-        if (cardData) {
-          console.log("[Argo] Showing card:", typeof cardData === "string" ? cardData : cardData.template + "/" + cardData.image_key);
-          showSmartCard(cardData);
-        } else {
-          console.log("[Argo] No card to show this turn");
-        }
+    var cardsCall = fetch(CARDS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        history: historySlice,
+      }),
+    }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
 
-        if (result.dossier) {
-          console.log("[Argo] Rendering dossier:", JSON.stringify(result.dossier).slice(0, 300));
-          state.lastDossier = result.dossier;
-          renderDossier(result.dossier);
-        } else {
-          console.log("[Argo] No dossier in response");
-        }
-      })
-      .catch(err => {
-        state.uiDirectorInFlight = false;
-        setThinking(false);
-        console.error("[Argo] UI Director error:", err);
-      });
+    Promise.all([dossierCall, cardsCall]).then(function(results) {
+      state.uiDirectorInFlight = false;
+      setThinking(false);
+
+      var dossier = results[0];
+      var cardsResult = results[1];
+
+      // Dossier
+      if (dossier && dossier.prenom !== undefined) {
+        console.log("[Argo] Dossier:", JSON.stringify(dossier).slice(0, 300));
+        state.lastDossier = dossier;
+        renderDossier(dossier);
+      }
+
+      // Card
+      var cardData = cardsResult ? (cardsResult.card || cardsResult.card_a_afficher) : null;
+      if (cardData) {
+        console.log("[Argo] Card:", typeof cardData === "string" ? cardData : (cardData.template + "/" + cardData.image_key));
+        showSmartCard(cardData);
+      }
+    }).catch(function(err) {
+      state.uiDirectorInFlight = false;
+      setThinking(false);
+      console.error("[Argo] UI agents error:", err);
+    });
   }
 
   // ============ GEMINI LIVE ============
@@ -1504,7 +1515,7 @@
           state.userTurnCount++;
 
           // UI Director à chaque tour (≥2) pour dossier + cards
-          if (state.userTurnCount >= 2) callUIDirector();
+          if (state.userTurnCount >= 2) callUIAgents();
 
           // Coach selon règle
           if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
