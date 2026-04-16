@@ -927,7 +927,7 @@
             callCoach("mid_call");
           }
           // UI Director: fast agent for cards, runs at every turn from turn 2+
-          if (state.userTurnCount >= 2) callUIDirector();
+          if (state.userTurnCount >= 2) callUIAgents();
         }
         state.pendingBotText += sc.outputTranscription.text;
         addMessage("bot", state.pendingBotText, !!currentBotMsg);
@@ -1162,41 +1162,50 @@
     return;
   }
 
-  // ============ UI DIRECTOR (fast, every turn) ============
+  // ============ UI AGENTS (dossier + cards en parallèle) ============
   let uiDirectorInFlight = false;
   let lastDossierData = {};
 
-  function callUIDirector() {
+  function callUIAgents() {
     if (uiDirectorInFlight) return;
     uiDirectorInFlight = true;
 
-    fetch(BACKEND_URL + "/api/ui-director", {
+    var historySlice = state.conversationLog.slice();
+
+    var dossierCall = fetch(BACKEND_URL + "/api/ui-dossier", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        history: state.conversationLog.slice(),
+        history: historySlice,
         previous_dossier: lastDossierData,
-        agent_name: AGENT_NAME,
       }),
-    })
-      .then(r => r.json())
-      .then(result => {
-        uiDirectorInFlight = false;
-        if (!result) return;
-        debugLog("ui_director", result);
+    }).then(function(r) { return r.json(); }).catch(function() { return {}; });
 
-        // Smart card (if widget supports it)
-        if (result.card_a_afficher) {
-          handleCoachActions({ card_a_afficher: result.card_a_afficher });
-        }
+    var cardsCall = fetch(BACKEND_URL + "/api/ui-cards", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        history: historySlice,
+      }),
+    }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
 
-        // Dossier: widget doesn't have the panel, but we log it for debug
-        if (result.dossier) {
-          lastDossierData = result.dossier;
-          debugLog("dossier_update", result.dossier);
-        }
-      })
-      .catch(() => { uiDirectorInFlight = false; });
+    Promise.all([dossierCall, cardsCall]).then(function(results) {
+      uiDirectorInFlight = false;
+      var dossier = results[0];
+      var cardsResult = results[1];
+
+      // Dossier
+      if (dossier && dossier.prenom !== undefined) {
+        lastDossierData = dossier;
+        debugLog("dossier_update", dossier);
+      }
+
+      // Card
+      var cardData = cardsResult ? (cardsResult.card || cardsResult.card_a_afficher) : null;
+      if (cardData) {
+        debugLog("card_update", cardData);
+      }
+    }).catch(function() { uiDirectorInFlight = false; });
   }
 
   // ============ SAVE CONVERSATION ============
