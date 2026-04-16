@@ -581,11 +581,13 @@ def build_coach_prompt(registry: ProductsRegistry, agent_name: str = DEFAULT_AGE
 
 UI_DOSSIER_PROMPT = """Tu extrais les infos du prospect depuis une conversation. JSON uniquement, rien d'autre.
 
+RÈGLE CRITIQUE : tu extrais UNIQUEMENT ce que le PROSPECT (rôle USER) a dit LUI-MÊME. JAMAIS ce que l'agent (rôle ALPHA/ARGOS) a dit.
+
 RÈGLES :
 1. CUMULATIF : conserve les infos des tours précédents.
-2. CORRIGEABLE : si le prospect CONTREDIT une info → REMPLACE. Ex: "en fait je suis pas débutant" → retire "Débutant en crypto" de situation.
-3. Faits NEUTRES uniquement — ce que le prospect a DIT, pas ce que tu interprètes.
-4. vigilance = peurs liées à L'INVESTISSEMENT. PAS les réactions à l'agent.
+2. CORRIGEABLE : si le prospect CONTREDIT une info → REMPLACE.
+3. situation = faits sur LA VIE du prospect qu'IL a dits (salarié, retraité, a de la bourse). PAS les sujets abordés par l'agent.
+4. vigilance = peurs que LE PROSPECT a exprimées LUI-MÊME. Ex valides : "je sais pas où investir", "peur de perdre". INTERDIT : "dette française", "inflation", "Euro Numérique" = sujets mentionnés PAR L'AGENT, pas par le prospect.
 5. profil_detecte = UN MOT parmi : Prudent, Dynamique, Équilibré, Agressif, ou null.
 
 DOSSIER PRÉCÉDENT :

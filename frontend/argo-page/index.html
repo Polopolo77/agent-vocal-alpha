@@ -1141,6 +1141,11 @@
 
     // Nouvelle API : objet riche { image_key, template, title, subtitle, quote, items }
     const tpl = cardData.template || "proof_number";
+
+    // Cas spéciaux par template name
+    if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer") return buildOfferCard(card);
+    if (tpl === "guarantee_generic" || tpl === "guarantee") return buildGuaranteeCard(card);
+
     const imgKey = cardData.image_key;
     const img = imgKey ? state.imagesByCardKey[imgKey] : null;
     const imgUrl = img ? img.url : null;
@@ -1220,6 +1225,16 @@
         });
       }
       if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="margin-top:12px;" loading="lazy" />';
+
+    } else {
+      // Template non reconnu → fallback générique avec titre + subtitle + image
+      if (title) html += '<h4 style="margin:8px 0;">' + escapeHtml(title) + '</h4>';
+      if (subtitle) html += '<p style="color:#ccc;font-size:0.9rem;">' + escapeHtml(subtitle) + '</p>';
+      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" loading="lazy" />';
+      if (items.length) {
+        items.forEach(function(it) { html += '<p style="font-size:0.85rem;margin:4px 0;color:#ccc;">• ' + escapeHtml(it) + '</p>'; });
+      }
+      if (quote) html += '<p style="font-style:italic;color:var(--fg);margin:8px 0;">"' + escapeHtml(quote) + '"</p>';
     }
 
     card.innerHTML = html;
