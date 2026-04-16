@@ -1343,23 +1343,30 @@
       .then(result => {
         state.uiDirectorInFlight = false;
         setThinking(false);
+        console.log("[Argo] UI Director response:", JSON.stringify(result).slice(0, 500));
         if (!result) return;
 
         // Nouveau format : result.card (objet riche) ou legacy result.card_a_afficher (string)
         var cardData = result.card || result.card_a_afficher;
         if (cardData) {
+          console.log("[Argo] Showing card:", typeof cardData === "string" ? cardData : cardData.template + "/" + cardData.image_key);
           showSmartCard(cardData);
+        } else {
+          console.log("[Argo] No card to show this turn");
         }
 
         if (result.dossier) {
+          console.log("[Argo] Rendering dossier:", JSON.stringify(result.dossier).slice(0, 300));
           state.lastDossier = result.dossier;
           renderDossier(result.dossier);
+        } else {
+          console.log("[Argo] No dossier in response");
         }
       })
       .catch(err => {
         state.uiDirectorInFlight = false;
         setThinking(false);
-        console.warn("UI Director error:", err);
+        console.error("[Argo] UI Director error:", err);
       });
   }
 
