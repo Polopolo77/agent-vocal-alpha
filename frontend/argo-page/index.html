@@ -1059,26 +1059,37 @@
   const STANDARD_LIFESPAN_MS = 25000;
   let activeCards = [];         // { key, el, timeout }
 
-  function showSmartCard(cardKey) {
-    if (!cardKey) return;
-    // Pas de doublon (state)
-    if (activeCards.some(c => c.key === cardKey)) return;
-    // Pas de doublon (DOM safety — nettoie d'éventuels orphelins)
-    $smartCardArea.querySelectorAll(`[data-card-key="${cardKey}"]`).forEach(el => el.remove());
+  function showSmartCard(cardData) {
+    if (!cardData) return;
 
-    const cardEl = buildSmartCard(cardKey);
+    // Détermine la clé unique pour le dédup
+    let key;
+    if (typeof cardData === "string") {
+      key = cardData;
+    } else {
+      // Objet riche : key = image_key ou template+title
+      key = cardData.image_key || (cardData.template + "_" + (cardData.title || "").slice(0, 20));
+    }
+    if (!key) return;
+
+    // Pas de doublon (state)
+    if (activeCards.some(c => c.key === key)) return;
+    // Pas de doublon (DOM safety)
+    $smartCardArea.querySelectorAll('[data-card-key="' + key + '"]').forEach(function(el) { el.remove(); });
+
+    const cardEl = buildSmartCard(cardData);
     if (!cardEl) return;
-    cardEl.dataset.cardKey = cardKey;
+    cardEl.dataset.cardKey = key;
 
     $smartCardArea.appendChild(cardEl);
-    // Force reflow then animate in
     void cardEl.offsetWidth;
     cardEl.classList.add("visible");
 
-    // Auto-hide (sauf product qui persiste jusqu'à la fin)
+    // Auto-hide 25s (sauf offer_card / product_* qui restent)
     let timeoutId = null;
-    if (cardKey !== "offer_card" && !cardKey.startsWith("product_")) {
-      timeoutId = setTimeout(() => hideSmartCard(cardKey), STANDARD_LIFESPAN_MS);
+    const isOffer = key === "offer_card" || key.startsWith("product_");
+    if (!isOffer) {
+      timeoutId = setTimeout(function() { hideSmartCard(key); }, STANDARD_LIFESPAN_MS);
     }
 
     activeCards.push({ key: cardKey, el: cardEl, timeout: timeoutId });
@@ -1105,45 +1116,111 @@
     [...activeCards].forEach(c => hideSmartCard(c.key));
   }
 
-  function buildSmartCard(cardKey) {
+  function buildSmartCard(cardData) {
     const card = document.createElement("div");
     card.className = "smart-card";
 
-    // Cas spéciaux : offer card (produit) et guarantee générique
-    if (cardKey === "offer_card" || cardKey === "product" || cardKey.startsWith("product_")) {
-      return buildOfferCard(card);
-    }
-    if (cardKey === "guarantee_generic" || cardKey === "guarantee") {
-      return buildGuaranteeCard(card);
-    }
-
-    // Autres : image du produit correspondant au usage_card
-    const img = state.imagesByCardKey[cardKey];
-    if (!img) {
-      // Clé non reconnue, on construit une carte minimaliste
-      card.innerHTML = '<span class="smart-card-badge">Info</span><p>' + escapeHtml(cardKey) + '</p>';
+    // cardData est soit un string (ancienne API) soit un objet riche (nouvelle API)
+    if (typeof cardData === "string") {
+      // Legacy : juste une clé
+      if (cardData === "offer_card" || cardData === "product" || cardData.startsWith("product_")) return buildOfferCard(card);
+      if (cardData === "guarantee_generic" || cardData === "guarantee") return buildGuaranteeCard(card);
+      // Fallback image simple
+      const img = state.imagesByCardKey[cardData];
+      if (img) {
+        card.innerHTML =
+          '<span class="smart-card-badge">Info</span>' +
+          '<img src="' + escapeHtml(img.url) + '" alt="' + escapeHtml(img.description || "") + '" loading="lazy" />' +
+          '<p>' + escapeHtml(img.description || "") + '</p>';
+      } else {
+        card.innerHTML = '<span class="smart-card-badge">Info</span><p>' + escapeHtml(cardData) + '</p>';
+      }
       return card;
     }
 
-    const role = img.role || "proof";
-    const badgeText = {
-      proof_chart: "Preuve",
-      proof_press: "Presse",
-      proof_quote: "Citation",
-      proof_symbol: "Garantie",
-      authority:   "Autorité",
-      product_shot:"Produit",
-      diagram:     "Méthode",
-      symbol:      "Repère",
-      brand:       "Identité",
-      logo:        "Logo",
-      background:  "Contexte",
-    }[role] || "Info";
+    // Nouvelle API : objet riche { image_key, template, title, subtitle, quote, items }
+    const tpl = cardData.template || "proof_number";
+    const imgKey = cardData.image_key;
+    const img = imgKey ? state.imagesByCardKey[imgKey] : null;
+    const imgUrl = img ? img.url : null;
+    const title = cardData.title || "";
+    const subtitle = cardData.subtitle || "";
+    const quote = cardData.quote || "";
+    const items = cardData.items || [];
 
-    card.innerHTML =
-      '<span class="smart-card-badge">' + escapeHtml(badgeText) + '</span>' +
-      '<img src="' + escapeHtml(img.url) + '" alt="' + escapeHtml(img.description || "") + '" loading="lazy" />' +
-      '<p>' + escapeHtml(img.description || "") + '</p>';
+    const BADGES = {
+      proof_number: "Performance",
+      expert_portrait: "Expert",
+      opportunity: "Opportunit\u00e9",
+      comparison: "Comparaison",
+      testimonial: "T\u00e9moignage",
+      track_record: "Track record",
+    };
+    const badge = BADGES[tpl] || "Info";
+
+    let html = '<span class="smart-card-badge">' + escapeHtml(badge) + '</span>';
+
+    if (tpl === "proof_number") {
+      if (title) html += '<div class="big-number">' + escapeHtml(title) + '</div>';
+      if (subtitle) html += '<p style="color:var(--fg);font-weight:500;margin-bottom:10px;">' + escapeHtml(subtitle) + '</p>';
+      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" alt="" loading="lazy" />';
+
+    } else if (tpl === "expert_portrait") {
+      html += '<div style="display:flex;gap:16px;align-items:center;margin:10px 0;">';
+      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0;" />';
+      html += '<div>';
+      if (title) html += '<h4 style="margin:0 0 4px;">' + escapeHtml(title) + '</h4>';
+      if (subtitle) html += '<p style="color:var(--gold);font-style:italic;margin:0;font-size:0.85rem;">' + escapeHtml(subtitle) + '</p>';
+      html += '</div></div>';
+      if (items.length) {
+        html += '<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">';
+        items.forEach(function(it) { html += '<p style="font-size:0.85rem;margin:4px 0;color:#ccc;">• ' + escapeHtml(it) + '</p>'; });
+        html += '</div>';
+      }
+
+    } else if (tpl === "opportunity") {
+      html += '<div style="text-align:center;padding:12px 0;">';
+      html += '<div style="font-size:1.8rem;margin-bottom:8px;">⚡</div>';
+      if (title) html += '<h4 style="color:var(--gold);margin:0 0 8px;">' + escapeHtml(title) + '</h4>';
+      if (subtitle) html += '<p style="font-size:0.9rem;">' + escapeHtml(subtitle) + '</p>';
+      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="margin-top:12px;opacity:0.8;" loading="lazy" />';
+      html += '<p style="margin-top:12px;color:var(--gold);font-weight:600;font-size:0.85rem;">Restez en ligne \u2193</p>';
+      html += '</div>';
+
+    } else if (tpl === "comparison") {
+      if (title) html += '<h4 style="margin:8px 0 12px;">' + escapeHtml(title) + '</h4>';
+      if (items.length) {
+        items.forEach(function(it, i) {
+          var isGood = it.indexOf("Argo") >= 0 || it.indexOf("+") >= 0 || it.indexOf("battez") >= 0;
+          var bg = isGood ? "rgba(90,184,90,0.1)" : "rgba(184,84,84,0.08)";
+          var border = isGood ? "rgba(90,184,90,0.3)" : "rgba(184,84,84,0.2)";
+          html += '<div style="padding:10px 14px;margin:6px 0;border-radius:10px;background:' + bg + ';border:1px solid ' + border + ';font-size:0.88rem;">' + escapeHtml(it) + '</div>';
+        });
+      }
+
+    } else if (tpl === "testimonial") {
+      html += '<div style="padding:8px 0;">';
+      if (quote) html += '<p style="font-style:italic;font-size:1rem;line-height:1.6;color:var(--fg);margin:8px 0 12px;">\u201c' + escapeHtml(quote) + '\u201d</p>';
+      if (subtitle) html += '<p style="color:var(--gold);font-size:0.85rem;font-weight:500;">' + escapeHtml(subtitle) + '</p>';
+      html += '<div style="color:var(--gold);font-size:0.9rem;margin-top:6px;">\u2B50\u2B50\u2B50\u2B50\u2B50</div>';
+      html += '</div>';
+
+    } else if (tpl === "track_record") {
+      if (title) html += '<h4 style="margin:8px 0 12px;">' + escapeHtml(title) + '</h4>';
+      if (items.length) {
+        items.forEach(function(it) {
+          html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:0.88rem;">';
+          var parts = it.split(/\s+/);
+          var perf = parts.pop();
+          var name = parts.join(" ");
+          html += '<span style="color:#ccc;">' + escapeHtml(name) + '</span>';
+          html += '<span style="color:var(--gold);font-weight:700;">' + escapeHtml(perf) + '</span>';
+          html += '</div>';
+        });
+      }
+      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="margin-top:12px;" loading="lazy" />';
+    }
+
     return card;
   }
 
@@ -1268,8 +1345,10 @@
         setThinking(false);
         if (!result) return;
 
-        if (result.card_a_afficher) {
-          showSmartCard(result.card_a_afficher);
+        // Nouveau format : result.card (objet riche) ou legacy result.card_a_afficher (string)
+        var cardData = result.card || result.card_a_afficher;
+        if (cardData) {
+          showSmartCard(cardData);
         }
 
         if (result.dossier) {
@@ -1299,8 +1378,8 @@
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } }, languageCode: "fr-FR" },
           },
           systemInstruction: { parts: [{ text: state.systemPrompt }] },
-          inputAudioTranscription: {},
-          outputAudioTranscription: {},
+          inputAudioTranscription: { languageCode: "fr-FR" },
+          outputAudioTranscription: { languageCode: "fr-FR" },
           tools: [{
             functionDeclarations: [{
               name: "obtenir_briefing",
