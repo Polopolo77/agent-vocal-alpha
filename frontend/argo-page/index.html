@@ -745,7 +745,8 @@
   };
 
   // Champs de dossier connus (pour calcul du % de complétion)
-  const DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte", "vigilance"];
+  // Seuls les champs remplis comptent — pas de % trompeur
+  const DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte"];
 
   // ============ UTILS ============
   function escapeHtml(s) {
