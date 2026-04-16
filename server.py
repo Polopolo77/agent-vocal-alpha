@@ -318,7 +318,7 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
         if not history:
             return web.json_response({"card": None})
 
-        recent = history[-4:] if len(history) > 4 else history
+        recent = history[-6:] if len(history) > 6 else history
         history_text = _format_history(recent)
 
         prompt = build_ui_cards_prompt(REGISTRY, history_text)
