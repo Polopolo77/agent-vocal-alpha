@@ -794,8 +794,8 @@
             speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
           },
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          inputAudioTranscription: { languageCode: "fr-FR" },
-          outputAudioTranscription: { languageCode: "fr-FR" },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
           tools: [{
             functionDeclarations: [{
               name: "obtenir_briefing",
