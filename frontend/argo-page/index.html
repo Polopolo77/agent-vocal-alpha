@@ -35,9 +35,10 @@
   }
   body {
     background:
-      radial-gradient(1200px 800px at 30% -10%, rgba(212,180,90,0.09), transparent 60%),
-      radial-gradient(900px 600px at 90% 110%, rgba(80,110,150,0.05), transparent 50%),
-      #0b0b0b;
+      radial-gradient(1200px 900px at 50% -5%, rgba(212,180,90,0.07), transparent 55%),
+      radial-gradient(800px 600px at 85% 100%, rgba(60,80,120,0.04), transparent 50%),
+      radial-gradient(400px 400px at 15% 60%, rgba(212,180,90,0.03), transparent 50%),
+      #0a0a0a;
   }
 
   /* ============ LAYOUT ============ */
@@ -60,71 +61,72 @@
   /* ============ HEADER / BRAND ============ */
   .brand {
     font-family: 'Inter', sans-serif;
-    font-size: 0.8rem;
-    letter-spacing: 6px;
-    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 7px;
+    color: #5a5854;
     text-align: center;
-    margin-bottom: 36px;
+    margin-bottom: 28px;
     text-transform: uppercase;
   }
   .brand strong {
     color: var(--gold);
     font-weight: 700;
-    letter-spacing: 5px;
   }
 
-  /* ============ HERO / INTRO ============ */
+  /* ============ HERO ============ */
   .headline {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(2rem, 4.5vw, 3.2rem);
     font-weight: 500;
     line-height: 1.15;
     text-align: center;
-    margin-bottom: 12px;
+    margin-bottom: 6px;
   }
   .headline span { color: var(--gold); font-style: italic; }
-  .intro {
-    text-align: center;
-    font-size: 1.05rem;
-    color: #bfbbb3;
-    line-height: 1.65;
-    max-width: 620px;
-    margin: 0 auto 40px;
+  /* Fine gold line under headline */
+  .headline::after {
+    content: "";
+    display: block;
+    width: 60px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 16px auto 0;
   }
-  .intro strong { color: var(--fg); }
 
-  /* ============ HOW IT WORKS ============ */
+  /* ============ HOW IT WORKS (sous l'orb avant l'appel) ============ */
   .how-it-works {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin: 0 auto 44px;
-    max-width: 720px;
+    gap: 10px;
+    margin: 28px auto 0;
+    max-width: 560px;
     opacity: 1;
-    transition: opacity 0.4s, max-height 0.5s;
-    max-height: 180px;
+    transition: opacity 0.4s, max-height 0.5s, margin 0.4s;
+    max-height: 160px;
     overflow: hidden;
   }
-  body.in-call .how-it-works { opacity: 0; max-height: 0; pointer-events: none; margin-bottom: 0; }
+  body.in-call .how-it-works { opacity: 0; max-height: 0; pointer-events: none; margin: 0; }
 
   .step {
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 18px 16px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 14px 12px;
     text-align: center;
+    transition: border-color 0.3s;
   }
+  .step:hover { border-color: rgba(212,180,90,0.25); }
   .step-num {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 2rem;
+    font-size: 1.6rem;
     color: var(--gold);
     line-height: 1;
   }
   .step-text {
-    font-size: 0.85rem;
-    color: var(--muted);
+    font-size: 0.78rem;
+    color: #7a7773;
     margin-top: 6px;
-    line-height: 1.45;
+    line-height: 1.4;
   }
 
   /* ============ ORB ============ */
@@ -222,19 +224,29 @@
   .btn-primary {
     background: linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
     color: #1a1205;
-    box-shadow: 0 4px 22px rgba(212,180,90,0.3);
+    box-shadow: 0 4px 24px rgba(212,180,90,0.25), 0 1px 3px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
   }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(212,180,90,0.4); }
+  .btn-primary::before {
+    content: "";
+    position: absolute;
+    top: 0; left: -100%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.6s;
+  }
+  .btn-primary:hover::before { left: 120%; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 32px rgba(212,180,90,0.4); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   .btn-danger {
-    background: transparent;
-    border: 1px solid rgba(184,84,84,0.5);
+    background: rgba(184,84,84,0.08);
+    border: 1px solid rgba(184,84,84,0.35);
     color: #d88888;
     padding: 14px 32px;
     font-size: 0.92rem;
   }
-  .btn-danger:hover { background: rgba(184,84,84,0.15); border-color: #d88888; }
+  .btn-danger:hover { background: rgba(184,84,84,0.18); border-color: #d88888; }
 
   /* ============ TRANSCRIPT ============ */
   #transcript {
@@ -258,16 +270,18 @@
     animation: line-in 0.35s ease-out;
   }
   .transcript-line.alpha {
-    background: rgba(212,180,90,0.08);
-    border: 1px solid rgba(212,180,90,0.2);
+    background: linear-gradient(135deg, rgba(212,180,90,0.1), rgba(212,180,90,0.04));
+    border: 1px solid rgba(212,180,90,0.18);
     align-self: flex-start;
-    max-width: 80%;
+    max-width: 85%;
+    border-left: 2px solid var(--gold);
   }
   .transcript-line.user {
     background: rgba(255,255,255,0.04);
-    border: 1px solid var(--line);
+    border: 1px solid rgba(255,255,255,0.08);
     align-self: flex-end;
-    max-width: 80%;
+    max-width: 85%;
+    color: #ccc;
   }
   @keyframes line-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
@@ -563,14 +577,16 @@
 
   /* ============ FOOTER ============ */
   footer {
-    margin-top: 80px;
-    padding-top: 30px;
-    border-top: 1px solid var(--line);
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.04);
     text-align: center;
-    color: #555;
-    font-size: 0.75rem;
-    letter-spacing: 1px;
+    color: #3a3a3a;
+    font-size: 0.68rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
   }
+  body.in-call footer { opacity: 0.4; }
 
   /* ============ MOBILE / TABLETTE ============ */
   @media (max-width: 1100px) {
@@ -618,17 +634,6 @@
     Discutez avec <span>Argos</span><br>
     votre concierge IA d'investissement
   </h1>
-  <p class="intro">
-    Une conversation vocale de 5 à 10 minutes. Argos vous pose quelques questions,
-    comprend votre situation, et vous recommande <strong>la publication Argo qui vous correspond vraiment</strong>
-    — parmi Actions Gagnantes, Profits Asymétriques, Agent Alpha et Stratégie Haut Rendement.
-  </p>
-
-  <div class="how-it-works">
-    <div class="step"><div class="step-num">1</div><div class="step-text">Démarrez l'appel<br>depuis votre navigateur</div></div>
-    <div class="step"><div class="step-num">2</div><div class="step-text">Parlez naturellement<br>en français</div></div>
-    <div class="step"><div class="step-num">3</div><div class="step-text">Argos vous recommande<br>la bonne publication</div></div>
-  </div>
 
   <div class="orb-container idle" id="orb-container">
     <div class="orb-ring"></div>
@@ -641,11 +646,17 @@
 
   <div class="actions">
     <button class="btn-primary" id="start-btn">
-      📞 Démarrer la conversation
+      Démarrer la conversation
     </button>
     <button class="btn-danger" id="hangup-btn" style="display:none;">
       Raccrocher
     </button>
+  </div>
+
+  <div class="how-it-works">
+    <div class="step"><div class="step-num">1</div><div class="step-text">Démarrez l'appel<br>depuis votre navigateur</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">Parlez naturellement<br>en français</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">Argos vous recommande<br>la bonne publication</div></div>
   </div>
 
   <div id="transcript" aria-live="polite"></div>
