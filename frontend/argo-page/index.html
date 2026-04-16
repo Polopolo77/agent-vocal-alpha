@@ -1382,7 +1382,7 @@
           model: "models/" + MODEL,
           generationConfig: {
             responseModalities: ["AUDIO"],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } }, languageCode: "fr-FR" },
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
           },
           systemInstruction: { parts: [{ text: state.systemPrompt }] },
           inputAudioTranscription: {},
