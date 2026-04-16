@@ -42,6 +42,8 @@ STOPWORDS = {
     "ils", "elles", "on", "se", "sa", "s", "t", "m", "n", "y", "est", "sont", "a",
     "ont", "avoir", "être", "plus", "moins", "très", "aussi", "déjà", "pas", "ne",
     "si", "dont", "tout", "tous", "toute", "toutes",
+    "justement", "même", "plutôt", "simplement", "finalement", "vraiment",
+    "peut", "faire", "comme", "quand", "encore", "bien", "fait", "dit", "ça", "c",
 }
 
 

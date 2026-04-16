@@ -300,7 +300,8 @@ async def handle_ui_dossier(request: web.Request) -> web.Response:
 
         try:
             return web.json_response(json.loads(response.text))
-        except Exception:
+        except Exception as parse_err:
+            log.warning("UI dossier JSON parse error: %s", parse_err)
             return web.json_response({})
     except Exception as e:
         log.exception("UI Dossier error")
@@ -338,7 +339,8 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
 
         try:
             return web.json_response(json.loads(response.text))
-        except Exception:
+        except Exception as parse_err:
+            log.warning("UI cards JSON parse error: %s", parse_err)
             return web.json_response({"card": None})
     except Exception as e:
         log.exception("UI Cards error")

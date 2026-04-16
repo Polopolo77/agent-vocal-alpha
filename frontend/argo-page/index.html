@@ -205,6 +205,166 @@
     min-height: 18px;
   }
 
+  /* ============ BARRE DE CHALEUR ============ */
+  .heat-bar {
+    width: 180px;
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    margin: 12px auto 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  body.in-call .heat-bar { opacity: 1; }
+  .heat-bar-fill {
+    height: 100%;
+    width: 10%;
+    border-radius: 2px;
+    transition: width 1.2s cubic-bezier(.16,.78,.31,.98), background 1.2s;
+    background: #6688aa;
+  }
+  .heat-bar-fill[data-heat="froid"]            { width: 15%; background: #6688aa; }
+  .heat-bar-fill[data-heat="tiede"]            { width: 40%; background: #b89441; }
+  .heat-bar-fill[data-heat="chaud"]            { width: 70%; background: #d4a030; }
+  .heat-bar-fill[data-heat="pret_a_acheter"]   { width: 100%; background: #d4b45a; box-shadow: 0 0 8px rgba(212,180,90,0.5); }
+
+  /* ============ CLOSING CINÉMATIQUE ============ */
+  .closing-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+    animation: closing-fade-in 0.6s ease-out;
+  }
+  .closing-overlay.active { display: flex; }
+  @keyframes closing-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .closing-card {
+    background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+    border: 1px solid var(--gold);
+    border-radius: 20px;
+    padding: 36px 40px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(212,180,90,0.12);
+    animation: closing-card-in 0.5s 0.2s ease-out both;
+  }
+  @keyframes closing-card-in { from { transform: scale(0.9) translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  .closing-card h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .closing-card .closing-expert { color: #ccc; font-size: 0.95rem; margin-bottom: 16px; }
+  .closing-card .closing-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.2rem;
+    color: var(--gold);
+    margin: 16px 0;
+  }
+  .closing-card .closing-bonus { color: #aaa; font-size: 0.88rem; margin-bottom: 16px; }
+  .closing-card .closing-guarantee { color: #8a8; font-size: 0.82rem; margin-bottom: 20px; }
+  .closing-card .closing-cta-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--gold), var(--gold-2));
+    color: #1a1205;
+    padding: 14px 36px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    animation: pulse-btn 2s ease-in-out infinite;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+  }
+  @keyframes pulse-btn {
+    0%, 100% { box-shadow: 0 4px 20px rgba(212,180,90,0.3); }
+    50%      { box-shadow: 0 6px 32px rgba(212,180,90,0.55); }
+  }
+  .closing-card .closing-dismiss {
+    display: block;
+    margin-top: 14px;
+    color: #666;
+    font-size: 0.78rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
+
+  /* ============ CONFETTI ============ */
+  .confetti-particle {
+    position: fixed;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 200;
+    animation: confetti-fall 2.5s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(80vh) rotate(720deg); }
+  }
+
+  /* ============ POST-CALL RECAP ============ */
+  .postcall-screen {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+    animation: line-in 0.5s ease-out;
+  }
+  .postcall-screen.active { display: block; }
+  .postcall-screen h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+  .postcall-screen .postcall-product {
+    font-size: 1.1rem;
+    color: var(--fg);
+    margin-bottom: 24px;
+  }
+  .postcall-screen .postcall-link {
+    display: inline-block;
+    background: var(--gold);
+    color: #1a1205;
+    padding: 14px 32px;
+    border-radius: 30px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 16px;
+  }
+  .postcall-screen .postcall-dossier {
+    text-align: left;
+    max-width: 400px;
+    margin: 20px auto 0;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .postcall-screen .postcall-dossier h4 {
+    color: var(--gold);
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+  .postcall-screen .postcall-dossier p {
+    color: #bbb;
+    font-size: 0.85rem;
+    margin: 4px 0;
+  }
+
   /* Quand le dossier s'ouvre : orb plus petit pour la colonne droite */
   body.dossier-open .orb-container { width: 200px; height: 200px; margin-top: 16px; margin-bottom: 12px; }
   body.dossier-open .orb { width: 140px; height: 140px; }
@@ -499,12 +659,21 @@
     opacity: 0;
     transition: opacity 0.5s;
   }
-  body.dossier-open #smart-card-area {
+  /* Cards visibles dès qu'on est en appel (pas besoin d'attendre le dossier) */
+  body.in-call #smart-card-area {
     opacity: 1;
   }
-  /* Caché tant que le dossier n'est pas ouvert */
-  body:not(.dossier-open) #smart-card-area {
+  body:not(.in-call) #smart-card-area {
     display: none;
+  }
+  /* Quand le dossier s'ouvre, les cards se repositionnent à gauche du dossier → centre */
+  body.dossier-open #smart-card-area {
+    left: 400px;
+  }
+  /* Avant le dossier : cards centrées */
+  body.in-call:not(.dossier-open) #smart-card-area {
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%);
   }
 
   .smart-card {
@@ -650,6 +819,7 @@
 
   <div class="agent-name">Argos</div>
   <div class="status" id="status">Prêt à vous parler</div>
+  <div class="heat-bar"><div class="heat-bar-fill" id="heat-bar-fill"></div></div>
 
   <div class="actions">
     <button class="btn-primary" id="start-btn">
@@ -693,8 +863,29 @@
   </div>
 </aside>
 
-<!-- Smart cards stack (right, up to 2 visible) -->
+<!-- Smart cards stack (centre, up to 2 visible) -->
 <aside id="smart-card-area" aria-label="Preuves et supports visuels"></aside>
+
+<!-- Closing cinématique overlay -->
+<div class="closing-overlay" id="closing-overlay">
+  <div class="closing-card">
+    <h3 id="closing-product-name">—</h3>
+    <div class="closing-expert" id="closing-expert">—</div>
+    <div class="closing-price" id="closing-price">—</div>
+    <div class="closing-bonus" id="closing-bonus"></div>
+    <div class="closing-guarantee">Garantie satisfait ou remboursé 3 mois</div>
+    <a class="closing-cta-btn" id="closing-cta-btn" href="https://argo-editions.com" target="_blank" rel="noopener">S'inscrire maintenant</a>
+    <button class="closing-dismiss" id="closing-dismiss">Continuer la conversation</button>
+  </div>
+</div>
+
+<!-- Écran post-appel -->
+<div class="postcall-screen" id="postcall-screen">
+  <h2>Merci pour cette conversation</h2>
+  <div class="postcall-product" id="postcall-product"></div>
+  <a class="postcall-link" id="postcall-link" href="https://argo-editions.com" target="_blank" rel="noopener">Découvrir l'offre</a>
+  <div class="postcall-dossier" id="postcall-dossier"></div>
+</div>
 
 <script>
 /* =============================================================
@@ -1302,13 +1493,15 @@
     if (state.coachInFlight) return;
     state.coachInFlight = true;
 
-    const payload = {
+    var payload = {
       history: state.conversationLog.slice(),
       turn_number: state.userTurnCount,
-      mode,
+      mode: mode,
       session_id: state.sessionId,
       agent_name: AGENT_NAME,
     };
+    // B5 : hint focus produit si ?focus= dans l'URL
+    if (FOCUS_PRODUCT) payload.focus_hint = FOCUS_PRODUCT;
 
     fetch(STRATEGIST_ENDPOINT, {
       method: "POST",
@@ -1320,18 +1513,32 @@
         state.coachInFlight = false;
         if (d && !d.error) {
           state.coachDirective = d;
-          const signal = d.directive_prochain_tour?.signal_closing;
-          if (signal === "vert") showClosingCta();
 
-          // Enregistre le produit recommandé par le coach (dès que certitude moyen/ferme)
-          const recommande = d.produit?.recommande;
-          const certitude  = d.produit?.certitude;
+          // A1 : mise à jour barre de chaleur
+          var chaleur = d.etat_emotionnel && d.etat_emotionnel.chaleur;
+          if (chaleur) updateHeat(chaleur);
+
+          // Closing CTA (fix: aussi le cacher si pas vert)
+          var signal = d.directive_prochain_tour && d.directive_prochain_tour.signal_closing;
+          if (signal === "vert") {
+            showClosingCta();
+            // A2 : closing cinématique
+            showClosingOverlay();
+            trackEvent("cta_shown", { product: state.currentRecommendedProduct });
+          } else {
+            hideClosingCta();
+          }
+
+          // Enregistre le produit recommandé par le coach
+          var recommande = d.produit && d.produit.recommande;
+          var certitude  = d.produit && d.produit.certitude;
           if (recommande && (certitude === "moyen" || certitude === "ferme")) {
             state.currentRecommendedProduct = recommande;
           }
-          // Affiche la fiche produit en cas d'intent ferme seulement
+          // Affiche la fiche produit en cas d'intent ferme
           if (recommande && certitude === "ferme") {
             showSmartCard("offer_card");
+            trackEvent("product_revealed", { product: recommande, tier: d.produit.tier_recommande });
           }
         }
       })
@@ -1509,16 +1716,22 @@
         addMessage("user", state.pendingUserText.trim(), true);
         $orbContainer.className = "orb-container";
         $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
+        // B3 : pattern interrupt timer
+        checkPatternInterrupt();
       }
 
       // Output transcription (alpha)
       if (sc.outputTranscription && sc.outputTranscription.text) {
         state.pendingBotText += sc.outputTranscription.text;
         addMessage("alpha", state.pendingBotText.trim(), true);
+        // B2 : détecte si le prix vient d'être donné
+        checkSilenceAfterPrice(state.pendingBotText);
       }
 
       // Turn complete
       if (sc.turnComplete) {
+        userSpeakingStart = null; // reset pattern interrupt
+
         if (state.pendingBotText) {
           state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
           state.pendingBotText = "";
@@ -1530,11 +1743,12 @@
           currentUserMsg = null;
           state.userTurnCount++;
 
-          // UI Director à chaque tour (≥2) pour dossier + cards
+          // D1 : Coach + UI agents en PARALLÈLE
           if (state.userTurnCount >= 2) callUIAgents();
-
-          // Coach selon règle
           if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
+
+          // C1 : funnel events
+          if (state.userTurnCount === 1) trackEvent("name_given", { prenom: state.lastDossier.prenom });
         }
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " réfléchit…";
@@ -1546,8 +1760,9 @@
       $("status").textContent = "Erreur de connexion";
     };
 
+    // D2 : reconnexion avec backoff
     ws.onclose = () => {
-      if (state.isConnected) disconnect();
+      handleWSClose();
     };
 
     return ws;
@@ -1598,10 +1813,10 @@
       hideAllSmartCards();
       hideClosingCta();
 
-      // Charger le prompt s'il n'est pas déjà là
+      // D3 : prompt déjà pre-fetché au bootstrap
       if (!state.systemPrompt) {
-        const pRes = await fetch(PROMPT_ENDPOINT);
-        const pJson = await pRes.json();
+        var pRes = await fetch(PROMPT_ENDPOINT);
+        var pJson = await pRes.json();
         if (pJson.error) throw new Error(pJson.error);
         state.systemPrompt = pJson.prompt;
       }
@@ -1621,32 +1836,175 @@
     }
   }
 
+  // ============ BARRE DE CHALEUR (A1) ============
+  var $heatFill = $("heat-bar-fill");
+  function updateHeat(chaleur) {
+    if ($heatFill && chaleur) $heatFill.setAttribute("data-heat", chaleur);
+  }
+
+  // ============ CLOSING CINÉMATIQUE (A2) ============
+  var $closingOverlay = $("closing-overlay");
+  function showClosingOverlay() {
+    var pid = state.currentRecommendedProduct;
+    var pm = pid ? state.catalog[pid] : null;
+    if (!pm) return;
+    var offers = pm.offers || {};
+    var tierA = offers.A || Object.values(offers)[0];
+    $("closing-product-name").textContent = pm.name || "Publication";
+    $("closing-expert").textContent = pm.expert ? "Par " + pm.expert : "";
+    $("closing-price").textContent = tierA ? (tierA.label || tierA.price_eur + "€/an") : "";
+    $("closing-bonus").textContent = pm.lead_magnet ? "Bonus offert : " + pm.lead_magnet : "";
+    $closingOverlay.classList.add("active");
+  }
+  function hideClosingOverlay() { $closingOverlay.classList.remove("active"); }
+  $("closing-dismiss").addEventListener("click", hideClosingOverlay);
+  $("closing-cta-btn").addEventListener("click", function() { launchConfetti(); });
+
+  // ============ CONFETTI (A5) ============
+  function launchConfetti() {
+    var colors = ["#d4b45a", "#b89441", "#f0d98c", "#fff8dc", "#8b7d3c"];
+    for (var i = 0; i < 40; i++) {
+      var p = document.createElement("div");
+      p.className = "confetti-particle";
+      p.style.left = (20 + Math.random() * 60) + "vw";
+      p.style.top = (10 + Math.random() * 20) + "vh";
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.animationDelay = (Math.random() * 0.8) + "s";
+      p.style.width = (5 + Math.random() * 6) + "px";
+      p.style.height = (5 + Math.random() * 6) + "px";
+      document.body.appendChild(p);
+      setTimeout(function() { p.remove(); }, 3500);
+    }
+  }
+
+  // ============ POST-CALL SCREEN (A3) ============
+  function showPostCallScreen() {
+    var pid = state.currentRecommendedProduct;
+    var pm = pid ? state.catalog[pid] : null;
+    var d = state.lastDossier || {};
+    var $pc = $("postcall-screen");
+
+    if (pm) {
+      $("postcall-product").innerHTML = "Nous vous avons recommandé <strong>" + escapeHtml(pm.name) + "</strong>" + (pm.expert ? " par " + escapeHtml(pm.expert) : "");
+      $("postcall-link").textContent = "Découvrir " + (pm.name || "l'offre");
+    } else {
+      $("postcall-product").textContent = "Nous n'avons pas encore identifié la publication idéale pour vous.";
+      $("postcall-link").style.display = "none";
+    }
+
+    var dossierHtml = "<h4>Votre dossier</h4>";
+    if (d.prenom) dossierHtml += "<p><strong>" + escapeHtml(d.prenom) + "</strong></p>";
+    (d.situation || []).forEach(function(s) { dossierHtml += "<p>" + escapeHtml(s) + "</p>"; });
+    (d.objectif || []).forEach(function(o) { dossierHtml += "<p>Objectif : " + escapeHtml(o) + "</p>"; });
+    if (d.profil_detecte) dossierHtml += "<p>Profil : " + escapeHtml(d.profil_detecte) + "</p>";
+    $("postcall-dossier").innerHTML = dossierHtml;
+
+    $pc.classList.add("active");
+  }
+
+  // ============ B2 — SILENCE APRÈS LE PRIX ============
+  var silenceInjected = false;
+  function checkSilenceAfterPrice(text) {
+    if (silenceInjected) return;
+    if (/euros?\s*(par\s*an|par\s*mois|\/an|\/mois)/i.test(text) || /€\s*\/?\s*(an|mois|trim)/i.test(text)) {
+      silenceInjected = true;
+      setTimeout(function() {
+        if (state.ws && state.ws.readyState === 1) {
+          state.ws.send(JSON.stringify({
+            realtimeInput: { text: "STOP. Tu viens de donner le prix. NE DIS PLUS RIEN. Silence absolu. Laisse le prospect parler. Le premier qui parle a perdu." }
+          }));
+        }
+      }, 1500);
+    }
+  }
+
+  // ============ B3 — PATTERN INTERRUPT ============
+  var userSpeakingStart = null;
+  function checkPatternInterrupt() {
+    if (!userSpeakingStart) { userSpeakingStart = Date.now(); return; }
+    var elapsed = (Date.now() - userSpeakingStart) / 1000;
+    if (elapsed > 45 && state.ws && state.ws.readyState === 1) {
+      state.ws.send(JSON.stringify({
+        realtimeInput: { text: "Le prospect parle depuis plus de 45 secondes. Interromps-le poliment : 'Attendez, ce que vous dites là est important — laissez-moi rebondir sur ce point.'" }
+      }));
+      userSpeakingStart = null;
+    }
+  }
+
+  // ============ FUNNEL EVENTS (C1) ============
+  function trackEvent(name, payload) {
+    try {
+      fetch(BACKEND_URL + "/api/save-conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          started_at: state.conversationStartedAt || new Date().toISOString(),
+          ended_at: new Date().toISOString(),
+          messages: [{ role: "event", text: name + ": " + JSON.stringify(payload || {}) }],
+          product_id: state.currentRecommendedProduct,
+        }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (e) {}
+  }
+
+  // ============ DISCONNECT (refondu avec post-call) ============
   function disconnect() {
-    saveConversation().catch(e => console.warn("save error:", e));
+    saveConversation().catch(function(e) { console.warn("save error:", e); });
+
+    // Score post-call (C2) : appel coach en mode post_call
+    if (state.conversationLog.length >= 4) {
+      fetch(STRATEGIST_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          history: state.conversationLog.slice(),
+          turn_number: state.userTurnCount,
+          mode: "post_call",
+          session_id: state.sessionId,
+          agent_name: AGENT_NAME,
+        }),
+        keepalive: true,
+      }).then(function(r) { return r.json(); }).then(function(report) {
+        console.log("[Argo] Post-call score:", report);
+      }).catch(function() {});
+    }
+
     if (state.audioStreamer) { state.audioStreamer.stop(); state.audioStreamer = null; }
-    if (state.ws) { try { state.ws.close(); } catch {} state.ws = null; }
+    if (state.ws) { try { state.ws.close(); } catch (e) {} state.ws = null; }
     if (state.audioPlayer) { state.audioPlayer.interrupt(); state.audioPlayer = null; }
     state.isConnected = false;
     $orbContainer.className = "orb-container idle";
     updateOrbLevel(0);
+    updateHeat("froid");
     $("status").textContent = "Conversation terminée";
     $startBtn.style.display = "inline-block";
-    $startBtn.textContent = "📞 Reprendre la conversation";
+    $startBtn.textContent = "Reprendre la conversation";
     $hangupBtn.style.display = "none";
     document.body.classList.remove("in-call");
+    silenceInjected = false;
+    userSpeakingStart = null;
+    hideClosingOverlay();
+
+    // Affiche l'écran post-appel (A3)
+    if (state.conversationLog.length >= 4) {
+      showPostCallScreen();
+    }
+
+    trackEvent("hangup", { turns: state.userTurnCount, product: state.currentRecommendedProduct });
   }
 
   async function saveConversation() {
     if (state.conversationLog.length < 2) return;
-    const payload = {
+    var payload = {
       started_at: state.conversationStartedAt,
       ended_at: new Date().toISOString(),
       messages: state.conversationLog.slice(),
-      product_id: state.currentRecommendedProduct, // produit final recommandé (ou null)
+      product_id: state.currentRecommendedProduct,
     };
     try {
       if (navigator.sendBeacon) {
-        const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+        var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
         navigator.sendBeacon(SAVE_ENDPOINT, blob);
       } else {
         fetch(SAVE_ENDPOINT, {
@@ -1654,44 +2012,77 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
           keepalive: true,
-        }).catch(() => {});
+        }).catch(function() {});
       }
-    } catch {}
+    } catch (e) {}
   }
 
   $startBtn.addEventListener("click", connect);
   $hangupBtn.addEventListener("click", disconnect);
-  window.addEventListener("beforeunload", () => {
-    if (state.isConnected) { try { saveConversation(); } catch {} }
+  window.addEventListener("beforeunload", function() {
+    if (state.isConnected) { try { saveConversation(); } catch (e) {} }
   });
 
-  // ============ CATALOG LOADING (4 produits en mémoire) ============
+  // ============ WS RECONNEXION (D2) ============
+  var wsRetryCount = 0;
+  var maxRetries = 3;
+  function handleWSClose() {
+    if (!state.isConnected) return;
+    wsRetryCount++;
+    if (wsRetryCount <= maxRetries) {
+      var delay = Math.pow(2, wsRetryCount) * 1000; // 2s, 4s, 8s
+      console.log("[Argo] WS closed, retry " + wsRetryCount + "/" + maxRetries + " in " + delay + "ms");
+      $("status").textContent = "Reconnexion...";
+      setTimeout(function() {
+        fetch(TOKEN_ENDPOINT, { method: "POST" })
+          .then(function(r) { return r.json(); })
+          .then(function(json) {
+            if (json.token) {
+              state.ws = connectGemini(json.token);
+              wsRetryCount = 0;
+            } else { disconnect(); }
+          })
+          .catch(function() { disconnect(); });
+      }, delay);
+    } else {
+      disconnect();
+    }
+  }
+
+  // ============ CATALOG + BOOTSTRAP ============
+
+  // B5 : personnalisation par URL
+  var FOCUS_PRODUCT = urlParams.get("focus") || null;
 
   async function bootstrap() {
     try {
-      const catRes = await fetch(PRODUCTS_ENDPOINT);
-      const catJson = await catRes.json();
-      const products = catJson.products || [];
+      // D3 : pre-fetch prompt au bootstrap (pas au connect)
+      var pRes = await fetch(PROMPT_ENDPOINT);
+      var pJson = await pRes.json();
+      if (!pJson.error) state.systemPrompt = pJson.prompt;
 
-      // Indexer le catalog par product_id + construire l'union des cartes
+      var catRes = await fetch(PRODUCTS_ENDPOINT);
+      var catJson = await catRes.json();
+      var products = catJson.products || [];
+
       state.catalog = {};
       state.imagesByCardKey = {};
       state.cardProductMap = {};
-      for (const p of products) {
+      for (var i = 0; i < products.length; i++) {
+        var p = products[i];
         state.catalog[p.product_id] = p;
-        const ibc = p.images_by_card || {};
-        for (const [cardKey, imgMeta] of Object.entries(ibc)) {
-          // Si deux produits utilisent le même cardKey (rare, mais possible pour images partagées),
-          // on garde le premier rencontré et on mappe la clé au premier produit.
-          if (!state.imagesByCardKey[cardKey]) {
-            state.imagesByCardKey[cardKey] = imgMeta;
-            state.cardProductMap[cardKey] = p.product_id;
+        var ibc = p.images_by_card || {};
+        for (var ck in ibc) {
+          if (!state.imagesByCardKey[ck]) {
+            state.imagesByCardKey[ck] = ibc[ck];
+            state.cardProductMap[ck] = p.product_id;
           }
         }
       }
       console.log("[Argo] Catalog loaded:", Object.keys(state.catalog), "— total cards:", Object.keys(state.imagesByCardKey).length);
+      if (state.systemPrompt) console.log("[Argo] Prompt pre-fetched:", state.systemPrompt.length, "chars");
     } catch (err) {
-      console.error("[Argo] Catalog load failed:", err);
+      console.error("[Argo] Bootstrap failed:", err);
     }
   }
 
