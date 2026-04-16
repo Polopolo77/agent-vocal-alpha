@@ -664,20 +664,34 @@
   /* ============ SMART CARDS (centre, entre dossier et orb) ============ */
   #smart-card-area {
     position: fixed;
-    left: 400px;           /* après le dossier (380px + 20px gap) */
-    top: 50%;
-    transform: translateY(-50%);
-    width: calc(100vw - 400px - 460px); /* espace entre dossier et colonne droite */
+    left: 400px;
+    top: 60px;
+    bottom: 60px;
+    width: calc(100vw - 400px - 460px);
     min-width: 280px;
-    max-width: 480px;
+    max-width: 520px;
     z-index: 30;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 0 20px;
+    gap: 12px;
+    padding: 0 16px;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.5s;
+    overflow-y: auto;
+    justify-content: center;
+  }
+  /* Quand 2+ cartes : plus compactes */
+  #smart-card-area .smart-card:not(:only-child) {
+    padding: 18px 20px;
+    font-size: 0.92em;
+  }
+  #smart-card-area .smart-card:not(:only-child) img {
+    max-height: 200px;
+    object-fit: cover;
+  }
+  #smart-card-area .smart-card:not(:only-child) .big-number {
+    font-size: 2.2rem;
   }
   /* Cards visibles dès qu'on est en appel (pas besoin d'attendre le dossier) */
   body.in-call #smart-card-area {
