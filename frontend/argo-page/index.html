@@ -1005,11 +1005,14 @@
 
   function showSmartCard(cardKey) {
     if (!cardKey) return;
-    // Pas de doublon
+    // Pas de doublon (state)
     if (activeCards.some(c => c.key === cardKey)) return;
+    // Pas de doublon (DOM safety — nettoie d'éventuels orphelins)
+    $smartCardArea.querySelectorAll(`[data-card-key="${cardKey}"]`).forEach(el => el.remove());
 
     const cardEl = buildSmartCard(cardKey);
     if (!cardEl) return;
+    cardEl.dataset.cardKey = cardKey;
 
     $smartCardArea.appendChild(cardEl);
     // Force reflow then animate in
