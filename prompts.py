@@ -647,60 +647,67 @@ JSON final (après audit + ajout) :
 # UI CARDS AGENT — ultra-court, focus cartes visuelles uniquement
 # =============================================================================
 
-BASE_UI_CARDS_PROMPT = """Tu choisis quelle carte visuelle afficher au prospect pendant la conversation. JSON uniquement.
+BASE_UI_CARDS_PROMPT = """Tu choisis UNE carte visuelle en cohérence STRICTE avec ce qu'Argos vient de dire. JSON uniquement.
 
-RÈGLE DE TEMPORALITÉ (verrou) :
-- AVANT le tour 3 (prospect qui parle pour la 1re ou 2e fois) → `{"card": null}` SAUF signal hyper-spécifique déjà exprimé par LE PROSPECT (il parle de crypto, d'or, de peur de perdre, de livret A).
-- NE JAMAIS afficher `expert_portrait` tant que l'agent n'a pas CITÉ EXPLICITEMENT le nom de l'expert dans ses derniers messages. Pas de Whitney Tilson / Eric Wade / Dan Ferris tant qu'ils ne sont pas nommés à voix haute.
-- NE JAMAIS afficher `offer_card` tant que le produit n'est pas révélé explicitement par l'agent.
-- NE JAMAIS afficher `proof_number` tant qu'aucun chiffre concret n'a été prononcé dans les derniers messages.
-
-Tu dois réagir à ce que le PROSPECT dit ET à ce que l'AGENT dit. Quand les conditions sont réunies, affiche la carte. Sinon : `{"card": null}`.
+{{ACTIVE_PRODUCT_BLOCK}}
 
 ═══════════════════
-DÉCLENCHEURS AUTOMATIQUES (si un de ces mots/sujets apparaît dans les messages → affiche la carte correspondante)
+RÈGLES DE COHÉRENCE (verrou absolu)
 ═══════════════════
 
-**Quand le PROSPECT dit :**
-- crypto / bitcoin / blockchain / tokens → proof_number avec un chiffre crypto (Polymath +3180%, Harmony +8079%, Enjin +11127%)
-- or / inflation / protéger épargne / banques → proof_number avec un chiffre or (Vista Gold +1248%, SSR Mining +5428%)
-- peur / risque / arnaque / méfiant → guarantee_generic
-- livret A / épargne qui dort → comparison (Livret A vs stratégies Argo)
-- combien / prix / cher → offer_card
-- ok / je m'inscris / on y va → offer_card
+1. **UNE carte doit parler du MÊME SUJET que les 2 derniers messages d'Argos.** Si Argos parle de "La Fin du Travail" (Eric Wade / crypto), tu ne proposes JAMAIS une carte du Projet Alpha. Si Argos parle de Whitney Tilson, tu ne proposes PAS Dan Ferris. Zéro hors-sujet.
 
-**Quand l'AGENT dit :**
-- nom d'un expert (Whitney Tilson, Eric Wade, Dan Ferris, Jim Simons) → expert_portrait avec son nom + credentials
-- un chiffre de performance (+548%, +8900%, x475, +3180%...) → proof_number avec CE chiffre en gros
-- "opportunité" / "vient de tomber" / "truc récent" → opportunity (teaser mystère)
-- témoignage / abonné / "un de nos membres" → testimonial
-- comparaison / "contrairement à" / livret A → comparison
-- "garantie" / "satisfait ou remboursé" / "3 mois" → guarantee_generic
-- nom du produit (Actions Gagnantes, Profits Asymétriques, Alpha, Stratégie Haut Rendement) + prix → offer_card
+2. **Si aucune carte ne colle exactement → `{"card": null}`.** Mieux vaut pas de carte qu'une carte hors-sujet.
+
+3. **Temporalité :**
+   - Pas de carte avant le tour 3, sauf signal explicite du prospect (il parle crypto / or / peur de perdre).
+   - `expert_portrait` uniquement si le nom de l'expert (Tilson / Wade / Ferris / Simons) vient d'être prononcé par Argos.
+   - `proof_number` uniquement si un chiffre CONCRET (+548%, x475, +8900%, 3400 Md€...) vient d'être prononcé.
+   - `offer_card` uniquement si Argos a NOMMÉ le produit ET donné un prix.
+
+4. **Pas de redite :** si la dernière carte affichée est la même image_key, tu renvoies `null`.
 
 ═══════════════════
-CARTES DISPONIBLES (image_key)
+PROCESSUS (obligatoire)
+═══════════════════
+
+**Étape 1 — Identifie le thème des 2 derniers messages d'Argos** (un seul choix parmi) :
+  - `expert_name` : Argos vient de citer un expert
+  - `perf_number` : Argos vient de citer un pourcentage, multiple ou gros chiffre
+  - `opportunity` : Argos lance un teaser ("quelque chose vient de tomber…")
+  - `testimonial` : Argos raconte l'histoire d'un abonné
+  - `comparison` : Argos oppose livret A / banque / autre à la stratégie Argo
+  - `danger` : Argos parle de dette, inflation, risque systémique
+  - `guarantee` : Argos parle de garantie, remboursement, sans risque
+  - `offer` : Argos annonce prix + produit
+  - `product_name` : Argos nomme le produit (ex: "La Fin du Travail", "Actions Gagnantes", "Alpha")
+  - `none` : Argos est en diagnostic, pose une question générique → `{"card": null}`
+
+**Étape 2 — Choisis la carte qui colle EXACTEMENT au thème**, dans la liste ci-dessous.
+
+**Étape 3 — Double-check cohérence produit :** si une carte est marquée `[argo_X]` et que l'agent parle d'un autre produit → REJETÉE, retourne `null`.
+
+═══════════════════
+CARTES DISPONIBLES (organisées par produit et par thème)
 ═══════════════════
 
 {{CARDS_BY_PRODUCT}}
-
-Génériques (toujours dispo) : "guarantee_generic", "offer_card"
 
 ═══════════════════
 TEMPLATES
 ═══════════════════
 
-proof_number : gros chiffre doré. title = "+548%" ou "x475". subtitle = contexte. image_key = graphique.
-expert_portrait : photo + nom. title = nom. subtitle = surnom. items = ["credential 1", "credential 2"].
-opportunity : teaser. title = "Opportunité détectée". subtitle = phrase mystère courte.
-comparison : blocs contrastés. title = titre. items = ["Option A : ...", "Option B : ..."].
-testimonial : citation. quote = "texte". subtitle = "— Nom, abonné".
-track_record : tableau. title = "Track record Expert". items = ["Asset +X%", "Asset +Y%"].
+- `proof_number` : gros chiffre doré. title = "+548%" ou "x475". subtitle = contexte court.
+- `expert_portrait` : photo + nom. title = nom. subtitle = surnom. items = ["credential 1", "credential 2"].
+- `opportunity` : teaser. title = "Opportunité détectée". subtitle = phrase mystère courte.
+- `comparison` : blocs contrastés. title = titre. items = ["Option A : ...", "Option B : ..."].
+- `testimonial` : citation. quote = "texte". subtitle = "— Nom, abonné".
+- `track_record` : tableau. title = "Track record Expert". items = ["Asset +X%", "Asset +Y%"].
 
-Schéma :
-{"card": null} ou {"card": {"image_key":"...", "template":"...", "title":"...", "subtitle":"...", "quote":null, "items":null}}
+Schéma final :
+{"card": null} OU {"card": {"image_key":"...", "template":"...", "title":"...", "subtitle":"...", "quote":null, "items":null}}
 
-DERNIERS MESSAGES :
+DERNIERS MESSAGES (source de vérité pour le thème) :
 {{HISTORY}}
 """
 
@@ -715,32 +722,119 @@ def build_ui_dossier_prompt(previous_dossier: dict, history_text: str) -> str:
     )
 
 
-def build_ui_cards_prompt(registry: ProductsRegistry, history_text: str) -> str:
-    """Prompt ultra-court pour le cards agent."""
-    blocks: list[str] = []
+def _card_theme_from_key(key: str, role: str, description: str) -> str:
+    """Devine le thème d'une carte à partir de sa clé + role + description.
+
+    Thèmes : expert_name, perf_number, product_name, offer, guarantee,
+    danger, opportunity, testimonial, comparison.
+    """
+    k = (key or "").lower()
+    r = (role or "").lower()
+    d = (description or "").lower()
+    if k.startswith("authority_") or "portrait" in d or "tilson" in d or "wade" in d or "ferris" in d or "simons" in d:
+        return "expert_name"
+    if k.startswith("proof_") or k.startswith("perf_") or "+%" in d or "performance" in d or "%" in d or "x10" in d or "x100" in d:
+        return "perf_number"
+    if k.startswith("product_") or k.startswith("bonus_") or "bundle" in d or "offre" in d:
+        return "offer"
+    if "guarantee" in k or "garantie" in d or "remboursé" in d:
+        return "guarantee"
+    if "dette" in d or "inflation" in d or "fmi" in d or "banques" in d or "risque" in d:
+        return "danger"
+    if "témoignage" in d or "abonné" in d or "membre" in d:
+        return "testimonial"
+    if "comparaison" in d or "vs" in d:
+        return "comparison"
+    if r == "proof_chart":
+        return "perf_number"
+    return "opportunity"
+
+
+def build_ui_cards_prompt(
+    registry: ProductsRegistry,
+    history_text: str,
+    active_product: str | None = None,
+) -> str:
+    """Prompt cards agent — filtré par produit actif quand il est connu."""
     order = ["argo_actions", "argo_crypto", "argo_alpha", "argo_gold"]
-    for pid in order:
+    # Si un produit est actif, on filtre brutalement — le pool passe de 74 à ~20
+    pool = [active_product] if active_product else order
+
+    blocks: list[str] = []
+    for pid in pool:
         p = registry.get(pid)
         if not p:
             continue
         cfg_name = p.config.get("product_name", pid)
         images = p.images.get("images", []) if isinstance(p.images, dict) else []
-        card_lines: list[str] = []
+        # Groupe les cartes par thème
+        by_theme: dict[str, list[str]] = {}
         seen: set[str] = set()
         for img in images:
             key = img.get("usage_card")
             if not key or key in seen:
                 continue
             seen.add(key)
-            desc = img.get("description", "")[:80]
-            card_lines.append(f'"{key}": {desc}')
-        if card_lines:
-            blocks.append(f"{cfg_name}: " + " | ".join(card_lines))
+            desc = (img.get("description", "") or "")[:90]
+            theme = _card_theme_from_key(key, img.get("role", ""), desc)
+            by_theme.setdefault(theme, []).append(f'"{key}" — {desc}')
 
-    cards_block = "\n".join(blocks) if blocks else "(aucune)"
+        if not by_theme:
+            continue
+        lines = [f"## [{pid}] {cfg_name}"]
+        # Ordre de présentation stable
+        theme_order = ["expert_name", "perf_number", "testimonial", "comparison",
+                       "opportunity", "danger", "offer", "guarantee"]
+        for theme in theme_order:
+            if theme not in by_theme:
+                continue
+            lines.append(f"### Thème → {theme}")
+            for entry in by_theme[theme]:
+                lines.append(f"  - {entry}")
+        blocks.append("\n".join(lines))
+
+    # Génériques toujours disponibles
+    blocks.append(
+        "## GÉNÉRIQUES (tous produits)\n"
+        "### Thème → guarantee\n"
+        "  - \"guarantee_generic\" — garantie 3 mois satisfait/remboursé (neutre)\n"
+        "### Thème → offer\n"
+        "  - \"offer_card\" — récap offre du produit actif (prix + lead magnet)"
+    )
+
+    cards_block = "\n\n".join(blocks) if blocks else "(aucune carte)"
+
+    # Bloc spécifique quand on connaît le produit actif
+    if active_product:
+        p = registry.get(active_product)
+        pname = p.config.get("product_name", active_product) if p else active_product
+        lead = (p.config.get("lead_magnet", {}) or {}) if p else {}
+        lm_title = lead.get("title") if isinstance(lead, dict) else ""
+        expert = (p.config.get("lead_expert", {}) or {}).get("name", "") if p else ""
+        active_block = (
+            "═══════════════════\n"
+            "PRODUIT ACTIF (imposé par le coach)\n"
+            "═══════════════════\n\n"
+            f"**Produit :** `{active_product}` — {pname}\n"
+            f"**Expert :** {expert}\n"
+            f"**Lead magnet :** {lm_title}\n\n"
+            "**VERROU ABSOLU :** tu ne proposes QUE des cartes marquées "
+            f"`[{active_product}]` ou `GÉNÉRIQUES`. Toute autre carte = REJET. "
+            "Si le thème identifié n'a pas de carte chez ce produit → `{\"card\": null}`."
+        )
+    else:
+        active_block = (
+            "═══════════════════\n"
+            "PRODUIT ACTIF : non encore décidé\n"
+            "═══════════════════\n\n"
+            "Le coach n'a pas encore tranché. Tu peux piocher dans n'importe quel produit, "
+            "mais privilégie les cartes **génériques** (opportunity, guarantee_generic). "
+            "Pas d'`expert_portrait` ni d'`offer_card` tant qu'aucun produit n'est désigné."
+        )
 
     return (
         BASE_UI_CARDS_PROMPT
+        .replace("{{ACTIVE_PRODUCT_BLOCK}}", active_block)
         .replace("{{CARDS_BY_PRODUCT}}", cards_block)
         .replace("{{HISTORY}}", history_text)
     )

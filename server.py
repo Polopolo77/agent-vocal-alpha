@@ -60,8 +60,12 @@ DB_PATH = Path(__file__).parent / "conversations.db"
 # Modèle Gemini Live pour l'agent vocal (côté client)
 LIVE_MODEL = "gemini-3.1-flash-live-preview"
 
-# Modèle rapide pour coach et UI director
+# Modèle rapide pour coach et UI dossier
 COACH_MODEL = "gemini-2.5-flash-lite"
+# Modèle plus costaud pour l'agent cartes : il doit router
+# thématiquement 20+ cartes sans se tromper de produit, flash-lite
+# n'y arrivait pas de manière fiable.
+CARDS_MODEL = "gemini-2.5-flash"
 
 # =============================================================================
 # SÉCURITÉ — rate limiting + security headers (CORS permissif)
@@ -524,22 +528,28 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
     try:
         data = await request.json()
         history = _sanitize_history(data.get("history", []))
+        active_product = data.get("active_product")
+        if active_product and active_product not in REGISTRY.products:
+            active_product = None
+        last_card_key = str(data.get("last_card_key", ""))[:64] or None
 
         if not history:
             return web.json_response({"card": None})
 
         recent = history[-6:] if len(history) > 6 else history
         history_text = _format_history(recent)
+        if last_card_key:
+            history_text += f"\n\n[DERNIÈRE CARTE AFFICHÉE : {last_card_key}] — si le thème actuel reste identique, renvoie null."
 
-        prompt = build_ui_cards_prompt(REGISTRY, history_text)
+        prompt = build_ui_cards_prompt(REGISTRY, history_text, active_product=active_product)
 
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
-                model=COACH_MODEL,
+                model=CARDS_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
-                    "temperature": 0.3,
+                    "temperature": 0.15,
                     "max_output_tokens": 512,
                     "thinking_config": {"thinking_budget": 0},
                 },
@@ -547,10 +557,34 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
         )
 
         try:
-            return web.json_response(json.loads(response.text))
+            result = json.loads(response.text)
         except Exception as parse_err:
             log.warning("UI cards JSON parse error: %s", parse_err)
             return web.json_response({"card": None})
+
+        # VERROU SERVEUR : si un produit est actif, la carte renvoyée DOIT
+        # appartenir à ce produit (ou être générique). Sinon on rejette côté
+        # serveur pour ne même pas envoyer au client.
+        card = result.get("card") if isinstance(result, dict) else None
+        if card and active_product:
+            img_key = card.get("image_key") or ""
+            generic_keys = {"guarantee_generic", "offer_card"}
+            if img_key and img_key not in generic_keys:
+                # Trouve à quel produit appartient cette clé
+                owner = None
+                for pid, p in REGISTRY.products.items():
+                    imgs = p.images.get("images", []) if isinstance(p.images, dict) else []
+                    if any(i.get("usage_card") == img_key for i in imgs):
+                        owner = pid
+                        break
+                if owner and owner != active_product:
+                    log.info(
+                        "UI cards cross-product rejected: key=%s owner=%s active=%s",
+                        img_key, owner, active_product,
+                    )
+                    return web.json_response({"card": None})
+
+        return web.json_response(result)
     except Exception as e:
         log.exception("UI Cards error")
         return web.json_response({"card": None})

@@ -2028,6 +2028,13 @@
     // Avant le tour 2 : aucune carte. Le prospect vient juste de dire son prénom.
     if (turn < 2) return false;
 
+    // Cross-produit : si la carte appartient à un produit connu et ce produit
+    // n'est pas l'actif → rejet.
+    var owner = state.cardProductMap ? state.cardProductMap[key] : null;
+    if (owner && state.currentRecommendedProduct && owner !== state.currentRecommendedProduct) {
+      return false;
+    }
+
     // expert_portrait : uniquement si le nom de l'expert apparaît dans la conv
     if (tpl === "expert_portrait" || key.indexOf("authority_") === 0) {
       var experts = ["tilson", "wade", "ferris", "simons", "stansberry"];
@@ -2431,7 +2438,11 @@
     var cardsCall = fetch(CARDS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ history: historySlice }),
+      body: JSON.stringify({
+        history: historySlice,
+        active_product: state.currentRecommendedProduct,
+        last_card_key: activeCards.length ? activeCards[activeCards.length - 1].key : null,
+      }),
     }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
 
     Promise.all([dossierCall, cardsCall]).then(function(results) {
@@ -2478,6 +2489,8 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         history: historySlice,
+        active_product: state.currentRecommendedProduct,
+        last_card_key: activeCards.length ? activeCards[activeCards.length - 1].key : null,
       }),
     }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
 
@@ -2648,8 +2661,10 @@
         bumpPerceivedValueFromText(sc.outputTranscription.text || "");
         // B2 : détecte si le prix vient d'être donné
         checkSilenceAfterPrice(state.pendingBotText);
-        // Cards en temps réel PENDANT qu'Argos parle (throttled à 1 appel toutes les 8s)
+        // Cards en temps réel PENDANT qu'Argos parle (local matching, zéro latence)
         triggerCardsWhileSpeaking();
+        // Cards LLM PENDANT qu'Argos parle aussi (routing thématique fin)
+        scheduleCardsAgentWhileSpeaking();
         // P7 : Argos prononce la phrase de fin → auto-disconnect
         checkEndOfCall(state.pendingBotText, "alpha");
       }
@@ -2982,27 +2997,81 @@
   var lastCardsWhileSpeakingCall = 0;
   var localCardShown = new Set(); // évite doublons
 
-  // Mapping mot-clé → carte à afficher (instantané, pas de LLM).
-  // Note : les proof_number n'ont PAS d'image_key. Le gros chiffre doré est le
-  // seul visuel (évite les désalignements image/contexte côté CDN).
+  // Mapping mot-clé → carte. Chaque trigger est BINDÉ à son produit d'origine
+  // (champ `product`). Un trigger ne s'affiche que si le produit actif correspond
+  // ou si `product` est null (générique). Évite qu'une carte Alpha apparaisse
+  // pendant un pitch Fin du Travail / Crypto.
   var LOCAL_CARD_TRIGGERS = [
-    { keywords: ["whitney tilson", "tilson"],         card: { template: "expert_portrait", image_key: "authority_tilson", title: "Whitney Tilson", subtitle: "Formé par Warren Buffett", items: ["+47 400% sur Apple", "+8 900% sur Netflix", "20+ ans à Wall Street"] } },
-    { keywords: ["eric wade", "wade"],                card: { template: "expert_portrait", image_key: "authority_wade", title: "Eric Wade", subtitle: "Le Business Angel de la Tech", items: ["wallstreet.com : 7$ → 1M$", "24 recos > +1000%", "Polymath +3 180%"] } },
-    { keywords: ["dan ferris", "ferris", "crocodile"], card: { template: "expert_portrait", image_key: "authority_ferris", title: "Dan Ferris", subtitle: "Le Crocodile de Wall Street", items: ["Surperforme depuis 2002", "Constellation +629%", "Apple +190%"] } },
-    { keywords: ["jim simons", "simons", "renaissance"], card: { template: "proof_number", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
-    { keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
-    { keywords: ["apple", "47400", "47 400"],         card: { template: "proof_number", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
-    { keywords: ["nvidia", "6400", "6 400", "30000", "30 000"], card: { template: "proof_number", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017" } },
-    { keywords: ["polymath", "3180", "3 180"],        card: { template: "proof_number", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
-    { keywords: ["harmony", "8079", "8 079"],         card: { template: "proof_number", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
-    { keywords: ["lumentum", "548"],                  card: { template: "proof_number", title: "+548%", subtitle: "Lumentum Holdings — Argo Éditions" } },
-    { keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
-    { keywords: ["or ", " or,", "gold", "minières", "minieres", "détonateur"], card: { template: "proof_number", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
-    { keywords: ["bouclier suisse", "sécuriser votre épargne"], card: { template: "proof_number", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
-    { keywords: ["fin du travail", "60%", "emplois", "rentier"], card: { template: "opportunity", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
-    { keywords: ["garantie", "remboursé", "3 mois", "sans risque"], card: "guarantee_generic" },
+    // ===== argo_actions (Whitney Tilson) =====
+    { product: "argo_actions", keywords: ["whitney tilson", "tilson"],         card: { template: "expert_portrait", image_key: "authority_tilson", title: "Whitney Tilson", subtitle: "Formé par Warren Buffett", items: ["+47 400% sur Apple", "+8 900% sur Netflix", "20+ ans à Wall Street"] } },
+    { product: "argo_actions", keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
+    { product: "argo_actions", keywords: ["apple", "47400", "47 400", "x475"], card: { template: "proof_number", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
+    { product: "argo_actions", keywords: ["sodastream", "1100"],               card: { template: "proof_number", title: "+1 100%", subtitle: "SodaStream — Whitney Tilson" } },
+    { product: "argo_actions", keywords: ["ggp", "general growth", "1600"],    card: { template: "proof_number", title: "+1 600%", subtitle: "General Growth Properties" } },
+    { product: "argo_actions", keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
+    { product: "argo_actions", keywords: ["bouclier suisse", "sécuriser votre épargne", "franc suisse"], card: { template: "proof_number", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
+
+    // ===== argo_crypto (Eric Wade) =====
+    { product: "argo_crypto", keywords: ["eric wade", "wade"],                 card: { template: "expert_portrait", image_key: "authority_wade", title: "Eric Wade", subtitle: "Le Business Angel de la Tech", items: ["wallstreet.com : 7$ → 1M$", "24 recos > +1000%", "Polymath +3 180%"] } },
+    { product: "argo_crypto", keywords: ["polymath", "3180", "3 180"],         card: { template: "proof_number", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
+    { product: "argo_crypto", keywords: ["harmony", "8079", "8 079"],          card: { template: "proof_number", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
+    { product: "argo_crypto", keywords: ["fin du travail", "60%", "60 %", "emplois menacés", "rentier"], card: { template: "opportunity", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
+    { product: "argo_crypto", keywords: ["nvidia", "30000", "30 000"],         card: { template: "proof_number", title: "+30 000%", subtitle: "Nvidia — +30 000% depuis 2015" } },
+
+    // ===== argo_alpha (Stansberry + Tilson) =====
+    { product: "argo_alpha", keywords: ["jim simons", "simons", "renaissance technologies", "renaissance"], card: { template: "proof_number", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
+    { product: "argo_alpha", keywords: ["lumentum", "548"],                    card: { template: "proof_number", title: "+548%", subtitle: "Lumentum — succès passé Alpha" } },
+    { product: "argo_alpha", keywords: ["cadence design", "cadence"],          card: { template: "proof_number", title: "+550%", subtitle: "Cadence Design Systems — score Alpha 77" } },
+    { product: "argo_alpha", keywords: ["synopsys"],                           card: { template: "proof_number", title: "+450%", subtitle: "Synopsys — score Alpha 78" } },
+    { product: "argo_alpha", keywords: ["nvidia alpha", "6400", "6 400", "x65"],card: { template: "proof_number", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017 par Alpha" } },
+    { product: "argo_alpha", keywords: ["stansberry", "russell 1000"],         card: { template: "opportunity", title: "Agent Alpha", subtitle: "20 actions du Russell 1000, rebalancing IA" } },
+
+    // ===== argo_gold (Dan Ferris) =====
+    { product: "argo_gold", keywords: ["dan ferris", "ferris", "crocodile"],   card: { template: "expert_portrait", image_key: "authority_ferris", title: "Dan Ferris", subtitle: "Le Crocodile de Wall Street", items: ["Surperforme depuis 2002", "Constellation +629%", "Apple +190%"] } },
+    { product: "argo_gold", keywords: ["vista gold", "1248", "1 248"],         card: { template: "proof_number", title: "+1 248%", subtitle: "Vista Gold — x13 en 1 an" } },
+    { product: "argo_gold", keywords: ["ssr mining", "5428", "5 428"],         card: { template: "proof_number", title: "+5 428%", subtitle: "SSR Mining — x55 en 2 ans" } },
+    { product: "argo_gold", keywords: ["forsys", "10 900", "10900"],           card: { template: "proof_number", title: "+10 900%", subtitle: "Forsys Metals — x110 en 10 mois" } },
+    { product: "argo_gold", keywords: ["or ", " or,", "gold ", "minières", "minieres", "détonateur", "hyper climax"], card: { template: "proof_number", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
+
+    // ===== Génériques (tous produits) =====
+    { product: null, keywords: ["garantie", "remboursé", "rembourse", "3 mois", "sans risque"], card: "guarantee_generic" },
     // offer_card = déclenché uniquement par le coach (pas par mot-clé prix)
   ];
+
+  // Throttle le LLM cards agent à 1 appel toutes les 6s PENDANT qu'Argos parle.
+  // Le but : suivre les changements de thème (expert → chiffre → offre) dans
+  // un monologue long, sans attendre le turnComplete.
+  var lastCardsAgentSpokenCall = 0;
+  var cardsAgentSpokenInFlight = false;
+  function scheduleCardsAgentWhileSpeaking() {
+    if (cardsAgentSpokenInFlight) return;
+    var now = Date.now();
+    if (now - lastCardsAgentSpokenCall < 6000) return;
+    var bot = (state.pendingBotText || "").trim();
+    if (bot.length < 40) return; // attendre qu'Argos ait dit quelque chose de substantiel
+    lastCardsAgentSpokenCall = now;
+    cardsAgentSpokenInFlight = true;
+
+    var historySlice = state.conversationLog.slice();
+    historySlice.push({ role: "alpha", text: bot });
+
+    fetch(CARDS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        history: historySlice,
+        active_product: state.currentRecommendedProduct,
+        last_card_key: activeCards.length ? activeCards[activeCards.length - 1].key : null,
+      }),
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        cardsAgentSpokenInFlight = false;
+        var cardData = res && (res.card || res.card_a_afficher);
+        if (cardData) showSmartCard(cardData);
+      })
+      .catch(function() { cardsAgentSpokenInFlight = false; });
+  }
 
   function triggerCardsWhileSpeaking() {
     var now = Date.now();
@@ -3011,8 +3080,18 @@
     var text = (state.pendingBotText || "").toLowerCase();
     if (text.length < 20) return;
 
+    var activeProduct = state.currentRecommendedProduct || null;
+
     for (var i = 0; i < LOCAL_CARD_TRIGGERS.length; i++) {
       var trigger = LOCAL_CARD_TRIGGERS[i];
+
+      // FILTRE PRODUIT : si le trigger est bindé à un produit et que ce
+      // produit n'est pas l'actif → on skip. Évite qu'un pitch crypto
+      // affiche une carte Alpha et inversement.
+      if (trigger.product && activeProduct && trigger.product !== activeProduct) continue;
+      // Si pas de produit actif encore, on n'affiche QUE les génériques
+      if (!activeProduct && trigger.product) continue;
+
       var matched = false;
       for (var j = 0; j < trigger.keywords.length; j++) {
         if (text.indexOf(trigger.keywords[j].toLowerCase()) >= 0) { matched = true; break; }
