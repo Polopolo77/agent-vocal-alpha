@@ -2097,6 +2097,46 @@
     step();
   }
 
+  // ============ GARDE-FOU TEMPORALITÉ DES CARTES ============
+  // Empêche d'afficher une carte (expert / preuve / offre) avant que son
+  // contenu n'ait été VRAIMENT évoqué dans la conversation.
+  function cardAllowedAtThisTurn(cardData, key) {
+    var turn = state.userTurnCount;
+    var tpl = (typeof cardData === "string") ? cardData : (cardData.template || "");
+    var title = (typeof cardData === "object" && cardData.title) ? cardData.title.toLowerCase() : "";
+    // Concat texte conversation pour détection keyword
+    var allText = state.conversationLog.map(function(m) { return m.text || ""; })
+      .concat([state.pendingBotText || "", state.pendingUserText || ""])
+      .join(" ").toLowerCase();
+
+    // Avant le tour 2 : aucune carte. Le prospect vient juste de dire son prénom.
+    if (turn < 2) return false;
+
+    // expert_portrait : uniquement si le nom de l'expert apparaît dans la conv
+    if (tpl === "expert_portrait" || key.indexOf("authority_") === 0) {
+      var experts = ["tilson", "wade", "ferris", "simons", "stansberry"];
+      for (var i = 0; i < experts.length; i++) {
+        if (allText.indexOf(experts[i]) >= 0) return true;
+      }
+      return false;
+    }
+
+    // proof_number : uniquement si un chiffre concret apparaît dans la conv
+    if (tpl === "proof_number" || key.indexOf("proof_") === 0 || key.indexOf("perf_") === 0) {
+      if (/[\+xX]\s*\d{2,}|\d+\s*%|\d+\s*md|\d+\s*milliard/i.test(allText)) return true;
+      return false;
+    }
+
+    // offer_card / produit : seulement si produit recommandé ferme
+    if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer"
+        || key === "offer_card" || key.indexOf("product_") === 0) {
+      return !!state.currentRecommendedProduct;
+    }
+
+    // Opportunity / comparison / testimonial / guarantee → OK dès tour 2+
+    return turn >= 2;
+  }
+
   // ============ SMART CARDS (droite, stack 2 max) ============
   const $smartCardArea = $("smart-card-area");
   const MAX_STACK = 3;          // plus de cartes visibles pour l'effet wow
@@ -2115,6 +2155,13 @@
       key = cardData.image_key || (cardData.template + "_" + (cardData.title || "").slice(0, 20));
     }
     if (!key) return;
+
+    // GARDE-FOU TEMPORALITÉ : empêche les cartes prématurées (ex: Whitney Tilson
+    // avant même que l'agent n'ait cité son nom).
+    if (!cardAllowedAtThisTurn(cardData, key)) {
+      console.log("[Argo] Card filtered (too early):", key, "turn=", state.userTurnCount);
+      return;
+    }
 
     // Pas de doublon (state)
     if (activeCards.some(c => c.key === key)) return;

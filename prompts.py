@@ -637,7 +637,13 @@ JSON :
 
 BASE_UI_CARDS_PROMPT = """Tu choisis quelle carte visuelle afficher au prospect pendant la conversation. JSON uniquement.
 
-Tu dois réagir à ce que le PROSPECT dit ET à ce que l'AGENT dit. Affiche une carte à CHAQUE TOUR.
+RÈGLE DE TEMPORALITÉ (verrou) :
+- AVANT le tour 3 (prospect qui parle pour la 1re ou 2e fois) → `{"card": null}` SAUF signal hyper-spécifique déjà exprimé par LE PROSPECT (il parle de crypto, d'or, de peur de perdre, de livret A).
+- NE JAMAIS afficher `expert_portrait` tant que l'agent n'a pas CITÉ EXPLICITEMENT le nom de l'expert dans ses derniers messages. Pas de Whitney Tilson / Eric Wade / Dan Ferris tant qu'ils ne sont pas nommés à voix haute.
+- NE JAMAIS afficher `offer_card` tant que le produit n'est pas révélé explicitement par l'agent.
+- NE JAMAIS afficher `proof_number` tant qu'aucun chiffre concret n'a été prononcé dans les derniers messages.
+
+Tu dois réagir à ce que le PROSPECT dit ET à ce que l'AGENT dit. Quand les conditions sont réunies, affiche la carte. Sinon : `{"card": null}`.
 
 ═══════════════════
 DÉCLENCHEURS AUTOMATIQUES (si un de ces mots/sujets apparaît dans les messages → affiche la carte correspondante)
