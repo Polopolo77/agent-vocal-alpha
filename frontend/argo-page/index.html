@@ -3036,22 +3036,24 @@
   var lastCardsWhileSpeakingCall = 0;
   var localCardShown = new Set(); // évite doublons
 
-  // Mapping mot-clé → carte à afficher (instantané, pas de LLM)
+  // Mapping mot-clé → carte à afficher (instantané, pas de LLM).
+  // Note : les proof_number n'ont PAS d'image_key. Le gros chiffre doré est le
+  // seul visuel (évite les désalignements image/contexte côté CDN).
   var LOCAL_CARD_TRIGGERS = [
     { keywords: ["whitney tilson", "tilson"],         card: { template: "expert_portrait", image_key: "authority_tilson", title: "Whitney Tilson", subtitle: "Formé par Warren Buffett", items: ["+47 400% sur Apple", "+8 900% sur Netflix", "20+ ans à Wall Street"] } },
     { keywords: ["eric wade", "wade"],                card: { template: "expert_portrait", image_key: "authority_wade", title: "Eric Wade", subtitle: "Le Business Angel de la Tech", items: ["wallstreet.com : 7$ → 1M$", "24 recos > +1000%", "Polymath +3 180%"] } },
     { keywords: ["dan ferris", "ferris", "crocodile"], card: { template: "expert_portrait", image_key: "authority_ferris", title: "Dan Ferris", subtitle: "Le Crocodile de Wall Street", items: ["Surperforme depuis 2002", "Constellation +629%", "Apple +190%"] } },
-    { keywords: ["jim simons", "simons", "renaissance"], card: { template: "proof_number", image_key: "jim_simons", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
-    { keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", image_key: "proof_tilson_netflix", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
-    { keywords: ["apple", "47400", "47 400"],         card: { template: "proof_number", image_key: "proof_tilson_apple", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
-    { keywords: ["nvidia", "6400", "6 400", "30000", "30 000"], card: { template: "proof_number", image_key: "perf_nvidia_alpha", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017" } },
-    { keywords: ["polymath", "3180", "3 180"],        card: { template: "proof_number", image_key: "proof_track_record_wade", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
-    { keywords: ["harmony", "8079", "8 079"],         card: { template: "proof_number", image_key: "proof_track_record_wade", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
-    { keywords: ["lumentum", "548"],                  card: { template: "proof_number", image_key: "proof_lumentum", title: "+548%", subtitle: "Lumentum Holdings — Argo Éditions" } },
-    { keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", image_key: "proof_dette", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
-    { keywords: ["or ", " or,", "gold", "minières", "minieres", "détonateur"], card: { template: "proof_number", image_key: "cours_historique_or", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
-    { keywords: ["bouclier suisse", "suisse", "sécuriser votre épargne"], card: { template: "proof_number", image_key: "product_lead_magnet", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
-    { keywords: ["fin du travail", "60%", "emplois", "rentier"], card: { template: "opportunity", image_key: "fin_du_travail_pad", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
+    { keywords: ["jim simons", "simons", "renaissance"], card: { template: "proof_number", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
+    { keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
+    { keywords: ["apple", "47400", "47 400"],         card: { template: "proof_number", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
+    { keywords: ["nvidia", "6400", "6 400", "30000", "30 000"], card: { template: "proof_number", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017" } },
+    { keywords: ["polymath", "3180", "3 180"],        card: { template: "proof_number", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
+    { keywords: ["harmony", "8079", "8 079"],         card: { template: "proof_number", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
+    { keywords: ["lumentum", "548"],                  card: { template: "proof_number", title: "+548%", subtitle: "Lumentum Holdings — Argo Éditions" } },
+    { keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
+    { keywords: ["or ", " or,", "gold", "minières", "minieres", "détonateur"], card: { template: "proof_number", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
+    { keywords: ["bouclier suisse", "sécuriser votre épargne"], card: { template: "proof_number", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
+    { keywords: ["fin du travail", "60%", "emplois", "rentier"], card: { template: "opportunity", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
     { keywords: ["garantie", "remboursé", "3 mois", "sans risque"], card: "guarantee_generic" },
     // offer_card = déclenché uniquement par le coach (pas par mot-clé prix)
   ];
