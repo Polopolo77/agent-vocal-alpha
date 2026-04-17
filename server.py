@@ -485,7 +485,10 @@ async def handle_ui_dossier(request: web.Request) -> web.Response:
         if not history:
             return web.json_response({})
 
-        recent = history[-8:] if len(history) > 8 else history
+        # Fenêtre élargie à 24 messages : l'agent doit pouvoir réauditer
+        # son dossier précédent contre un contexte suffisant pour détecter
+        # les corrections tardives ("ah non en fait je voulais dire X").
+        recent = history[-24:] if len(history) > 24 else history
         history_text = _format_history(recent)
 
         prompt = build_ui_dossier_prompt(previous_dossier, history_text)
@@ -497,7 +500,8 @@ async def handle_ui_dossier(request: web.Request) -> web.Response:
                 config={
                     "response_mime_type": "application/json",
                     "temperature": 0.1,
-                    "max_output_tokens": 512,
+                    # +room pour l'audit du dossier précédent avant l'output JSON
+                    "max_output_tokens": 768,
                     "thinking_config": {"thinking_budget": 0},
                 },
             )

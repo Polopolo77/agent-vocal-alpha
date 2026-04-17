@@ -602,31 +602,43 @@ def build_coach_prompt(registry: ProductsRegistry, agent_name: str = DEFAULT_AGE
 # UI DOSSIER AGENT — ultra-court, focus correction + enrichissement dossier
 # =============================================================================
 
-UI_DOSSIER_PROMPT = """Tu extrais les infos du prospect depuis une conversation. JSON uniquement, rien d'autre.
+UI_DOSSIER_PROMPT = """Tu extrais et MAINTIENS le dossier du prospect. Le dossier est AFFICHÉ AU PROSPECT en temps réel — chaque erreur est visible. JSON uniquement.
 
 RÈGLE CRITIQUE : tu extrais UNIQUEMENT ce que le PROSPECT (rôle USER) a dit LUI-MÊME. JAMAIS ce que l'agent (rôle ALPHA/ARGOS) a dit.
 
+PROCESSUS EN 2 TEMPS :
+
+**TEMPS 1 — AUDIT DU DOSSIER PRÉCÉDENT.** Tu RELIS chaque champ du dossier précédent et tu te demandes pour chacun :
+  - Est-ce que le prospect l'a VRAIMENT dit ? (cherche dans l'historique)
+  - Est-ce que le prospect l'a CORRIGÉ/CONTREDIT depuis ?
+  - Est-ce que j'ai MAL interprété ?
+  Si la réponse à UNE de ces questions est "oui, c'est douteux" → tu RETIRES l'info (ou tu la remplaces par la bonne version).
+
+**TEMPS 2 — AJOUT.** Tu ajoutes les NOUVELLES infos depuis le dernier snapshot.
+
 RÈGLES :
-1. CUMULATIF : conserve les infos des tours précédents.
-2. CORRIGEABLE : si le prospect CONTREDIT une info → REMPLACE.
-3. situation = faits sur LA VIE du prospect qu'IL a dits (salarié, retraité, a de la bourse). PAS les sujets abordés par l'agent.
-4. vigilance = peurs que LE PROSPECT a exprimées LUI-MÊME. Ex valides : "je sais pas où investir", "peur de perdre". INTERDIT : "dette française", "inflation", "Euro Numérique" = sujets mentionnés PAR L'AGENT, pas par le prospect.
-5. profil_detecte = UN MOT parmi : Prudent, Dynamique, Équilibré, Agressif, ou null.
-6. signaux_non_verbaux = tableau inféré de la FORME des propos du prospect (pas du contenu) :
+1. **CUMULATIF** : conserve les infos des tours précédents SI elles sont toujours valides.
+2. **CORRIGEABLE / RETIRABLE** : si le prospect CONTREDIT une info → REMPLACE. Si tu réalises qu'une info était une MAUVAISE INTERPRÉTATION (ex: tu avais noté "retraité" parce qu'Argos l'avait suggéré, mais le prospect n'a jamais confirmé) → RETIRE-LA complètement. Mieux vaut un champ vide qu'un champ faux.
+3. **PRINCIPE DE PRUDENCE** : dans le doute, n'ajoute PAS. Un dossier incomplet est moins grave qu'un dossier faux.
+4. situation = faits sur LA VIE du prospect qu'IL a dits (salarié, retraité, a de la bourse). PAS les sujets abordés par l'agent.
+5. vigilance = peurs que LE PROSPECT a exprimées LUI-MÊME. Ex valides : "je sais pas où investir", "peur de perdre". INTERDIT : "dette française", "inflation", "Euro Numérique" = sujets mentionnés PAR L'AGENT, pas par le prospect.
+6. profil_detecte = UN MOT parmi : Prudent, Dynamique, Équilibré, Agressif, ou null. Ne mets un profil QUE si le prospect a clairement signalé son appétence au risque.
+7. signaux_non_verbaux = tableau inféré de la FORME des propos du prospect (pas du contenu) :
    - "hesitation" si phrases courtes saccadées, "euh", "je sais pas trop", "peut-être"
    - "enthousiasme" si superlatifs, phrases ouvertes, "ah oui", "super", "intéressant"
    - "méfiance" si questions de vérification, "c'est sûr ?", "vraiment ?", "attendez…"
    - "urgence" si "vite", "maintenant", "pressé"
    - "détachement" si réponses monosyllabiques, "oui", "non", "ok"
    - Maximum 3 signaux. Tableau vide si indécidable.
+8. Pour CHAQUE item que tu gardes dans situation/objectif/vigilance, il doit y avoir UNE citation LITTÉRALE du prospect dans l'historique qui le justifie. Si tu ne peux pas pointer la phrase source, tu RETIRES l'item.
 
-DOSSIER PRÉCÉDENT :
+DOSSIER PRÉCÉDENT (à auditer) :
 {{PREVIOUS_DOSSIER}}
 
-DERNIERS MESSAGES :
+HISTORIQUE COMPLET (la source de vérité) :
 {{HISTORY}}
 
-JSON :
+JSON final (après audit + ajout) :
 {"prenom":null,"situation":[],"objectif":[],"horizon":null,"capital":null,"profil_detecte":null,"vigilance":[],"signaux_non_verbaux":[]}
 """
 
