@@ -2062,8 +2062,8 @@
 
   // ============ SMART CARDS (droite, stack 2 max) ============
   const $smartCardArea = $("smart-card-area");
-  const MAX_STACK = 3;          // plus de cartes visibles pour l'effet wow
-  const STANDARD_LIFESPAN_MS = 20000;
+  const MAX_STACK = 2;          // max 2 cartes visibles
+  const STANDARD_LIFESPAN_MS = 12000; // 12s de vie max par carte
   let activeCards = [];         // { key, el, timeout }
 
   function showSmartCard(cardData) {
@@ -2114,9 +2114,11 @@
 
     activeCards.push({ key: key, el: cardEl, timeout: timeoutId });
 
-    // Si dépassement du stack, retirer la plus ancienne NON-product
+    // FIFO pur : toute nouvelle carte éjecte la plus ancienne IMMÉDIATEMENT
+    // (pas d'attente des 12s). Les offres/produits n'ont pas de priorité —
+    // le flux doit rester lisible, on garde au max 2 cartes à l'écran.
     while (activeCards.length > MAX_STACK) {
-      const victim = activeCards.find(c => c.key !== "offer_card" && !c.key.startsWith("product_")) || activeCards[0];
+      const victim = activeCards[0];
       hideSmartCard(victim.key);
     }
   }
