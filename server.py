@@ -312,36 +312,14 @@ async def handle_session(request: web.Request) -> web.Response:
 async def handle_token(request: web.Request) -> web.Response:
     """Provide API key for the frontend to connect to Gemini Live.
 
-    NOTE sécurité : l'idéal serait un token éphémère (genai.auth_tokens.create,
-    v1alpha). On tente ; sinon fallback sur la clé brute avec Origin check.
+    Note : la tentative de token éphémère a été retirée — `auth_tokens.create`
+    retourne le nom de la ressource (`auth_tokens/...`) qui ne peut pas être
+    utilisé directement dans l'URL WS `?key=...` du SDK custom côté client.
+    La vraie fix (proxy WS via backend) est un refacto à part.
     """
     if not GEMINI_API_KEY:
         return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
-
-    token = GEMINI_API_KEY
-    ephemeral = False
-    try:
-        # Tentative d'émission d'un token éphémère (v1alpha required)
-        alpha_client = genai.Client(
-            api_key=GEMINI_API_KEY,
-            http_options={"api_version": "v1alpha"},
-        )
-        result = await asyncio.to_thread(
-            lambda: alpha_client.auth_tokens.create(
-                config={
-                    "uses": 1,
-                    "expire_time": datetime.now(timezone.utc).timestamp() + 1800,
-                    "new_session_expire_time": datetime.now(timezone.utc).timestamp() + 60,
-                }
-            )
-        )
-        if result and getattr(result, "name", None):
-            token = result.name
-            ephemeral = True
-    except Exception as e:
-        log.debug("Ephemeral token unavailable, falling back to raw key: %s", e)
-
-    return web.json_response({"token": token, "model": LIVE_MODEL, "ephemeral": ephemeral})
+    return web.json_response({"token": GEMINI_API_KEY, "model": LIVE_MODEL})
 
 
 async def handle_list_products(request: web.Request) -> web.Response:
