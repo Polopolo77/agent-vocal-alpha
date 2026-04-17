@@ -389,6 +389,63 @@ def build_catalog_overlay(registry: ProductsRegistry) -> str:
             lines.append(f"- Positionnement : *{short_pos}*")
         if main_angle:
             lines.append(f"- Angle principal : {main_angle}")
+
+        # CHIFFRES AUTORISÉS À LA CITATION (lus depuis le config.json, donc
+        # chiffres RÉELS, VALIDÉS par la lettre de vente). Injectés ici pour
+        # que Argos les ait TOUJOURS en tête, sans dépendre d'un briefing
+        # dynamique qui peut ne pas arriver à temps côté Gemini Live.
+        all_wins: list[dict] = []
+        # Plusieurs structures possibles dans les config.json :
+        all_wins += lead.get("notable_wins", []) or []
+        all_wins += lead.get("notable_wins_official", []) or []
+        tr = cfg.get("track_record", {}) or {}
+        all_wins += tr.get("notable_wins", []) or []
+        all_wins += cfg.get("simulated_performance", {}).get("wins", []) or []
+
+        def _fmt_win(w: dict) -> str | None:
+            asset = w.get("asset") or w.get("ticker") or w.get("name")
+            if not asset:
+                return None
+            year = w.get("year") or w.get("entry_year")
+            multi = w.get("multiple")
+            pct = w.get("return_pct")
+            parts = []
+            if multi and pct:
+                parts.append(f"{multi} = +{pct}%")
+            elif multi:
+                parts.append(str(multi))
+            elif pct is not None:
+                sign = "+" if pct >= 0 else ""
+                parts.append(f"{sign}{pct}%")
+            else:
+                return None
+            year_str = f" ({year})" if year else ""
+            return f"{asset}{year_str} : {parts[0]}"
+
+        # Dé-dup par asset pour éviter Apple x2
+        seen_assets: set[str] = set()
+        wins_lines: list[str] = []
+        for w in all_wins:
+            formatted = _fmt_win(w)
+            if not formatted:
+                continue
+            key = formatted.split(" ")[0]
+            if key in seen_assets:
+                continue
+            seen_assets.add(key)
+            wins_lines.append(formatted)
+            if len(wins_lines) >= 10:
+                break
+        # Historique cumulatif si dispo (ex: "+3264% depuis 1999")
+        hist = tr.get("historical_cumulative")
+        if hist:
+            wins_lines.insert(0, f"Performance cumulée : {hist}")
+
+        if wins_lines:
+            lines.append(
+                "- **Chiffres autorisés à la citation (cite-les TEXTUELLEMENT, jamais approximé)** : "
+                + " | ".join(wins_lines)
+            )
         lines.append("")  # blank line between products
 
     # Routage selon profil
