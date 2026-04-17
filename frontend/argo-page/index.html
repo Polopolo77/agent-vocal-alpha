@@ -155,6 +155,58 @@
     transition: transform 0.4s cubic-bezier(.16,.78,.31,.98);
   }
 
+  /* ===== V4 — Halo de chaleur derrière l'orb (couleur pilotée en live) ===== */
+  .heat-halo {
+    position: absolute;
+    inset: -40%;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--heat-color) 0%, transparent 55%);
+    opacity: 0;
+    filter: blur(24px);
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.8s, background 0.8s;
+  }
+  body.in-call .heat-halo { opacity: calc(0.12 + var(--heat-pct) / 350); }
+  body.in-call.chaleur-ready .heat-halo { animation: heat-halo-pulse 2s ease-in-out infinite; }
+  @keyframes heat-halo-pulse {
+    0%, 100% { transform: scale(1); opacity: calc(0.18 + var(--heat-pct) / 350); }
+    50%      { transform: scale(1.08); opacity: calc(0.28 + var(--heat-pct) / 300); }
+  }
+
+  /* ===== V1 — Waveform spectrale autour de l'orb (SVG 64 barres en cercle) ===== */
+  .orb-waveform {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 280px; height: 280px;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.5s;
+    pointer-events: none;
+    z-index: 1;
+  }
+  body.in-call .orb-container.speaking .orb-waveform { opacity: 1; }
+  .orb-waveform line {
+    stroke: var(--gold);
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    transform-origin: 140px 140px;
+    filter: drop-shadow(0 0 3px rgba(212,180,90,0.5));
+  }
+
+  /* ===== V2 — Canvas de particules d'or ===== */
+  #particle-canvas {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 340px; height: 340px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  body.in-call .orb-container.speaking #particle-canvas { opacity: 1; }
+
   /* ===== PROGRESS RING SVG autour de l'orb ===== */
   .orb-ring-progress {
     position: absolute;
@@ -195,12 +247,12 @@
   .orb-container.connecting .orb-ring,
   .orb-container.speaking   .orb-ring {
     opacity: 1;
-    animation: ring-pulse 2.2s ease-in-out infinite;
+    animation: ring-pulse 1.1s ease-in-out infinite;
   }
-  .orb-container.speaking .orb-ring:nth-child(2) { animation-delay: 0.4s; }
+  .orb-container.speaking .orb-ring:nth-child(2) { animation-delay: 0.25s; }
   @keyframes ring-pulse {
     0%   { transform: translate(-50%, -50%) scale(0.92); opacity: 0.9; }
-    100% { transform: translate(-50%, -50%) scale(1.1);  opacity: 0; }
+    100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0; }
   }
 
   .orb {
@@ -219,16 +271,18 @@
     overflow: hidden;
   }
   /* Wave caustique à l'intérieur de l'orb pendant que Argos parle */
+  /* Fix : l'ancien inset -20% + overflow:hidden rendait la wave invisible.
+     Nouveau : inset 0 (stay inside) + rotation sur z-axis, visible. */
   .orb::after {
     content: "";
     position: absolute;
-    inset: -20%;
+    inset: 0;
     background:
-      radial-gradient(circle at 30% 40%, rgba(212,180,90,0.2) 0%, transparent 35%),
-      radial-gradient(circle at 70% 60%, rgba(255,220,140,0.15) 0%, transparent 40%);
+      radial-gradient(circle at 30% 40%, rgba(212,180,90,0.28) 0%, transparent 40%),
+      radial-gradient(circle at 70% 60%, rgba(255,220,140,0.2) 0%, transparent 45%);
     opacity: 0;
     transition: opacity 0.4s;
-    animation: orb-wave 8s linear infinite;
+    animation: orb-wave 4s linear infinite;
   }
   .orb-container.speaking .orb::after { opacity: 1; }
   @keyframes orb-wave {
@@ -1030,6 +1084,254 @@
 
   /* Screen reader only */
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  /* ============ V8 — COMPTEUR DE VALEUR PERÇUE (haut gauche) ============ */
+  .value-counter {
+    position: fixed;
+    top: 22px;
+    left: 22px;
+    background: rgba(20,20,20,0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(212,180,90,0.3);
+    border-radius: 14px;
+    padding: 10px 16px;
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.5s, transform 0.5s;
+    font-family: 'Inter', sans-serif;
+    pointer-events: none;
+  }
+  body.in-call .value-counter.active { opacity: 1; transform: none; }
+  .value-counter .vc-label {
+    font-size: 0.58rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a8783;
+    margin-bottom: 3px;
+  }
+  .value-counter .vc-amount {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .value-counter.bumped .vc-amount { animation: vc-bump 0.5s ease-out; }
+  @keyframes vc-bump {
+    0%   { transform: scale(1); color: var(--gold); }
+    40%  { transform: scale(1.22); color: #fff8dc; text-shadow: 0 0 14px rgba(212,180,90,0.7); }
+    100% { transform: scale(1); color: var(--gold); }
+  }
+
+  /* ============ V9 — BORDURE DORÉE DU VIEWPORT (chaleur=chaud/ready) ============ */
+  .viewport-glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 150;
+    box-shadow: inset 0 0 0 rgba(212,180,90,0);
+    transition: box-shadow 1.2s;
+  }
+  body.chaleur-hot .viewport-glow {
+    box-shadow: inset 0 0 50px rgba(212,180,90,0.22);
+  }
+  body.chaleur-ready .viewport-glow {
+    box-shadow: inset 0 0 90px rgba(212,180,90,0.38);
+    animation: viewport-glow-pulse 3s ease-in-out infinite;
+  }
+  @keyframes viewport-glow-pulse {
+    0%, 100% { box-shadow: inset 0 0 90px rgba(212,180,90,0.32); }
+    50%      { box-shadow: inset 0 0 140px rgba(212,180,90,0.55); }
+  }
+
+  /* ============ V10 — LIGNE DROITE BELFORT (3 certitudes) ============ */
+  .belfort-line {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(520px, 70vw);
+    height: 36px;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.6s;
+    pointer-events: none;
+  }
+  body.in-call .belfort-line { opacity: 1; }
+  .belfort-line .bl-track {
+    position: absolute;
+    top: 16px;
+    left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+  }
+  .belfort-line .bl-fill {
+    position: absolute;
+    top: 0; left: 0; height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold-2), var(--gold), #fff8dc);
+    border-radius: 2px;
+    transition: width 1.2s cubic-bezier(.16,.78,.31,.98);
+    box-shadow: 0 0 10px rgba(212,180,90,0.5);
+  }
+  .belfort-line .bl-dots {
+    position: absolute;
+    top: 10px; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+  }
+  .belfort-line .bl-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.9);
+    border: 1.5px solid rgba(255,255,255,0.15);
+    transition: background 0.6s, border-color 0.6s, box-shadow 0.6s;
+  }
+  .belfort-line .bl-dot.filled {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 10px rgba(212,180,90,0.8);
+  }
+  .belfort-line .bl-labels {
+    position: absolute;
+    top: 22px; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .belfort-line .bl-label.filled { color: var(--gold); }
+
+  /* ============ V5 — SMART CARDS EN CASCADE 3D ============ */
+  #smart-card-area .smart-card:not(:first-child) {
+    transform: translateY(0) rotateX(2.5deg) scale(0.98);
+    margin-top: -14px;
+  }
+  #smart-card-area .smart-card:not(:first-child):not(:nth-child(2)) {
+    transform: translateY(0) rotateX(5deg) scale(0.96);
+  }
+
+  /* ============ V7 — CARTE OFFRE QUI SE DÉPLIE (rotateX) ============ */
+  .smart-card.offer-reveal {
+    transform-origin: top center;
+    animation: offer-unfold 0.9s cubic-bezier(.16,.78,.31,.98) both;
+  }
+  @keyframes offer-unfold {
+    0%   { transform: perspective(900px) rotateX(-180deg) scale(0.7); opacity: 0; }
+    55%  { transform: perspective(900px) rotateX(-10deg)  scale(0.98); opacity: 1; }
+    100% { transform: perspective(900px) rotateX(0deg)    scale(1); opacity: 1; }
+  }
+
+  /* ============ V3 — BULLET-TIME au closing ============ */
+  body.closing-freeze .orb-container,
+  body.closing-freeze #smart-card-area,
+  body.closing-freeze #dossier-panel {
+    transition: filter 1.4s, transform 1.4s, opacity 1.4s !important;
+    filter: blur(2px) saturate(0.7);
+    transform: scale(0.985);
+  }
+  body.closing-freeze .orb { animation: closing-heartbeat 1.2s ease-in-out 1; }
+  @keyframes closing-heartbeat {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(212,180,90,0.3), 0 0 120px rgba(212,180,90,0.15); }
+    50%      { transform: scale(1.08); box-shadow: 0 0 120px rgba(212,180,90,0.9), 0 0 240px rgba(212,180,90,0.45); }
+  }
+
+  /* ============ DOSSIER — fermeture mobile ============ */
+  .dossier-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--fg);
+    font-size: 1rem;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+  }
+  .dossier-close:hover { background: rgba(255,255,255,0.12); }
+  @media (max-width: 720px) {
+    .dossier-close { display: flex; }
+  }
+
+  /* ============ POST-CALL — opt-in mémoire (P8) ============ */
+  .remember-me {
+    margin-top: 22px;
+    background: rgba(212,180,90,0.06);
+    border: 1px solid rgba(212,180,90,0.2);
+    border-radius: 12px;
+    padding: 14px 18px;
+    max-width: 400px;
+    margin-left: auto; margin-right: auto;
+    text-align: left;
+  }
+  .remember-me label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    color: #c8c4bb;
+    font-size: 0.85rem;
+    line-height: 1.45;
+  }
+  .remember-me input[type="checkbox"] {
+    accent-color: var(--gold);
+    margin-top: 3px;
+    width: 16px; height: 16px;
+    cursor: pointer;
+  }
+
+  /* ============ ACCESSIBILITÉ ============ */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  /* Contraste WCAG AA : text plus clair sur le dossier */
+  .dossier-empty { color: #9a968c; }
+  /* Lisibilité 65+ : labels remontés à 11-12px */
+  .dossier-label { font-size: 0.72rem; }
+  .dossier-progress-label { font-size: 0.78rem; }
+  .status { font-size: 0.88rem; }
+  .heat-label { font-size: 0.72rem; }
+
+  /* ============ RESPONSIVE — fix zone morte 1100-1280px ============ */
+  @media (min-width: 1101px) and (max-width: 1280px) {
+    #smart-card-area {
+      left: 50%;
+      right: auto;
+      width: min(480px, 44vw);
+      max-width: 480px;
+      transform: translateX(-50%) translateY(-50%);
+    }
+    body.dossier-open #smart-card-area {
+      left: auto;
+      right: 24px;
+      transform: translateY(0);
+      top: 100px;
+      bottom: 100px;
+    }
+  }
+
+  /* ============ prefers-reduced-motion ============ */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.08s !important;
+    }
+    .heat-halo,
+    #particle-canvas,
+    .orb-waveform,
+    .viewport-glow { animation: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -1043,12 +1345,15 @@
   </h1>
 
   <div class="orb-container idle" id="orb-container">
+    <div class="heat-halo" aria-hidden="true"></div>
     <div class="orb-ring"></div>
     <div class="orb-ring"></div>
     <svg class="orb-ring-progress" viewBox="0 0 240 240" aria-hidden="true">
       <circle class="bg" cx="120" cy="120" r="115"></circle>
       <circle class="fg" cx="120" cy="120" r="115"></circle>
     </svg>
+    <svg class="orb-waveform" id="orb-waveform" viewBox="0 0 280 280" aria-hidden="true"></svg>
+    <canvas id="particle-canvas" width="680" height="680" aria-hidden="true"></canvas>
     <div class="orb" id="orb"></div>
   </div>
 
@@ -1092,10 +1397,38 @@
   </footer>
 </div>
 
+<!-- V8 : Compteur de valeur perçue (haut gauche) -->
+<div class="value-counter" id="value-counter" aria-hidden="true">
+  <div class="vc-label">Valeur évoquée</div>
+  <div class="vc-amount" id="vc-amount">0 €</div>
+</div>
+
+<!-- V9 : Bordure dorée du viewport (activée sur chaleur=chaud/ready) -->
+<div class="viewport-glow" aria-hidden="true"></div>
+
+<!-- V10 : Ligne droite Belfort (3 certitudes : produit / expert / marque) -->
+<div class="belfort-line" id="belfort-line" aria-hidden="true">
+  <div class="bl-track"></div>
+  <div class="bl-fill" id="bl-fill"></div>
+  <div class="bl-dots">
+    <div class="bl-dot" data-idx="0"></div>
+    <div class="bl-dot" data-idx="1"></div>
+    <div class="bl-dot" data-idx="2"></div>
+    <div class="bl-dot" data-idx="3"></div>
+  </div>
+  <div class="bl-labels">
+    <span class="bl-label" data-idx="0">Profil</span>
+    <span class="bl-label" data-idx="1">Produit</span>
+    <span class="bl-label" data-idx="2">Expert</span>
+    <span class="bl-label" data-idx="3">Confiance</span>
+  </div>
+</div>
+
 <!-- Dossier panel (left, slides in) -->
 <div class="turn-badge" id="turn-badge"><span class="turn-num" id="turn-num">0</span> tour</div>
 
 <aside id="dossier-panel" aria-label="Votre dossier en direct">
+  <button class="dossier-close" id="dossier-close" aria-label="Fermer le dossier">×</button>
   <div class="dossier-header">
     <div class="dossier-title-row">
       <div class="dossier-title">Votre dossier</div>
@@ -1110,10 +1443,10 @@
 </aside>
 
 <!-- Smart cards stack (centre, up to 2 visible) -->
-<aside id="smart-card-area" aria-label="Preuves et supports visuels"></aside>
+<aside id="smart-card-area" aria-label="Preuves et supports visuels" aria-live="assertive"></aside>
 
 <!-- Closing cinématique overlay -->
-<div class="closing-overlay" id="closing-overlay">
+<div class="closing-overlay" id="closing-overlay" role="dialog" aria-modal="true" aria-labelledby="closing-product-name" tabindex="-1">
   <div class="closing-card">
     <h3 id="closing-product-name">—</h3>
     <div class="closing-expert" id="closing-expert">—</div>
@@ -1131,6 +1464,14 @@
   <div class="postcall-product" id="postcall-product"></div>
   <a class="postcall-link" id="postcall-link" href="https://argo-editions.com" target="_blank" rel="noopener">Découvrir l'offre</a>
   <div class="postcall-dossier" id="postcall-dossier"></div>
+
+  <!-- P8 — opt-in mémoire cross-session (dossier pré-rempli au retour) -->
+  <div class="remember-me" id="remember-me">
+    <label>
+      <input type="checkbox" id="remember-check" />
+      <span>Souvenez-vous de moi lors de ma prochaine visite (stocké localement sur cet appareil, aucune donnée envoyée).</span>
+    </label>
+  </div>
 </div>
 
 <script>
@@ -1335,6 +1676,8 @@
         this.analyser.fftSize = 512;
         this.analyser.connect(this.ctx.destination);
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        // V1 — exposer l'analyser au driver de waveform spectrale
+        try { attachWaveformAnalyser(this.analyser); } catch (e) {}
         const tick = () => {
           if (this._destroyed || !this.analyser) return;
           this.analyser.getByteTimeDomainData(this.dataArray);
@@ -1375,6 +1718,7 @@
     interrupt() {
       this._destroyed = true;
       if (this._levelRaf) { cancelAnimationFrame(this._levelRaf); this._levelRaf = null; }
+      try { stopWaveform(); } catch (e) {}
       try { if (this.analyser) this.analyser.disconnect(); } catch (e) {}
       this.analyser = null;
       this.dataArray = null;
@@ -1383,6 +1727,394 @@
       this.ctx = null;
       this.nextStart = 0;
     }
+  }
+
+  // ============ SOUND DESIGN (V5 audio — 4 cues Web Audio natifs) ============
+  // Sons purement synthétiques (oscillateurs), aucun asset externe.
+  let sfxCtx = null;
+  function getSfxCtx() {
+    if (sfxCtx && sfxCtx.state !== "closed") return sfxCtx;
+    // On partage l'audio ctx si dispo, sinon on en crée un dédié aux effets.
+    sfxCtx = (typeof sharedAudioCtx !== "undefined" && sharedAudioCtx && sharedAudioCtx.state !== "closed")
+      ? sharedAudioCtx
+      : new (window.AudioContext || window.webkitAudioContext)();
+    return sfxCtx;
+  }
+  function sfxEnv(ctx, osc, gain, now, attack, hold, release, peak) {
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(peak, now + attack);
+    gain.gain.setValueAtTime(peak, now + attack + hold);
+    gain.gain.linearRampToValueAtTime(0, now + attack + hold + release);
+    osc.start(now);
+    osc.stop(now + attack + hold + release + 0.02);
+  }
+  // Ding doré (440 + 880 Hz, 80ms) — à chaque nouvel ajout au dossier
+  function sfxDossierDing() {
+    try {
+      const ctx = getSfxCtx();
+      const now = ctx.currentTime;
+      [440, 880].forEach(function(freq, i) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = freq;
+        o.connect(g).connect(ctx.destination);
+        sfxEnv(ctx, o, g, now + i * 0.015, 0.005, 0.04, 0.12, 0.12 - i * 0.04);
+      });
+    } catch (e) {}
+  }
+  // Whoosh sub-bass (sweep 120 → 60 Hz en 200ms) — arrivée smart card
+  function sfxCardWhoosh() {
+    try {
+      const ctx = getSfxCtx();
+      const now = ctx.currentTime;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(180, now);
+      o.frequency.exponentialRampToValueAtTime(55, now + 0.22);
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 450;
+      o.connect(filter).connect(g).connect(ctx.destination);
+      sfxEnv(ctx, o, g, now, 0.01, 0.05, 0.22, 0.18);
+    } catch (e) {}
+  }
+  // Heartbeat slow (60 BPM) pendant les silences > 3s — 2 coups sub-bass
+  let heartbeatTimer = null;
+  function startHeartbeat() {
+    stopHeartbeat();
+    function beat() {
+      try {
+        const ctx = getSfxCtx();
+        const now = ctx.currentTime;
+        [0, 0.15].forEach(function(d, i) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "sine"; o.frequency.value = 52;
+          o.connect(g).connect(ctx.destination);
+          sfxEnv(ctx, o, g, now + d, 0.005, 0.04, 0.1, i === 0 ? 0.22 : 0.14);
+        });
+      } catch (e) {}
+    }
+    beat();
+    heartbeatTimer = setInterval(beat, 1000); // 60 BPM
+  }
+  function stopHeartbeat() {
+    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+  }
+  // Chime cristallin (3 harmoniques) — au moment du closing
+  function sfxClosingChime() {
+    try {
+      const ctx = getSfxCtx();
+      const now = ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.50].forEach(function(freq, i) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = freq;
+        o.connect(g).connect(ctx.destination);
+        sfxEnv(ctx, o, g, now + i * 0.08, 0.01, 0.1, 0.9, 0.12 - i * 0.018);
+      });
+    } catch (e) {}
+  }
+
+  // ============ V1 — WAVEFORM SPECTRALE (64 barres en cercle SVG) ============
+  const WAVEFORM_BARS = 64;
+  let waveformAnalyser = null;
+  let waveformRaf = null;
+  let waveformBarsEls = [];
+
+  function buildWaveformBars() {
+    const svg = $("orb-waveform");
+    if (!svg || waveformBarsEls.length) return;
+    const cx = 140, cy = 140;
+    const rInner = 120, rOuter = 132;
+    for (let i = 0; i < WAVEFORM_BARS; i++) {
+      const angle = (i / WAVEFORM_BARS) * Math.PI * 2 - Math.PI / 2;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const x1 = cx + Math.cos(angle) * rInner;
+      const y1 = cy + Math.sin(angle) * rInner;
+      const x2 = cx + Math.cos(angle) * rOuter;
+      const y2 = cy + Math.sin(angle) * rOuter;
+      line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+      line.dataset.angle = angle;
+      line.dataset.x1 = x1; line.dataset.y1 = y1;
+      svg.appendChild(line);
+      waveformBarsEls.push(line);
+    }
+  }
+  function attachWaveformAnalyser(analyser) {
+    waveformAnalyser = analyser;
+    if (!waveformBarsEls.length) buildWaveformBars();
+    if (!waveformRaf) waveformTick();
+  }
+  function waveformTick() {
+    waveformRaf = requestAnimationFrame(waveformTick);
+    if (!waveformAnalyser || !waveformBarsEls.length) return;
+    const data = new Uint8Array(waveformAnalyser.frequencyBinCount);
+    waveformAnalyser.getByteFrequencyData(data);
+    const cx = 140, cy = 140;
+    const rInner = 120;
+    const rMax = 28; // amplitude max des barres
+    const step = Math.floor(data.length / WAVEFORM_BARS) || 1;
+    for (let i = 0; i < WAVEFORM_BARS; i++) {
+      const amp = (data[i * step] || 0) / 255;
+      const len = rInner + amp * rMax;
+      const line = waveformBarsEls[i];
+      const angle = parseFloat(line.dataset.angle);
+      const x2 = cx + Math.cos(angle) * len;
+      const y2 = cy + Math.sin(angle) * len;
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+    }
+  }
+  function stopWaveform() {
+    if (waveformRaf) { cancelAnimationFrame(waveformRaf); waveformRaf = null; }
+    waveformAnalyser = null;
+    // Reset des barres à l'inner radius
+    waveformBarsEls.forEach(function(line) {
+      line.setAttribute("x2", parseFloat(line.dataset.x1));
+      line.setAttribute("y2", parseFloat(line.dataset.y1));
+    });
+  }
+
+  // ============ V2 — PARTICULES D'OR (Canvas 2D, ~30 particules, gravité inverse + fade) ============
+  let particleCanvas = null, particleCtx = null, particleRaf = null;
+  const particles = [];
+  const PARTICLE_COLORS = ["#d4b45a", "#f0d98c", "#fff8dc", "#b89441"];
+  function initParticles() {
+    if (particleCanvas) return;
+    particleCanvas = $("particle-canvas");
+    if (!particleCanvas) return;
+    particleCtx = particleCanvas.getContext("2d");
+  }
+  function emitParticle() {
+    if (!particleCanvas) return;
+    const w = particleCanvas.width, h = particleCanvas.height;
+    const cx = w / 2, cy = h / 2;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.8 + Math.random() * 1.8;
+    particles.push({
+      x: cx + Math.cos(angle) * (90 + Math.random() * 40),
+      y: cy + Math.sin(angle) * (90 + Math.random() * 40),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 0.6, // gravité inverse
+      size: 1.2 + Math.random() * 2.2,
+      life: 1,
+      decay: 0.008 + Math.random() * 0.016,
+      color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
+    });
+  }
+  function particlesTick() {
+    particleRaf = requestAnimationFrame(particlesTick);
+    if (!particleCtx) return;
+    const w = particleCanvas.width, h = particleCanvas.height;
+    particleCtx.clearRect(0, 0, w, h);
+    // Émission continue pendant que Argos parle
+    if ($orbContainer.classList.contains("speaking") && particles.length < 30) {
+      if (Math.random() > 0.4) emitParticle();
+    }
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      p.vy -= 0.02; // remontée
+      p.life -= p.decay;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      particleCtx.globalAlpha = Math.max(0, p.life);
+      particleCtx.fillStyle = p.color;
+      particleCtx.beginPath();
+      particleCtx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      particleCtx.fill();
+      // Traînée dorée
+      particleCtx.globalAlpha = Math.max(0, p.life * 0.3);
+      particleCtx.beginPath();
+      particleCtx.arc(p.x, p.y, p.size * 2.5 * p.life, 0, Math.PI * 2);
+      particleCtx.fill();
+    }
+    particleCtx.globalAlpha = 1;
+  }
+  function startParticles() { initParticles(); if (!particleRaf) particlesTick(); }
+  function stopParticles() {
+    if (particleRaf) { cancelAnimationFrame(particleRaf); particleRaf = null; }
+    particles.length = 0;
+    if (particleCtx && particleCanvas) particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+  }
+
+  // ============ V8 — COMPTEUR DE VALEUR PERÇUE ============
+  // Dès qu'Argos cite "+548%", "x475", "+8 900€", on incrémente un compteur
+  // qui matérialise ce que le prospect risque de "manquer" s'il part.
+  let perceivedValue = 0;
+  const seenValueTokens = new Set();
+  function extractValueTokens(text) {
+    const tokens = [];
+    const re = /(\+?\d{1,3}(?:[\s\u00a0]\d{3})+\s*%?|\+?\d+\s*%|x\s*\d+|\+\d+[\s\u00a0]?\d*\s*€?)/gi;
+    let m;
+    while ((m = re.exec(text)) !== null) tokens.push(m[0].trim());
+    return tokens;
+  }
+  function estimateValueFromToken(token) {
+    // Un "+548%" équivaut à un gain perçu de 548€ sur un capital référence 100€.
+    // On bump la valeur totale de manière représentative, pas littérale.
+    const pctMatch = token.match(/\+?(\d[\d\s\u00a0]*)\s*%/);
+    if (pctMatch) {
+      const n = parseInt(pctMatch[1].replace(/[\s\u00a0]/g, ""), 10);
+      if (!isNaN(n)) return Math.min(n * 100, 50000);
+    }
+    const xMatch = token.match(/x\s*(\d+)/i);
+    if (xMatch) {
+      const n = parseInt(xMatch[1], 10);
+      if (!isNaN(n)) return Math.min(n * 1000, 100000);
+    }
+    const eurMatch = token.match(/\+?(\d[\d\s\u00a0]*)\s*€/);
+    if (eurMatch) {
+      const n = parseInt(eurMatch[1].replace(/[\s\u00a0]/g, ""), 10);
+      if (!isNaN(n)) return n;
+    }
+    return 0;
+  }
+  function formatEur(v) {
+    return Math.round(v).toLocaleString("fr-FR") + " €";
+  }
+  function bumpPerceivedValueFromText(text) {
+    if (!text) return;
+    const tokens = extractValueTokens(text);
+    let added = 0;
+    tokens.forEach(function(t) {
+      if (seenValueTokens.has(t)) return;
+      seenValueTokens.add(t);
+      added += estimateValueFromToken(t);
+    });
+    if (added <= 0) return;
+    perceivedValue += added;
+    const $vc = $("value-counter");
+    const $amt = $("vc-amount");
+    if (!$vc || !$amt) return;
+    $vc.classList.add("active");
+    $amt.textContent = formatEur(perceivedValue);
+    $vc.classList.remove("bumped");
+    void $vc.offsetWidth;
+    $vc.classList.add("bumped");
+  }
+  function resetPerceivedValue() {
+    perceivedValue = 0;
+    seenValueTokens.clear();
+    const $vc = $("value-counter"); if ($vc) $vc.classList.remove("active");
+    const $amt = $("vc-amount");   if ($amt) $amt.textContent = "0 €";
+  }
+
+  // ============ V10 — LIGNE DROITE BELFORT ============
+  // 4 paliers (profil / produit / expert / confiance) qui se remplissent
+  // au fur et à mesure que le coach confirme les certitudes.
+  function updateBelfortLine(d) {
+    if (!d) return;
+    const dossier = d.dossier || {};
+    const produit = d.produit || {};
+    const emot = d.etat_emotionnel || {};
+    let filled = 0;
+    // 1 — Profil identifié
+    if (dossier.profil_detecte) filled++;
+    // 2 — Produit routé
+    if (produit.recommande && (produit.certitude === "moyen" || produit.certitude === "ferme")) filled++;
+    // 3 — Expert nommé (certitude ferme)
+    if (produit.certitude === "ferme") filled++;
+    // 4 — Confiance agent = bonne / excellente
+    if (emot.confiance_agent === "bonne" || emot.confiance_agent === "excellente" || emot.chaleur === "chaud" || emot.chaleur === "pret_a_acheter") filled++;
+
+    const pct = Math.round((filled / 4) * 100);
+    const $fill = $("bl-fill");
+    if ($fill) $fill.style.width = pct + "%";
+    document.querySelectorAll(".bl-dot").forEach(function(el, i) {
+      el.classList.toggle("filled", i < filled);
+    });
+    document.querySelectorAll(".bl-label").forEach(function(el, i) {
+      el.classList.toggle("filled", i < filled);
+    });
+  }
+  function resetBelfortLine() {
+    const $fill = $("bl-fill"); if ($fill) $fill.style.width = "0%";
+    document.querySelectorAll(".bl-dot, .bl-label").forEach(function(el) {
+      el.classList.remove("filled");
+    });
+  }
+
+  // ============ V9 — BORDURE DORÉE VIEWPORT (chaud/ready) ============
+  function updateViewportGlow(chaleur) {
+    document.body.classList.remove("chaleur-hot", "chaleur-ready");
+    if (chaleur === "chaud") document.body.classList.add("chaleur-hot");
+    if (chaleur === "pret_a_acheter") document.body.classList.add("chaleur-ready");
+  }
+
+  // ============ P7 — DÉTECTION DE FIN D'APPEL NATURELLE ============
+  const END_CALL_PATTERNS = [
+    /\bau\s+revoir\b/i,
+    /\bà\s+(bientôt|très\s+vite|plus\s+tard|la\s+prochaine)\b/i,
+    /\bmerci\s+pour\s+(ce|votre|le|tout)\b/i,
+    /\bparfait[^,.!?]*merci[^,.!?]*$/i,  // Argos ferme l'appel
+    /\bbonne\s+(journée|soirée|fin\s+de)\b/i,
+    /\bje\s+(raccroche|vais\s+y\s+aller|dois\s+filer)\b/i,
+    /\bje\s+vais\s+(réfléchir|y\s+réfléchir)\b/i,
+  ];
+  let endCallDetected = false;
+  function checkEndOfCall(text, fromRole) {
+    if (endCallDetected) return;
+    if (!text) return;
+    const t = text.toLowerCase();
+    for (let i = 0; i < END_CALL_PATTERNS.length; i++) {
+      if (END_CALL_PATTERNS[i].test(t)) {
+        endCallDetected = true;
+        console.log("[Argo] End-of-call detected:", fromRole, "→ auto disconnect dans 3s");
+        scheduleEphemeral(function() {
+          if (state.isConnected) disconnect();
+        }, 3000);
+        return;
+      }
+    }
+  }
+
+  // ============ P8 — MÉMOIRE CROSS-SESSION (LocalStorage, opt-in) ============
+  const REMEMBER_KEY = "argo_remembered_dossier_v1";
+  function loadRememberedDossier() {
+    try {
+      const raw = localStorage.getItem(REMEMBER_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.dossier) return null;
+      // Expire au bout de 60 jours
+      const age = Date.now() - (parsed.saved_at || 0);
+      if (age > 60 * 86400 * 1000) { localStorage.removeItem(REMEMBER_KEY); return null; }
+      return parsed;
+    } catch (e) { return null; }
+  }
+  function saveRememberedDossier(dossier, productId) {
+    try {
+      localStorage.setItem(REMEMBER_KEY, JSON.stringify({
+        dossier: dossier, product_id: productId, saved_at: Date.now(),
+      }));
+    } catch (e) {}
+  }
+  function clearRememberedDossier() {
+    try { localStorage.removeItem(REMEMBER_KEY); } catch (e) {}
+  }
+
+  // ============ MODE PROMPT CONTEXTUEL (P1 : DIAGNOSTIC → CLOSING) ============
+  // Envoie un nudge à Argos au tour 6 pour confirmer qu'il bascule en mode closing.
+  let modeClosingNudged = false;
+  function nudgeToClosingMode(coachDirective) {
+    if (modeClosingNudged) return;
+    if (!state.ws || state.ws.readyState !== 1) return;
+    if (state.userTurnCount < 5) return;
+    const produit = coachDirective && coachDirective.produit;
+    if (!produit || produit.certitude !== "ferme") return;
+    modeClosingNudged = true;
+    const chaleur = (coachDirective.etat_emotionnel && coachDirective.etat_emotionnel.chaleur) || "tiede";
+    const fusionHint = (chaleur === "chaud" || chaleur === "pret_a_acheter")
+      ? "Chaleur élevée → tu peux FUSIONNER 6c+6d en 1 message."
+      : "Chaleur moyenne → 1 message par phase, pas de fusion.";
+    try {
+      state.ws.send(JSON.stringify({
+        realtimeInput: { text: "[SWITCH MODE CLOSING] Le diagnostic est fini. Tu passes en mode closing structuré (phase 5 → 6a → 6b → 6c → 6d → 7). " + fusionHint + " Rappel chiffres : tu NE cites QUE les chiffres présents dans ton briefing — aucune invention." }
+      }));
+    } catch (e) {}
   }
 
   // ============ ORB LEVEL ============
@@ -1558,6 +2290,8 @@
     }
     if (isNew) {
       el.classList.add("new");
+      // Sound design : ding doré à chaque nouvel item
+      sfxDossierDing();
       if (highlight && specificItem === null) {
         // Typewriter pour le prénom (effet spécial)
         typewriterEffect(el, itemsStr[0], 55);
@@ -1608,10 +2342,16 @@
     const cardEl = buildSmartCard(cardData);
     if (!cardEl) return;
     cardEl.dataset.cardKey = key;
+    // V7 — enveloppe qui se déplie pour la carte offre / produit
+    if (key === "offer_card" || key.indexOf("product") === 0) {
+      cardEl.classList.add("offer-reveal");
+    }
 
     $smartCardArea.appendChild(cardEl);
     void cardEl.offsetWidth;
     cardEl.classList.add("visible");
+    // Sound design : whoosh à l'arrivée
+    sfxCardWhoosh();
 
     // Auto-hide 25s (sauf offer_card / product_* qui restent)
     let timeoutId = null;
@@ -1856,6 +2596,15 @@
           var chaleur = d.etat_emotionnel && d.etat_emotionnel.chaleur;
           if (chaleur) updateHeat(chaleur);
 
+          // V10 — ligne droite Belfort (4 paliers)
+          updateBelfortLine(d);
+
+          // P5 — expose les alternatives coach pour fallback UI
+          state.coachAlternatives = (d.produit && d.produit.alternatives_envisagees) || [];
+
+          // P1 — nudge vers mode closing quand le produit est ferme
+          nudgeToClosingMode(d);
+
           // Closing CTA (fix: aussi le cacher si pas vert)
           var signal = d.directive_prochain_tour && d.directive_prochain_tour.signal_closing;
           if (signal === "vert") {
@@ -2002,6 +2751,7 @@
         state.isConnected = true;
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " parle…";
+        startParticles(); // V2 — émission continue tant qu'il parle
         // Message d'ouverture : générique (on ne sait pas encore quel produit recommander).
         ws.send(JSON.stringify({
           realtimeInput: {
@@ -2064,18 +2814,25 @@
         addMessage("user", state.pendingUserText.trim(), true);
         $orbContainer.className = "orb-container";
         $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
+        stopHeartbeat(); // prospect parle → silence ambient OFF
         // B3 : pattern interrupt timer
         checkPatternInterrupt();
+        // P7 : détection fin d'appel naturelle (si le prospect dit "au revoir"…)
+        checkEndOfCall(state.pendingUserText, "user");
       }
 
       // Output transcription (alpha)
       if (sc.outputTranscription && sc.outputTranscription.text) {
         state.pendingBotText = (state.pendingBotText + sc.outputTranscription.text).slice(-4000);
         addMessage("alpha", state.pendingBotText.trim(), true);
+        // V8 : incrémente le compteur de valeur perçue quand Argos cite un chiffre
+        bumpPerceivedValueFromText(sc.outputTranscription.text || "");
         // B2 : détecte si le prix vient d'être donné
         checkSilenceAfterPrice(state.pendingBotText);
         // Cards en temps réel PENDANT qu'Argos parle (throttled à 1 appel toutes les 8s)
         triggerCardsWhileSpeaking();
+        // P7 : Argos prononce la phrase de fin → auto-disconnect
+        checkEndOfCall(state.pendingBotText, "alpha");
       }
 
       // Turn complete
@@ -2112,6 +2869,14 @@
         }
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " réfléchit…";
+        startParticles();
+        // Heartbeat lent si Argos ne reprend pas la parole sous 3s (tension)
+        scheduleEphemeral(function() {
+          if (state.isConnected && !state.pendingUserText && !state.pendingBotText) {
+            startHeartbeat();
+            scheduleEphemeral(stopHeartbeat, 5000);
+          }
+        }, 3000);
       }
     };
 
@@ -2163,14 +2928,38 @@
       hideClosingCta();
       clearConfettiTimers();
       clearAllEphemeralTimers();
+      stopHeartbeat();
       // Remise à zéro de l'orb + de l'anneau de chaleur (le coach relèvera
       // la chaleur au premier appel). Les pips restent tous éteints pour
       // éviter le flash "froid" avant même que le prospect parle.
       resetOrbVisuals();
+      resetBelfortLine();
+      resetPerceivedValue();
+      document.body.classList.remove("chaleur-hot", "chaleur-ready", "closing-freeze");
+      endCallDetected = false;
+      modeClosingNudged = false;
       document.querySelectorAll(".heat-pip").forEach(function(p) {
         p.classList.remove("active", "cold", "warm", "hot", "ready");
       });
       var $hl = $("heat-label"); if ($hl) $hl.textContent = "";
+
+      // P8 — si le prospect avait opté pour la mémoire, pré-remplit le dossier
+      var remembered = loadRememberedDossier();
+      if (remembered && remembered.dossier) {
+        state.lastDossier = remembered.dossier;
+        if (remembered.product_id) state.currentRecommendedProduct = remembered.product_id;
+        renderDossier(remembered.dossier);
+        // Sends le pré-remplissage à Argos pour qu'il le prenne en compte
+        scheduleEphemeral(function() {
+          if (!state.ws || state.ws.readyState !== 1) return;
+          var hint = "[CONTEXTE — visiteur qui revient] "
+            + "Tu connais déjà ce prospect. Son dossier : "
+            + JSON.stringify(remembered.dossier)
+            + ". Utilise son prénom immédiatement et enchaine avec un pont naturel ('Ravi de vous revoir, on s'était arrêtés sur…'). "
+            + "Ne repose pas les questions déjà répondues.";
+          state.ws.send(JSON.stringify({ realtimeInput: { text: hint } }));
+        }, 800);
+      }
 
       document.body.classList.add("in-call");
       $startBtn.style.display = "none";
@@ -2396,6 +3185,7 @@
   };
   var $heatPips = document.querySelectorAll(".heat-pip");
   var $heatLabel = $("heat-label");
+  var lastChaleur = null;
   function updateHeat(chaleur) {
     var step = HEAT_STEPS[chaleur];
     if (!step) return;
@@ -2408,9 +3198,15 @@
     });
     // Label textuel
     if ($heatLabel) $heatLabel.textContent = step.label;
-    // CSS vars → anneau SVG autour de l'orb
+    // CSS vars → anneau SVG + halo derrière l'orb (V4)
     $orbContainer.style.setProperty("--heat-pct", step.pct);
     $orbContainer.style.setProperty("--heat-color", step.color);
+    // V9 — bordure dorée du viewport
+    updateViewportGlow(chaleur);
+    // Classe globale pour animer le halo pulsé en mode "ready"
+    document.body.classList.remove("chaleur-ready");
+    if (chaleur === "pret_a_acheter") document.body.classList.add("chaleur-ready");
+    lastChaleur = chaleur;
   }
 
   // ============ CLOSING CINÉMATIQUE (A2) ============
@@ -2426,12 +3222,19 @@
     $("closing-expert").textContent = pm.expert ? "Par " + pm.expert : "";
     $("closing-price").textContent = tierA ? (tierA.label || tierA.price_eur + "€/an") : "";
     $("closing-bonus").textContent = pm.lead_magnet ? "Bonus offert : " + pm.lead_magnet : "";
-    $closingOverlay.classList.add("active");
-    // Confettis au moment de l'overlay (pas au clic CTA qui envoie ailleurs)
-    if (!closingOverlayShown) {
-      closingOverlayShown = true;
-      launchConfetti();
-    }
+
+    // V3 — bullet-time : freeze + ralenti 1s avant l'overlay pour créer l'impact
+    document.body.classList.add("closing-freeze");
+    sfxClosingChime();
+    scheduleEphemeral(function() {
+      document.body.classList.remove("closing-freeze");
+      $closingOverlay.classList.add("active");
+      try { $closingOverlay.focus(); } catch (e) {}
+      if (!closingOverlayShown) {
+        closingOverlayShown = true;
+        launchConfetti();
+      }
+    }, 1100);
   }
   function hideClosingOverlay() { $closingOverlay.classList.remove("active"); }
   $("closing-dismiss").addEventListener("click", hideClosingOverlay);
@@ -2578,6 +3381,9 @@
     // C4 — Clear tous les timers pendants
     clearAllEphemeralTimers();
     clearConfettiTimers();
+    stopHeartbeat();
+    stopParticles();
+    stopWaveform();
 
     state.isConnected = false;
     $orbContainer.className = "orb-container idle";
@@ -2607,6 +3413,22 @@
     }
 
     trackEvent("hangup", { turns: state.userTurnCount, product: state.currentRecommendedProduct });
+
+    // P8 — si le prospect a coché "souvenez-vous de moi", on sauvegarde.
+    // On attend que l'écran post-call soit monté.
+    scheduleEphemeral(function() {
+      var chk = $("remember-check");
+      if (!chk) return;
+      chk.addEventListener("change", function() {
+        if (chk.checked) {
+          saveRememberedDossier(state.lastDossier || {}, state.currentRecommendedProduct);
+        } else {
+          clearRememberedDossier();
+        }
+      });
+      // Pré-check si déjà mémorisé
+      if (loadRememberedDossier()) chk.checked = true;
+    }, 200);
   }
 
   async function saveConversation() {
@@ -2657,6 +3479,15 @@
   window.addEventListener("beforeunload", function() {
     if (state.isConnected) { try { saveConversation(); } catch (e) {} }
   });
+
+  // Fermeture du dossier sur mobile au tap (plus de user piégé)
+  var $dossierClose = $("dossier-close");
+  if ($dossierClose) {
+    $dossierClose.addEventListener("click", function() {
+      $dossierPanel.classList.remove("open");
+      document.body.classList.remove("dossier-open");
+    });
+  }
 
   // ============ WS RECONNEXION (D2) ============
   var wsRetryCount = 0;
