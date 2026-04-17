@@ -766,16 +766,19 @@ async def security_middleware(request: web.Request, handler):
         response.headers.setdefault(
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
         )
-    # CSP léger : autorise Gemini WS + fonts Google + images externes du CMS
+    # CSP léger : autorise Gemini WS + fonts Google + images externes + AudioWorklet (blob:)
     if request.path.startswith("/api/") is False:
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' blob:; "
+            "script-src-elem 'self' 'unsafe-inline' blob:; "
+            "worker-src 'self' blob:; "
+            "child-src 'self' blob:; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com data:; "
             "img-src 'self' https: data:; "
-            "media-src 'self' blob:; "
+            "media-src 'self' blob: data:; "
             "connect-src 'self' https: wss://generativelanguage.googleapis.com https://script.google.com;",
         )
     return response
