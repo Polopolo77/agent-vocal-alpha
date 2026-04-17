@@ -1561,6 +1561,7 @@
       this.dataArray = null;
       this._levelRaf = null;
       this._destroyed = false;
+      this._sources = []; // pour pouvoir flush() sur barge-in
     }
     init() {
       this.ctx = getSharedAudioCtx();
@@ -1605,9 +1606,25 @@
         this.nextStart = Math.max(this.nextStart, now);
         src.start(this.nextStart);
         this.nextStart += buf.duration;
+        // Tracke la source pour pouvoir l'arrêter sur barge-in
+        this._sources.push(src);
+        src.onended = () => {
+          const i = this._sources.indexOf(src);
+          if (i >= 0) this._sources.splice(i, 1);
+        };
       } catch (e) {
         // push() peut arriver en course avec interrupt() : silencieux.
       }
+    }
+    // Arrête immédiatement tout l'audio en cours ET bufferisé (barge-in).
+    // Garde le contexte vivant pour la suite.
+    flush() {
+      for (let i = this._sources.length - 1; i >= 0; i--) {
+        try { this._sources[i].stop(); } catch (e) {}
+        try { this._sources[i].disconnect(); } catch (e) {}
+      }
+      this._sources = [];
+      this.nextStart = this.ctx ? this.ctx.currentTime : 0;
     }
     interrupt() {
       this._destroyed = true;
@@ -2689,6 +2706,16 @@
       const sc = data.serverContent;
       if (!sc) return;
 
+      // BARGE-IN : Gemini Live détecte que le prospect parle pendant qu'Argos
+      // parle → il faut COUPER immédiatement l'audio déjà bufferisé côté client.
+      if (sc.interrupted === true) {
+        if (state.audioPlayer) state.audioPlayer.flush();
+        state.pendingBotText = "";
+        currentAlphaMsg = null;
+        $orbContainer.className = "orb-container";
+        $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
+      }
+
       // Audio out
       if (sc.modelTurn && sc.modelTurn.parts) {
         for (const part of sc.modelTurn.parts) {
@@ -2731,6 +2758,15 @@
       // Turn complete
       if (sc.turnComplete) {
         userSpeakingStart = null; // reset pattern interrupt
+
+        // Flush de la file de briefing mise en attente pendant que les deux
+        // parlaient. C'est LE moment sûr pour l'injecter : tout le monde est
+        // silencieux, Argos répondra au briefing sans marcher sur le prospect.
+        if (pendingBriefingProductId && !briefingInjected) {
+          var pid = pendingBriefingProductId;
+          pendingBriefingProductId = null;
+          scheduleEphemeral(function() { injectProductBriefing(pid); }, 300);
+        }
 
         if (state.pendingBotText) {
           state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
@@ -2933,8 +2969,19 @@
 
   // ============ AUTO-INJECTION BRIEFING PRODUIT ============
   var briefingInjected = false;
+  var pendingBriefingProductId = null;
   function injectProductBriefing(productId) {
     if (briefingInjected) return;
+    // SAFETY : si le prospect est en train de parler (pendingUserText) ou si
+    // Argos est en train de parler (pendingBotText), on DIFFÈRE l'injection.
+    // Sinon Gemini Live interprète le briefing comme un tour utilisateur et
+    // Argos "se répond à lui-même" au lieu de répondre au prospect.
+    if ((state.pendingUserText && state.pendingUserText.trim().length > 2)
+        || (state.pendingBotText && state.pendingBotText.trim().length > 2)) {
+      pendingBriefingProductId = productId;
+      console.log("[Argo] Briefing deferred (user/bot speaking):", productId);
+      return;
+    }
     briefingInjected = true;
     console.log("[Argo] Fetching briefing for injection:", productId);
 
