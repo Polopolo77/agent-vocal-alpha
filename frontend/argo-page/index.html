@@ -2934,7 +2934,16 @@
           asymetrie:  "ANGLE OBLIGATOIRE : ASYMÉTRIE. Parle de petites positions qui peuvent faire x10, de crypto, de gains rapides.",
         };
 
-        var lines = ["[BRIEFING PRODUIT — utilise ces arguments pour les phases 6a, 6b, 6c. Ne les invente PAS.]"];
+        var lines = [
+          "[CONTEXTE INTERNE COACH — NE RÉPONDS PAS À CE MESSAGE]",
+          "Ce bloc est une note privée préparée pour toi. Tu l'ABSORBES silencieusement.",
+          "Tu NE le commentes PAS. Tu NE dis PAS 'merci pour ces infos' ni 'je vois'.",
+          "Tu NE le paraphrases PAS. Tu ne fais RIEN maintenant.",
+          "Tu continues la conversation au prochain tour en t'appuyant sur ces faits,",
+          "en répondant au DERNIER message audio du prospect.",
+          "---",
+          "[BRIEFING PRODUIT — utilise ces arguments pour les phases 6a, 6b, 6c. Ne les invente PAS.]",
+        ];
         lines.push(ANGLE_RULES[angle]);
         lines.push("Produit recommandé : " + (produit.nom || productId));
         lines.push("Expert : " + (produit.expert || ""));
@@ -2964,9 +2973,30 @@
         var injectionText = lines.join("\n");
         console.log("[Argo] Injecting briefing:", injectionText.length, "chars");
 
-        state.ws.send(JSON.stringify({
-          realtimeInput: { text: injectionText }
-        }));
+        // FIX CRITIQUE : on n'utilise PLUS realtimeInput.text (qui est traité
+        // comme de la parole utilisateur → Argos répond au briefing). On passe
+        // par clientContent.turnComplete=false : ajoute au contexte SANS
+        // déclencher de réponse. Argos aura l'info au prochain tour mais ne
+        // commentera pas le briefing lui-même.
+        // Ref : Gemini Live API — clientContent avec turnComplete=false est
+        // documenté comme "append to conversation without triggering response".
+        try {
+          state.ws.send(JSON.stringify({
+            clientContent: {
+              turns: [{
+                role: "user",
+                parts: [{ text: injectionText }]
+              }],
+              turnComplete: false
+            }
+          }));
+        } catch (e) {
+          // Fallback : realtimeInput.text avec instruction très ferme
+          console.warn("[Argo] clientContent failed, fallback realtimeInput:", e);
+          state.ws.send(JSON.stringify({
+            realtimeInput: { text: injectionText }
+          }));
+        }
       })
       .catch(function(err) {
         console.warn("[Argo] Briefing injection failed:", err);
@@ -3085,12 +3115,12 @@
     for (var i = 0; i < LOCAL_CARD_TRIGGERS.length; i++) {
       var trigger = LOCAL_CARD_TRIGGERS[i];
 
-      // FILTRE PRODUIT : si le trigger est bindé à un produit et que ce
-      // produit n'est pas l'actif → on skip. Évite qu'un pitch crypto
-      // affiche une carte Alpha et inversement.
+      // FILTRE PRODUIT : si le coach a tranché sur un produit et que le
+      // trigger appartient à un AUTRE produit → on skip.
       if (trigger.product && activeProduct && trigger.product !== activeProduct) continue;
-      // Si pas de produit actif encore, on n'affiche QUE les génériques
-      if (!activeProduct && trigger.product) continue;
+      // Pré-décision coach : on laisse passer. Si Argos mentionne "Tilson"
+      // au tour 3, la carte Tilson (liée à argo_actions) peut apparaître,
+      // même si le coach n'a pas encore verrouillé le routage.
 
       var matched = false;
       for (var j = 0; j < trigger.keywords.length; j++) {
