@@ -1060,44 +1060,7 @@
   /* Screen reader only */
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
 
-  /* ============ V8 — COMPTEUR DE VALEUR PERÇUE (haut gauche) ============ */
-  .value-counter {
-    position: fixed;
-    top: 22px;
-    left: 22px;
-    background: rgba(20,20,20,0.85);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(212,180,90,0.3);
-    border-radius: 14px;
-    padding: 10px 16px;
-    z-index: 60;
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.5s, transform 0.5s;
-    font-family: 'Inter', sans-serif;
-    pointer-events: none;
-  }
-  body.in-call .value-counter.active { opacity: 1; transform: none; }
-  .value-counter .vc-label {
-    font-size: 0.58rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #8a8783;
-    margin-bottom: 3px;
-  }
-  .value-counter .vc-amount {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--gold);
-    line-height: 1;
-  }
-  .value-counter.bumped .vc-amount { animation: vc-bump 0.5s ease-out; }
-  @keyframes vc-bump {
-    0%   { transform: scale(1); color: var(--gold); }
-    40%  { transform: scale(1.22); color: #fff8dc; text-shadow: 0 0 14px rgba(212,180,90,0.7); }
-    100% { transform: scale(1); color: var(--gold); }
-  }
+  /* Compteur de valeur perçue retiré */
 
   /* ============ V9 — BORDURE DORÉE DU VIEWPORT (chaleur=chaud/ready) ============ */
   .viewport-glow {
@@ -1307,12 +1270,6 @@
   <footer>
     © Argo Éditions · Concierge IA <span id="agent-name-footer">Argos</span> · Propulsé par Gemini
   </footer>
-</div>
-
-<!-- V8 : Compteur de valeur perçue (haut gauche) -->
-<div class="value-counter" id="value-counter" aria-hidden="true">
-  <div class="vc-label">Valeur évoquée</div>
-  <div class="vc-amount" id="vc-amount">0 €</div>
 </div>
 
 <!-- V9 : Bordure dorée du viewport (activée sur chaleur=chaud/ready) -->
@@ -1770,67 +1727,9 @@
     if (particleCtx && particleCanvas) particleCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
   }
 
-  // ============ V8 — COMPTEUR DE VALEUR PERÇUE ============
-  // Dès qu'Argos cite "+548%", "x475", "+8 900€", on incrémente un compteur
-  // qui matérialise ce que le prospect risque de "manquer" s'il part.
-  let perceivedValue = 0;
-  const seenValueTokens = new Set();
-  function extractValueTokens(text) {
-    const tokens = [];
-    const re = /(\+?\d{1,3}(?:[\s\u00a0]\d{3})+\s*%?|\+?\d+\s*%|x\s*\d+|\+\d+[\s\u00a0]?\d*\s*€?)/gi;
-    let m;
-    while ((m = re.exec(text)) !== null) tokens.push(m[0].trim());
-    return tokens;
-  }
-  function estimateValueFromToken(token) {
-    // Un "+548%" équivaut à un gain perçu de 548€ sur un capital référence 100€.
-    // On bump la valeur totale de manière représentative, pas littérale.
-    const pctMatch = token.match(/\+?(\d[\d\s\u00a0]*)\s*%/);
-    if (pctMatch) {
-      const n = parseInt(pctMatch[1].replace(/[\s\u00a0]/g, ""), 10);
-      if (!isNaN(n)) return Math.min(n * 100, 50000);
-    }
-    const xMatch = token.match(/x\s*(\d+)/i);
-    if (xMatch) {
-      const n = parseInt(xMatch[1], 10);
-      if (!isNaN(n)) return Math.min(n * 1000, 100000);
-    }
-    const eurMatch = token.match(/\+?(\d[\d\s\u00a0]*)\s*€/);
-    if (eurMatch) {
-      const n = parseInt(eurMatch[1].replace(/[\s\u00a0]/g, ""), 10);
-      if (!isNaN(n)) return n;
-    }
-    return 0;
-  }
-  function formatEur(v) {
-    return Math.round(v).toLocaleString("fr-FR") + " €";
-  }
-  function bumpPerceivedValueFromText(text) {
-    if (!text) return;
-    const tokens = extractValueTokens(text);
-    let added = 0;
-    tokens.forEach(function(t) {
-      if (seenValueTokens.has(t)) return;
-      seenValueTokens.add(t);
-      added += estimateValueFromToken(t);
-    });
-    if (added <= 0) return;
-    perceivedValue += added;
-    const $vc = $("value-counter");
-    const $amt = $("vc-amount");
-    if (!$vc || !$amt) return;
-    $vc.classList.add("active");
-    $amt.textContent = formatEur(perceivedValue);
-    $vc.classList.remove("bumped");
-    void $vc.offsetWidth;
-    $vc.classList.add("bumped");
-  }
-  function resetPerceivedValue() {
-    perceivedValue = 0;
-    seenValueTokens.clear();
-    const $vc = $("value-counter"); if ($vc) $vc.classList.remove("active");
-    const $amt = $("vc-amount");   if ($amt) $amt.textContent = "0 €";
-  }
+  // Compteur de valeur perçue retiré — stubs silencieux.
+  function bumpPerceivedValueFromText() {}
+  function resetPerceivedValue() {}
 
   // Ligne Belfort retirée — stubs silencieux.
   function updateBelfortLine() {}
