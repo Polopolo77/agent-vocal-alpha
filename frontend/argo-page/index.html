@@ -207,32 +207,7 @@
   }
   body.in-call .orb-container.speaking #particle-canvas { opacity: 1; }
 
-  /* ===== PROGRESS RING SVG autour de l'orb ===== */
-  .orb-ring-progress {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 240px; height: 240px;
-    transform: translate(-50%, -50%) rotate(-90deg);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s;
-  }
-  body.in-call .orb-ring-progress { opacity: 1; }
-  .orb-ring-progress circle.bg {
-    fill: none;
-    stroke: rgba(255,255,255,0.05);
-    stroke-width: 2;
-  }
-  .orb-ring-progress circle.fg {
-    fill: none;
-    stroke: var(--heat-color);
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-dasharray: 720;
-    stroke-dashoffset: calc(720 - (720 * var(--heat-pct) / 100));
-    transition: stroke-dashoffset 1.4s cubic-bezier(.16,.78,.31,.98), stroke 1.4s;
-    filter: drop-shadow(0 0 6px var(--heat-color));
-  }
+  /* Progress ring SVG retiré (anneau de chaleur autour de l'orb) */
   .orb-ring {
     position: absolute;
     top: 50%; left: 50%;
@@ -1145,66 +1120,7 @@
     50%      { box-shadow: inset 0 0 140px rgba(212,180,90,0.55); }
   }
 
-  /* ============ V10 — LIGNE DROITE BELFORT (3 certitudes) ============ */
-  .belfort-line {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(520px, 70vw);
-    height: 36px;
-    z-index: 50;
-    opacity: 0;
-    transition: opacity 0.6s;
-    pointer-events: none;
-  }
-  body.in-call .belfort-line { opacity: 1; }
-  .belfort-line .bl-track {
-    position: absolute;
-    top: 16px;
-    left: 0; right: 0;
-    height: 2px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 2px;
-  }
-  .belfort-line .bl-fill {
-    position: absolute;
-    top: 0; left: 0; height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--gold-2), var(--gold), #fff8dc);
-    border-radius: 2px;
-    transition: width 1.2s cubic-bezier(.16,.78,.31,.98);
-    box-shadow: 0 0 10px rgba(212,180,90,0.5);
-  }
-  .belfort-line .bl-dots {
-    position: absolute;
-    top: 10px; left: 0; right: 0;
-    display: flex;
-    justify-content: space-between;
-  }
-  .belfort-line .bl-dot {
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.9);
-    border: 1.5px solid rgba(255,255,255,0.15);
-    transition: background 0.6s, border-color 0.6s, box-shadow 0.6s;
-  }
-  .belfort-line .bl-dot.filled {
-    background: var(--gold);
-    border-color: var(--gold);
-    box-shadow: 0 0 10px rgba(212,180,90,0.8);
-  }
-  .belfort-line .bl-labels {
-    position: absolute;
-    top: 22px; left: 0; right: 0;
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.6rem;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .belfort-line .bl-label.filled { color: var(--gold); }
+  /* Ligne Belfort retirée */
 
   /* ============ V5 — SMART CARDS EN CASCADE 3D ============ */
   #smart-card-area .smart-card:not(:first-child) {
@@ -1348,10 +1264,6 @@
     <div class="heat-halo" aria-hidden="true"></div>
     <div class="orb-ring"></div>
     <div class="orb-ring"></div>
-    <svg class="orb-ring-progress" viewBox="0 0 240 240" aria-hidden="true">
-      <circle class="bg" cx="120" cy="120" r="115"></circle>
-      <circle class="fg" cx="120" cy="120" r="115"></circle>
-    </svg>
     <svg class="orb-waveform" id="orb-waveform" viewBox="0 0 280 280" aria-hidden="true"></svg>
     <canvas id="particle-canvas" width="680" height="680" aria-hidden="true"></canvas>
     <div class="orb" id="orb"></div>
@@ -1405,24 +1317,6 @@
 
 <!-- V9 : Bordure dorée du viewport (activée sur chaleur=chaud/ready) -->
 <div class="viewport-glow" aria-hidden="true"></div>
-
-<!-- V10 : Ligne droite Belfort (3 certitudes : produit / expert / marque) -->
-<div class="belfort-line" id="belfort-line" aria-hidden="true">
-  <div class="bl-track"></div>
-  <div class="bl-fill" id="bl-fill"></div>
-  <div class="bl-dots">
-    <div class="bl-dot" data-idx="0"></div>
-    <div class="bl-dot" data-idx="1"></div>
-    <div class="bl-dot" data-idx="2"></div>
-    <div class="bl-dot" data-idx="3"></div>
-  </div>
-  <div class="bl-labels">
-    <span class="bl-label" data-idx="0">Profil</span>
-    <span class="bl-label" data-idx="1">Produit</span>
-    <span class="bl-label" data-idx="2">Expert</span>
-    <span class="bl-label" data-idx="3">Confiance</span>
-  </div>
-</div>
 
 <!-- Dossier panel (left, slides in) -->
 <div class="turn-badge" id="turn-badge"><span class="turn-num" id="turn-num">0</span> tour</div>
@@ -1729,93 +1623,12 @@
     }
   }
 
-  // ============ SOUND DESIGN (V5 audio — 4 cues Web Audio natifs) ============
-  // Sons purement synthétiques (oscillateurs), aucun asset externe.
-  let sfxCtx = null;
-  function getSfxCtx() {
-    if (sfxCtx && sfxCtx.state !== "closed") return sfxCtx;
-    // On partage l'audio ctx si dispo, sinon on en crée un dédié aux effets.
-    sfxCtx = (typeof sharedAudioCtx !== "undefined" && sharedAudioCtx && sharedAudioCtx.state !== "closed")
-      ? sharedAudioCtx
-      : new (window.AudioContext || window.webkitAudioContext)();
-    return sfxCtx;
-  }
-  function sfxEnv(ctx, osc, gain, now, attack, hold, release, peak) {
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(peak, now + attack);
-    gain.gain.setValueAtTime(peak, now + attack + hold);
-    gain.gain.linearRampToValueAtTime(0, now + attack + hold + release);
-    osc.start(now);
-    osc.stop(now + attack + hold + release + 0.02);
-  }
-  // Ding doré (440 + 880 Hz, 80ms) — à chaque nouvel ajout au dossier
-  function sfxDossierDing() {
-    try {
-      const ctx = getSfxCtx();
-      const now = ctx.currentTime;
-      [440, 880].forEach(function(freq, i) {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = "sine"; o.frequency.value = freq;
-        o.connect(g).connect(ctx.destination);
-        sfxEnv(ctx, o, g, now + i * 0.015, 0.005, 0.04, 0.12, 0.12 - i * 0.04);
-      });
-    } catch (e) {}
-  }
-  // Whoosh sub-bass (sweep 120 → 60 Hz en 200ms) — arrivée smart card
-  function sfxCardWhoosh() {
-    try {
-      const ctx = getSfxCtx();
-      const now = ctx.currentTime;
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sawtooth";
-      o.frequency.setValueAtTime(180, now);
-      o.frequency.exponentialRampToValueAtTime(55, now + 0.22);
-      const filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 450;
-      o.connect(filter).connect(g).connect(ctx.destination);
-      sfxEnv(ctx, o, g, now, 0.01, 0.05, 0.22, 0.18);
-    } catch (e) {}
-  }
-  // Heartbeat slow (60 BPM) pendant les silences > 3s — 2 coups sub-bass
-  let heartbeatTimer = null;
-  function startHeartbeat() {
-    stopHeartbeat();
-    function beat() {
-      try {
-        const ctx = getSfxCtx();
-        const now = ctx.currentTime;
-        [0, 0.15].forEach(function(d, i) {
-          const o = ctx.createOscillator();
-          const g = ctx.createGain();
-          o.type = "sine"; o.frequency.value = 52;
-          o.connect(g).connect(ctx.destination);
-          sfxEnv(ctx, o, g, now + d, 0.005, 0.04, 0.1, i === 0 ? 0.22 : 0.14);
-        });
-      } catch (e) {}
-    }
-    beat();
-    heartbeatTimer = setInterval(beat, 1000); // 60 BPM
-  }
-  function stopHeartbeat() {
-    if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
-  }
-  // Chime cristallin (3 harmoniques) — au moment du closing
-  function sfxClosingChime() {
-    try {
-      const ctx = getSfxCtx();
-      const now = ctx.currentTime;
-      [523.25, 659.25, 783.99, 1046.50].forEach(function(freq, i) {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = "sine"; o.frequency.value = freq;
-        o.connect(g).connect(ctx.destination);
-        sfxEnv(ctx, o, g, now + i * 0.08, 0.01, 0.1, 0.9, 0.12 - i * 0.018);
-      });
-    } catch (e) {}
-  }
+  // Sound design retiré — stubs silencieux pour ne pas casser les appelants.
+  function sfxDossierDing() {}
+  function sfxCardWhoosh() {}
+  function sfxClosingChime() {}
+  function startHeartbeat() {}
+  function stopHeartbeat() {}
 
   // ============ V1 — WAVEFORM SPECTRALE (64 barres en cercle SVG) ============
   const WAVEFORM_BARS = 64;
@@ -2002,40 +1815,9 @@
     const $amt = $("vc-amount");   if ($amt) $amt.textContent = "0 €";
   }
 
-  // ============ V10 — LIGNE DROITE BELFORT ============
-  // 4 paliers (profil / produit / expert / confiance) qui se remplissent
-  // au fur et à mesure que le coach confirme les certitudes.
-  function updateBelfortLine(d) {
-    if (!d) return;
-    const dossier = d.dossier || {};
-    const produit = d.produit || {};
-    const emot = d.etat_emotionnel || {};
-    let filled = 0;
-    // 1 — Profil identifié
-    if (dossier.profil_detecte) filled++;
-    // 2 — Produit routé
-    if (produit.recommande && (produit.certitude === "moyen" || produit.certitude === "ferme")) filled++;
-    // 3 — Expert nommé (certitude ferme)
-    if (produit.certitude === "ferme") filled++;
-    // 4 — Confiance agent = bonne / excellente
-    if (emot.confiance_agent === "bonne" || emot.confiance_agent === "excellente" || emot.chaleur === "chaud" || emot.chaleur === "pret_a_acheter") filled++;
-
-    const pct = Math.round((filled / 4) * 100);
-    const $fill = $("bl-fill");
-    if ($fill) $fill.style.width = pct + "%";
-    document.querySelectorAll(".bl-dot").forEach(function(el, i) {
-      el.classList.toggle("filled", i < filled);
-    });
-    document.querySelectorAll(".bl-label").forEach(function(el, i) {
-      el.classList.toggle("filled", i < filled);
-    });
-  }
-  function resetBelfortLine() {
-    const $fill = $("bl-fill"); if ($fill) $fill.style.width = "0%";
-    document.querySelectorAll(".bl-dot, .bl-label").forEach(function(el) {
-      el.classList.remove("filled");
-    });
-  }
+  // Ligne Belfort retirée — stubs silencieux.
+  function updateBelfortLine() {}
+  function resetBelfortLine() {}
 
   // ============ V9 — BORDURE DORÉE VIEWPORT (chaud/ready) ============
   function updateViewportGlow(chaleur) {
@@ -2646,6 +2428,67 @@
 
   // Debounce + throttle UI agents
   var lastUIAgentsCall = 0;
+  var uiAgentsPauseTimer = null;
+
+  // Déclenché PENDANT que le prospect parle : dès qu'il fait une micro-pause
+  // de 1.2s, on lance le dossier + cards en parallèle. Ils finissent souvent
+  // AVANT qu'Argos réponde → le dossier se met à jour "pendant" l'audio.
+  function scheduleUIAgentsEarly() {
+    if (uiAgentsPauseTimer) clearTimeout(uiAgentsPauseTimer);
+    var snapshot = (state.pendingUserText || "").trim();
+    if (snapshot.length < 8) return; // ignore les murmures
+    uiAgentsPauseTimer = setTimeout(function() {
+      uiAgentsPauseTimer = null;
+      if (!state.pendingUserText) return;
+      // Historique + pending user message (pas encore poussé dans conversationLog)
+      var tempLog = state.conversationLog.slice();
+      tempLog.push({ role: "user", text: state.pendingUserText.trim() });
+      callUIAgentsWithLog(tempLog);
+    }, 1200);
+  }
+
+  function callUIAgentsWithLog(historySlice) {
+    if (state.uiDirectorInFlight) return;
+    if (historySlice.length < 2) return;
+    var now = Date.now();
+    if (now - lastUIAgentsCall < 2500) return; // throttle léger
+    lastUIAgentsCall = now;
+    state.uiDirectorInFlight = true;
+    setThinking(true);
+
+    var dossierCall = fetch(DOSSIER_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        history: historySlice,
+        previous_dossier: state.lastDossier,
+      }),
+    }).then(function(r) { return r.json(); }).catch(function() { return {}; });
+
+    var cardsCall = fetch(CARDS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history: historySlice }),
+    }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
+
+    Promise.all([dossierCall, cardsCall]).then(function(results) {
+      state.uiDirectorInFlight = false;
+      setThinking(false);
+      var dossier = results[0];
+      var cardsResult = results[1];
+      if (dossier && dossier.prenom !== undefined) {
+        state.lastDossier = dossier;
+        renderDossier(dossier);
+      }
+      var cardData = cardsResult ? (cardsResult.card || cardsResult.card_a_afficher) : null;
+      if (cardData) showSmartCard(cardData);
+    }).catch(function(err) {
+      state.uiDirectorInFlight = false;
+      setThinking(false);
+      console.error("[Argo] UI agents error:", err);
+    });
+  }
+
   function callUIAgents() {
     if (state.uiDirectorInFlight) return;
     if (state.conversationLog.length < 2) return;
@@ -2814,11 +2657,14 @@
         addMessage("user", state.pendingUserText.trim(), true);
         $orbContainer.className = "orb-container";
         $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
-        stopHeartbeat(); // prospect parle → silence ambient OFF
         // B3 : pattern interrupt timer
         checkPatternInterrupt();
         // P7 : détection fin d'appel naturelle (si le prospect dit "au revoir"…)
         checkEndOfCall(state.pendingUserText, "user");
+        // UI agents EN SIMULTANÉ : dès que le prospect a parlé et fait une micro-pause
+        // (1.2s sans nouveau chunk de transcription), on déclenche dossier + cards
+        // sans attendre qu'Argos finisse. Ils travaillent en parallèle de l'audio.
+        scheduleUIAgentsEarly();
       }
 
       // Output transcription (alpha)
@@ -2870,13 +2716,6 @@
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " réfléchit…";
         startParticles();
-        // Heartbeat lent si Argos ne reprend pas la parole sous 3s (tension)
-        scheduleEphemeral(function() {
-          if (state.isConnected && !state.pendingUserText && !state.pendingBotText) {
-            startHeartbeat();
-            scheduleEphemeral(stopHeartbeat, 5000);
-          }
-        }, 3000);
       }
     };
 
@@ -3066,7 +2905,29 @@
         var produit = briefing.produit_cible || {};
         var coach = briefing.coach || {};
 
+        // Calcule l'angle à partir du dossier / dernières phrases du prospect (règle 8)
+        var dossier = state.lastDossier || {};
+        var objectifText = (dossier.objectif || []).join(" ").toLowerCase()
+          + " " + (dossier.situation || []).join(" ").toLowerCase();
+        var lastUserLines = state.conversationLog
+          .filter(function(m) { return m.role === "user"; }).slice(-3)
+          .map(function(m) { return (m.text || "").toLowerCase(); }).join(" ");
+        var combined = objectifText + " " + lastUserLines;
+        var angle = "croissance";
+        if (/(protéger|proteger|sécuriser|securiser|peur\s+de\s+perdre|préserver|preserver)/.test(combined)) angle = "securite";
+        else if (/(ia\b|algorithm|automatis|robot)/.test(combined)) angle = "tech";
+        else if (/(crypto|bitcoin|gains?\s+rapid)/.test(combined)) angle = "asymetrie";
+        else if (/(apport|appart|projet|doubler|multipli|grossir|passer\s+de)/.test(combined)) angle = "croissance";
+
+        var ANGLE_RULES = {
+          croissance: "ANGLE OBLIGATOIRE : CROISSANCE. Parle d'opportunités, de performance, de multiplier le capital. INTERDIT : Bouclier Suisse, sécuriser, protéger, inflation, dette.",
+          securite:   "ANGLE OBLIGATOIRE : SÉCURITÉ. Parle de protection, de Bouclier Suisse, de préservation du capital.",
+          tech:       "ANGLE OBLIGATOIRE : DISRUPTION TECH. Parle d'IA, d'algorithmes, d'automatisation.",
+          asymetrie:  "ANGLE OBLIGATOIRE : ASYMÉTRIE. Parle de petites positions qui peuvent faire x10, de crypto, de gains rapides.",
+        };
+
         var lines = ["[BRIEFING PRODUIT — utilise ces arguments pour les phases 6a, 6b, 6c. Ne les invente PAS.]"];
+        lines.push(ANGLE_RULES[angle]);
         lines.push("Produit recommandé : " + (produit.nom || productId));
         lines.push("Expert : " + (produit.expert || ""));
         lines.push("Lead magnet : " + (produit.lead_magnet || ""));
@@ -3223,18 +3084,12 @@
     $("closing-price").textContent = tierA ? (tierA.label || tierA.price_eur + "€/an") : "";
     $("closing-bonus").textContent = pm.lead_magnet ? "Bonus offert : " + pm.lead_magnet : "";
 
-    // V3 — bullet-time : freeze + ralenti 1s avant l'overlay pour créer l'impact
-    document.body.classList.add("closing-freeze");
-    sfxClosingChime();
-    scheduleEphemeral(function() {
-      document.body.classList.remove("closing-freeze");
-      $closingOverlay.classList.add("active");
-      try { $closingOverlay.focus(); } catch (e) {}
-      if (!closingOverlayShown) {
-        closingOverlayShown = true;
-        launchConfetti();
-      }
-    }, 1100);
+    $closingOverlay.classList.add("active");
+    try { $closingOverlay.focus(); } catch (e) {}
+    if (!closingOverlayShown) {
+      closingOverlayShown = true;
+      launchConfetti();
+    }
   }
   function hideClosingOverlay() { $closingOverlay.classList.remove("active"); }
   $("closing-dismiss").addEventListener("click", hideClosingOverlay);
