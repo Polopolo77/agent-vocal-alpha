@@ -761,9 +761,11 @@ def build_briefing_from_cache(
         target_product_id = _guess_product_from_query(query)
 
     # --- BM25 search ---
+    # k=2 (au lieu de 4) + excerpt 250 chars (au lieu de 400) : -60% de tokens
+    # injectés à Argos via tool, gain latence Live et précision (moins de bruit)
     bm25_hits = []
     if target_product_id and query and registry.get(target_product_id):
-        bm25_hits = registry.search(target_product_id, query, k=4)
+        bm25_hits = registry.search(target_product_id, query, k=2)
 
     if bm25_hits:
         briefing["sources"] = [
@@ -771,7 +773,7 @@ def build_briefing_from_cache(
                 "product": target_product_id,
                 "section": c.section,
                 "title": c.title,
-                "excerpt": (c.text[:400] + "…") if len(c.text) > 400 else c.text,
+                "excerpt": _smart_truncate(c.text, query, max_chars=250),
             }
             for c in bm25_hits
         ]
@@ -796,6 +798,48 @@ def build_briefing_from_cache(
             }
 
     return briefing
+
+
+def _smart_truncate(text: str, query: str, max_chars: int = 250) -> str:
+    """
+    Tronque sur fin de phrase, en privilégiant le passage qui contient des
+    mots-clés de la query. Évite de couper "+548% en pleine pér…".
+
+    Algorithme :
+      1. Découpe en paragraphes.
+      2. Score chaque paragraphe par nb d'occurrences des tokens de la query.
+      3. Prend le meilleur ; si trop long, coupe sur fin de phrase la plus proche.
+    """
+    if len(text) <= max_chars:
+        return text.strip()
+
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    if not paragraphs:
+        paragraphs = [text]
+
+    q_tokens = [t for t in query.lower().split() if len(t) > 2]
+    best = paragraphs[0]
+    best_score = -1
+    for p in paragraphs:
+        pl = p.lower()
+        score = sum(pl.count(t) for t in q_tokens)
+        if score > best_score:
+            best, best_score = p, score
+
+    if len(best) <= max_chars:
+        return best
+
+    # Coupe sur fin de phrase la plus proche du max
+    cutoff = best[:max_chars]
+    for sep in (". ", "! ", "? ", ".\n", "!\n", "?\n"):
+        idx = cutoff.rfind(sep)
+        if idx > max_chars * 0.5:
+            return cutoff[: idx + 1].strip()
+    # Fallback : coupe sur dernier espace propre
+    space_idx = cutoff.rfind(" ")
+    if space_idx > max_chars * 0.6:
+        return cutoff[:space_idx].rstrip() + "…"
+    return cutoff.rstrip() + "…"
 
 
 def _guess_product_from_query(query: str) -> str | None:

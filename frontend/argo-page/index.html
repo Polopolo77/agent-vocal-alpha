@@ -140,6 +140,10 @@
   .orb-container {
     --orb-scale: 1;
     --orb-glow: 0.25;
+    --orb-px: 0;
+    --orb-py: 0;
+    --heat-color: #6688aa;
+    --heat-pct: 0;
     position: relative;
     width: 260px;
     height: 260px;
@@ -147,6 +151,35 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: translate3d(var(--orb-px), var(--orb-py), 0);
+    transition: transform 0.4s cubic-bezier(.16,.78,.31,.98);
+  }
+
+  /* ===== PROGRESS RING SVG autour de l'orb ===== */
+  .orb-ring-progress {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 240px; height: 240px;
+    transform: translate(-50%, -50%) rotate(-90deg);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  body.in-call .orb-ring-progress { opacity: 1; }
+  .orb-ring-progress circle.bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.05);
+    stroke-width: 2;
+  }
+  .orb-ring-progress circle.fg {
+    fill: none;
+    stroke: var(--heat-color);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 720;
+    stroke-dashoffset: calc(720 - (720 * var(--heat-pct) / 100));
+    transition: stroke-dashoffset 1.4s cubic-bezier(.16,.78,.31,.98), stroke 1.4s;
+    filter: drop-shadow(0 0 6px var(--heat-color));
   }
   .orb-ring {
     position: absolute;
@@ -177,10 +210,31 @@
     background: radial-gradient(circle at 32% 28%, #5a4a2a, #1b140a 65%, #0c0905);
     box-shadow:
       0 0 calc(60px * var(--orb-glow)) rgba(212,180,90,0.55),
+      0 0 calc(120px * var(--orb-glow)) rgba(212,180,90,0.25),
       inset 0 0 40px rgba(212,180,90,0.18),
       inset 0 0 90px rgba(255,220,140,0.06);
     transform: scale(var(--orb-scale));
-    transition: transform 60ms linear;
+    transition: transform 60ms linear, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Wave caustique à l'intérieur de l'orb pendant que Argos parle */
+  .orb::after {
+    content: "";
+    position: absolute;
+    inset: -20%;
+    background:
+      radial-gradient(circle at 30% 40%, rgba(212,180,90,0.2) 0%, transparent 35%),
+      radial-gradient(circle at 70% 60%, rgba(255,220,140,0.15) 0%, transparent 40%);
+    opacity: 0;
+    transition: opacity 0.4s;
+    animation: orb-wave 8s linear infinite;
+  }
+  .orb-container.speaking .orb::after { opacity: 1; }
+  @keyframes orb-wave {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.15); }
+    100% { transform: rotate(360deg) scale(1); }
   }
   .orb-container.idle      .orb { animation: breathe 6s ease-in-out infinite; }
   .orb-container.connecting .orb { animation: pulse 1.1s ease-in-out infinite; }
@@ -205,29 +259,84 @@
     min-height: 18px;
   }
 
-  /* ============ BARRE DE CHALEUR ============ */
-  .heat-bar {
-    width: 180px;
-    height: 3px;
-    background: var(--line);
-    border-radius: 2px;
-    margin: 12px auto 0;
-    overflow: hidden;
+  /* ============ SCORING METER (4 paliers colorés) ============ */
+  .heat-meter {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin: 14px auto 0;
     opacity: 0;
     transition: opacity 0.5s;
   }
-  body.in-call .heat-bar { opacity: 1; }
-  .heat-bar-fill {
-    height: 100%;
-    width: 10%;
+  body.in-call .heat-meter { opacity: 1; }
+  .heat-pip {
+    width: 32px;
+    height: 4px;
     border-radius: 2px;
-    transition: width 1.2s cubic-bezier(.16,.78,.31,.98), background 1.2s;
-    background: #6688aa;
+    background: rgba(255,255,255,0.06);
+    transition: background 0.6s, box-shadow 0.6s, transform 0.6s;
   }
-  .heat-bar-fill[data-heat="froid"]            { width: 15%; background: #6688aa; }
-  .heat-bar-fill[data-heat="tiede"]            { width: 40%; background: #b89441; }
-  .heat-bar-fill[data-heat="chaud"]            { width: 70%; background: #d4a030; }
-  .heat-bar-fill[data-heat="pret_a_acheter"]   { width: 100%; background: #d4b45a; box-shadow: 0 0 8px rgba(212,180,90,0.5); }
+  .heat-pip.active { transform: scaleY(1.3); }
+  .heat-pip.active.cold { background: #6688aa; box-shadow: 0 0 8px rgba(102,136,170,0.6); }
+  .heat-pip.active.warm { background: #b89441; box-shadow: 0 0 8px rgba(184,148,65,0.6); }
+  .heat-pip.active.hot  { background: #d4a030; box-shadow: 0 0 10px rgba(212,160,48,0.7); }
+  .heat-pip.active.ready { background: #d4b45a; box-shadow: 0 0 14px rgba(212,180,90,0.9); animation: pip-pulse 1.6s ease-in-out infinite; }
+  @keyframes pip-pulse { 0%,100% { box-shadow: 0 0 14px rgba(212,180,90,0.9);} 50% { box-shadow: 0 0 22px rgba(212,180,90,1);} }
+  .heat-label {
+    text-align: center;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 8px;
+    opacity: 0;
+    transition: opacity 0.5s;
+    min-height: 12px;
+  }
+  body.in-call .heat-label { opacity: 0.7; }
+
+  /* ============ BADGE TOUR ============ */
+  .turn-badge {
+    position: fixed;
+    top: 22px;
+    right: 22px;
+    background: rgba(20,20,20,0.85);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(212,180,90,0.25);
+    color: var(--gold);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    z-index: 60;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.4s, transform 0.4s;
+  }
+  body.in-call .turn-badge { opacity: 1; transform: none; }
+  .turn-badge .turn-num {
+    color: #fff;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-right: 4px;
+  }
+
+  /* ============ SHIMMER doré sur les chiffres importants ============ */
+  .shimmer {
+    background: linear-gradient(90deg, var(--gold) 25%, #fff8dc 50%, var(--gold) 75%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer-slide 2.4s ease-in-out infinite;
+  }
+  @keyframes shimmer-slide {
+    0%   { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+  }
 
   /* ============ CLOSING CINÉMATIQUE ============ */
   .closing-overlay {
@@ -414,6 +523,42 @@
     font-size: 0.92rem;
   }
   .btn-danger:hover { background: rgba(184,84,84,0.18); border-color: #d88888; }
+
+  .btn-mute {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.18);
+    color: #cfc9bd;
+    padding: 14px 22px;
+    font-size: 0.92rem;
+    margin-left: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: inherit;
+    font-weight: 600;
+    border-radius: 40px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .btn-mute:hover { background: rgba(255,255,255,0.08); }
+  .btn-mute.muted {
+    background: rgba(184,84,84,0.12);
+    border-color: rgba(184,84,84,0.4);
+    color: #e8a3a3;
+  }
+  .btn-mute .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #5ab85a;
+    box-shadow: 0 0 6px rgba(90,184,90,0.6);
+  }
+  .btn-mute.muted .dot { background: #b85454; box-shadow: 0 0 6px rgba(184,84,84,0.6); }
+
+  /* Pendant l'écran post-call, on masque la page principale pour ne pas se superposer */
+  body.postcall-active .page,
+  body.postcall-active #dossier-panel,
+  body.postcall-active #smart-card-area,
+  body.postcall-active .turn-badge { display: none !important; }
 
   /* ============ TRANSCRIPT ============ */
   #transcript {
@@ -723,22 +868,59 @@
       0 0 1px rgba(212,180,90,0.3),
       inset 0 1px 0 rgba(255,255,255,0.04);
     opacity: 0;
-    transform: translateY(30px) scale(0.92);
-    transition: opacity 0.7s cubic-bezier(.16,.78,.31,.98),
-                transform 0.7s cubic-bezier(.16,.78,.31,.98);
+    transform: translateY(40px) rotateY(15deg) rotateX(-5deg) scale(0.88);
+    transform-origin: center bottom;
+    transform-style: preserve-3d;
+    perspective: 1000px;
+    transition: opacity 0.8s cubic-bezier(.16,.78,.31,.98),
+                transform 0.9s cubic-bezier(.16,.78,.31,.98),
+                box-shadow 0.6s;
+    will-change: transform, opacity;
   }
   .smart-card.visible {
     opacity: 1;
-    transform: none;
-    animation: card-glow-in 0.8s ease-out;
+    transform: translateY(0) rotateY(0deg) rotateX(0deg) scale(1);
+    animation: card-glow-in 1s ease-out;
+  }
+  .smart-card.visible:hover {
+    transform: translateY(-3px) rotateY(0deg) rotateX(2deg) scale(1.01);
+    box-shadow:
+      0 20px 60px rgba(0,0,0,0.8),
+      0 0 24px rgba(212,180,90,0.2),
+      inset 0 1px 0 rgba(255,255,255,0.06);
   }
   .smart-card.exiting {
     opacity: 0;
-    transform: translateY(-15px) scale(0.92);
+    transform: translateY(-20px) rotateY(-10deg) scale(0.9);
   }
   @keyframes card-glow-in {
-    0%   { box-shadow: 0 16px 50px rgba(0,0,0,0.7), 0 0 30px rgba(212,180,90,0.25); }
-    100% { box-shadow: 0 16px 50px rgba(0,0,0,0.7), 0 0 1px rgba(212,180,90,0.3); }
+    0%   {
+      box-shadow:
+        0 16px 50px rgba(0,0,0,0.7),
+        0 0 60px rgba(212,180,90,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    100% {
+      box-shadow:
+        0 16px 50px rgba(0,0,0,0.7),
+        0 0 1px rgba(212,180,90,0.3),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+  }
+  /* Sweep doré qui traverse la carte à l'arrivée */
+  .smart-card.visible::before {
+    content: "";
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(212,180,90,0.08), transparent);
+    pointer-events: none;
+    animation: card-sweep 1.4s ease-out;
+  }
+  @keyframes card-sweep {
+    0%   { left: -100%; opacity: 0; }
+    20%  { opacity: 1; }
+    100% { left: 200%; opacity: 0; }
   }
 
   .smart-card-badge {
@@ -863,16 +1045,29 @@
   <div class="orb-container idle" id="orb-container">
     <div class="orb-ring"></div>
     <div class="orb-ring"></div>
+    <svg class="orb-ring-progress" viewBox="0 0 240 240" aria-hidden="true">
+      <circle class="bg" cx="120" cy="120" r="115"></circle>
+      <circle class="fg" cx="120" cy="120" r="115"></circle>
+    </svg>
     <div class="orb" id="orb"></div>
   </div>
 
   <div class="agent-name">Argos</div>
   <div class="status" id="status">Prêt à vous parler</div>
-  <div class="heat-bar"><div class="heat-bar-fill" id="heat-bar-fill"></div></div>
+  <div class="heat-meter" aria-label="Niveau de chaleur du prospect">
+    <div class="heat-pip" data-level="cold"></div>
+    <div class="heat-pip" data-level="warm"></div>
+    <div class="heat-pip" data-level="hot"></div>
+    <div class="heat-pip" data-level="ready"></div>
+  </div>
+  <div class="heat-label" id="heat-label"></div>
 
   <div class="actions">
     <button class="btn-primary" id="start-btn">
       Démarrer la conversation
+    </button>
+    <button class="btn-mute" id="mute-btn" style="display:none;" aria-pressed="false">
+      <span class="dot"></span><span id="mute-label">Micro actif</span>
     </button>
     <button class="btn-danger" id="hangup-btn" style="display:none;">
       Raccrocher
@@ -898,6 +1093,8 @@
 </div>
 
 <!-- Dossier panel (left, slides in) -->
+<div class="turn-badge" id="turn-badge"><span class="turn-num" id="turn-num">0</span> tour</div>
+
 <aside id="dossier-panel" aria-label="Votre dossier en direct">
   <div class="dossier-header">
     <div class="dossier-title-row">
@@ -1000,70 +1197,146 @@
 
   function $(id) { return document.getElementById(id); }
 
-  // ============ AUDIO STREAMER (Micro → PCM16 16kHz) ============
+  // ============ AUDIO ENGINE (un seul AudioContext, AudioWorklet pour le mic) ============
+  // Auparavant on avait 2 contextes (16k mic + 24k player). On fusionne sur
+  // UN SEUL contexte à la fréquence native de la carte son (souvent 48k) :
+  //  - Le mic passe par un AudioWorklet qui downsample à 16k et émet des PCM16.
+  //  - Le player crée des AudioBuffer à 24k (le ctx resample automatiquement).
+  // Gain : ~50ms d'init en moins + moins de drift audio, et on sort de la
+  // dette de ScriptProcessorNode (déprécié, bientôt retiré par Chrome).
+
+  let sharedAudioCtx = null;
+  let micWorkletUrl = null;
+
+  function getSharedAudioCtx() {
+    if (sharedAudioCtx && sharedAudioCtx.state !== "closed") return sharedAudioCtx;
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return sharedAudioCtx;
+  }
+
+  function getMicWorkletUrl() {
+    if (micWorkletUrl) return micWorkletUrl;
+    const code = `
+      class MicDownsampler extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.targetRate = 16000;
+          this.ratio = sampleRate / this.targetRate;
+          this.buf = [];
+          this.muted = false;
+          this.port.onmessage = (e) => {
+            if (e.data && typeof e.data.muted === "boolean") this.muted = e.data.muted;
+          };
+        }
+        process(inputs) {
+          const ch = inputs[0] && inputs[0][0];
+          if (!ch) return true;
+          if (this.muted) {
+            // Toujours émettre RMS=0 pour la reactivité, mais PCM silencieux
+            const silent = new Int16Array(Math.floor(ch.length / this.ratio));
+            this.port.postMessage({ pcm: silent.buffer, rms: 0 }, [silent.buffer]);
+            return true;
+          }
+          for (let i = 0; i < ch.length; i++) this.buf.push(ch[i]);
+          const outLen = Math.floor(this.buf.length / this.ratio);
+          if (outLen < 128) return true;
+          const out = new Int16Array(outLen);
+          let sum = 0;
+          for (let i = 0; i < outLen; i++) {
+            const s = Math.max(-1, Math.min(1, this.buf[Math.floor(i * this.ratio)]));
+            out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            sum += s * s;
+          }
+          const consumed = Math.floor(outLen * this.ratio);
+          this.buf = this.buf.slice(consumed);
+          this.port.postMessage({ pcm: out.buffer, rms: Math.sqrt(sum / outLen) }, [out.buffer]);
+          return true;
+        }
+      }
+      registerProcessor('mic-downsampler', MicDownsampler);
+    `;
+    const blob = new Blob([code], { type: "application/javascript" });
+    micWorkletUrl = URL.createObjectURL(blob);
+    return micWorkletUrl;
+  }
+
+  function pcm16ToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const CHUNK = 8192;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
+  }
+
   class AudioStreamer {
     constructor(onData, onLevel) {
       this.onData = onData;
       this.onLevel = onLevel;
-      this.ctx = null; this.stream = null;
-      this.source = null; this.proc = null;
+      this.stream = null;
+      this.source = null;
+      this.node = null;
       this.active = false;
+      this.muted = false;
     }
     async start() {
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         video: false,
       });
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-      this.source = this.ctx.createMediaStreamSource(this.stream);
-      this.proc = this.ctx.createScriptProcessor(2048, 1, 1);
-      this.active = true;
-      this.proc.onaudioprocess = (e) => {
+      const ctx = getSharedAudioCtx();
+      if (ctx.state === "suspended") { try { await ctx.resume(); } catch (e) {} }
+      try { await ctx.audioWorklet.addModule(getMicWorkletUrl()); } catch (e) {
+        console.warn("[Argo] Worklet load failed:", e);
+        throw e;
+      }
+      this.source = ctx.createMediaStreamSource(this.stream);
+      this.node = new AudioWorkletNode(ctx, "mic-downsampler");
+      this.node.port.onmessage = (e) => {
         if (!this.active) return;
-        const input = e.inputBuffer.getChannelData(0);
-        // Compute RMS for orb reactivity
-        let sum = 0;
-        const pcm = new Int16Array(input.length);
-        for (let i = 0; i < input.length; i++) {
-          const s = Math.max(-1, Math.min(1, input[i]));
-          pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-          sum += s * s;
-        }
-        const rms = Math.sqrt(sum / input.length);
-        if (this.onLevel) this.onLevel(Math.min(1, rms * 8));
-        // Base64 encode + send
-        const bytes = new Uint8Array(pcm.buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-        this.onData(btoa(binary));
+        if (this.onLevel) this.onLevel(Math.min(1, (e.data.rms || 0) * 8));
+        if (this.onData && !this.muted) this.onData(pcm16ToBase64(e.data.pcm));
       };
-      this.source.connect(this.proc);
-      this.proc.connect(this.ctx.destination);
+      this.source.connect(this.node);
+      // Pas de connexion à destination (on ne veut pas entendre son propre mic).
+      this.active = true;
+    }
+    setMuted(flag) {
+      this.muted = !!flag;
+      if (this.node) this.node.port.postMessage({ muted: this.muted });
     }
     stop() {
       this.active = false;
-      if (this.proc) { this.proc.disconnect(); this.proc = null; }
-      if (this.source) { this.source.disconnect(); this.source = null; }
+      try { if (this.node) this.node.disconnect(); } catch (e) {}
+      try { if (this.source) this.source.disconnect(); } catch (e) {}
       if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
-      if (this.ctx) { this.ctx.close(); this.ctx = null; }
+      this.node = null;
+      this.source = null;
     }
   }
 
-  // ============ AUDIO PLAYER (base64 PCM24 → speakers gapless) ============
+  // ============ AUDIO PLAYER (base64 PCM24 → speakers, contexte partagé) ============
   class AudioPlayer {
     constructor(onLevel) {
-      this.ctx = null; this.queue = []; this.nextStart = 0; this.onLevel = onLevel;
-      this.analyser = null; this.dataArray = null; this._levelRaf = null;
+      this.ctx = null;
+      this.nextStart = 0;
+      this.onLevel = onLevel;
+      this.analyser = null;
+      this.dataArray = null;
+      this._levelRaf = null;
+      this._destroyed = false;
     }
     init() {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      this.ctx = getSharedAudioCtx();
+      if (this.ctx.state === "suspended") { try { this.ctx.resume(); } catch (e) {} }
       if (this.onLevel) {
         this.analyser = this.ctx.createAnalyser();
         this.analyser.fftSize = 512;
         this.analyser.connect(this.ctx.destination);
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
         const tick = () => {
-          if (!this.analyser) return;
+          if (this._destroyed || !this.analyser) return;
           this.analyser.getByteTimeDomainData(this.dataArray);
           let sum = 0;
           for (let i = 0; i < this.dataArray.length; i++) {
@@ -1078,29 +1351,36 @@
       }
     }
     push(base64) {
-      if (!this.ctx) return;
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const pcm = new Int16Array(bytes.buffer);
-      const float = new Float32Array(pcm.length);
-      for (let i = 0; i < pcm.length; i++) float[i] = pcm[i] / (pcm[i] < 0 ? 0x8000 : 0x7fff);
-      const buf = this.ctx.createBuffer(1, float.length, 24000);
-      buf.copyToChannel(float, 0);
-      const src = this.ctx.createBufferSource();
-      src.buffer = buf;
-      if (this.analyser) src.connect(this.analyser); else src.connect(this.ctx.destination);
-      const now = this.ctx.currentTime;
-      this.nextStart = Math.max(this.nextStart, now);
-      src.start(this.nextStart);
-      this.nextStart += buf.duration;
+      if (this._destroyed || !this.ctx || this.ctx.state === "closed") return;
+      try {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const pcm = new Int16Array(bytes.buffer);
+        const float = new Float32Array(pcm.length);
+        for (let i = 0; i < pcm.length; i++) float[i] = pcm[i] / (pcm[i] < 0 ? 0x8000 : 0x7fff);
+        const buf = this.ctx.createBuffer(1, float.length, 24000);
+        buf.copyToChannel(float, 0);
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        if (this.analyser) src.connect(this.analyser); else src.connect(this.ctx.destination);
+        const now = this.ctx.currentTime;
+        this.nextStart = Math.max(this.nextStart, now);
+        src.start(this.nextStart);
+        this.nextStart += buf.duration;
+      } catch (e) {
+        // push() peut arriver en course avec interrupt() : silencieux.
+      }
     }
     interrupt() {
-      if (this.ctx) {
-        try { this.ctx.close(); } catch {}
-        this.ctx = null;
-      }
-      if (this._levelRaf) cancelAnimationFrame(this._levelRaf);
+      this._destroyed = true;
+      if (this._levelRaf) { cancelAnimationFrame(this._levelRaf); this._levelRaf = null; }
+      try { if (this.analyser) this.analyser.disconnect(); } catch (e) {}
+      this.analyser = null;
+      this.dataArray = null;
+      // NB : on NE close PAS le contexte partagé ici — il peut être réutilisé
+      // par un nouvel appel (bouton "Reprendre").
+      this.ctx = null;
       this.nextStart = 0;
     }
   }
@@ -1108,8 +1388,15 @@
   // ============ ORB LEVEL ============
   const $orbContainer = $("orb-container");
   function updateOrbLevel(vol) {
+    // vol=0 → orb au repos complet (glow 0), pas de résidu lumineux au raccroché
     $orbContainer.style.setProperty("--orb-scale", 1 + vol * 0.25);
-    $orbContainer.style.setProperty("--orb-glow", 0.15 + vol * 0.55);
+    $orbContainer.style.setProperty("--orb-glow", vol <= 0.001 ? 0 : (0.15 + vol * 0.55));
+  }
+  function resetOrbVisuals() {
+    $orbContainer.style.setProperty("--orb-scale", 1);
+    $orbContainer.style.setProperty("--orb-glow", 0);
+    $orbContainer.style.setProperty("--heat-pct", 0);
+    $orbContainer.style.setProperty("--heat-color", "#6688aa");
   }
 
   // ============ TRANSCRIPT ============
@@ -1526,14 +1813,22 @@
   }
 
   // ============ COACH ============
+  // Avant : tour 3 puis tours pairs (4, 6, 8…) → le coach rate les pivots
+  // critiques 5, 7, 9 (révélation produit / phase 6a-6d). Nouveau : tous les
+  // tours >= 3, avec un throttle temporel (5s mini) pour éviter les bursts.
   function shouldCallCoach(turn) {
     if (turn <= 0) return false;
-    if (turn === 3) return true;
-    return turn >= 4 && turn % 2 === 0;
+    return turn >= 3;
   }
+
+  var lastCoachCall = 0;
+  var COACH_MIN_INTERVAL_MS = 5000;
 
   function callCoach(mode) {
     if (state.coachInFlight) return;
+    var now = Date.now();
+    if (mode !== "post_call" && now - lastCoachCall < COACH_MIN_INTERVAL_MS) return;
+    lastCoachCall = now;
     state.coachInFlight = true;
 
     var payload = {
@@ -1578,7 +1873,8 @@
           if (recommande && (certitude === "moyen" || certitude === "ferme")) {
             if (state.currentRecommendedProduct !== recommande) {
               state.currentRecommendedProduct = recommande;
-              // AUTO-INJECTION : fetch le briefing et l'envoie à Gemini via WebSocket
+              // FIX race : reset le flag pour permettre re-injection si produit change
+              briefingInjected = false;
               injectProductBriefing(recommande);
             }
           }
@@ -1599,9 +1895,14 @@
   const DOSSIER_ENDPOINT = BACKEND_URL + "/api/ui-dossier";
   const CARDS_ENDPOINT   = BACKEND_URL + "/api/ui-cards";
 
+  // Debounce + throttle UI agents
+  var lastUIAgentsCall = 0;
   function callUIAgents() {
     if (state.uiDirectorInFlight) return;
     if (state.conversationLog.length < 2) return;
+    var now = Date.now();
+    if (now - lastUIAgentsCall < 3000) return; // throttle 3s minimum
+    lastUIAgentsCall = now;
     state.uiDirectorInFlight = true;
     setThinking(true);
 
@@ -1759,7 +2060,7 @@
 
       // Input transcription (user)
       if (sc.inputTranscription && sc.inputTranscription.text) {
-        state.pendingUserText += sc.inputTranscription.text;
+        state.pendingUserText = (state.pendingUserText + sc.inputTranscription.text).slice(-4000);
         addMessage("user", state.pendingUserText.trim(), true);
         $orbContainer.className = "orb-container";
         $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
@@ -1769,7 +2070,7 @@
 
       // Output transcription (alpha)
       if (sc.outputTranscription && sc.outputTranscription.text) {
-        state.pendingBotText += sc.outputTranscription.text;
+        state.pendingBotText = (state.pendingBotText + sc.outputTranscription.text).slice(-4000);
         addMessage("alpha", state.pendingBotText.trim(), true);
         // B2 : détecte si le prix vient d'être donné
         checkSilenceAfterPrice(state.pendingBotText);
@@ -1791,6 +2092,15 @@
           state.pendingUserText = "";
           currentUserMsg = null;
           state.userTurnCount++;
+
+          // Badge de tour (B2 — wiring manquant, #turn-num restait à 0)
+          var $tn = $("turn-num");
+          if ($tn) $tn.textContent = String(state.userTurnCount);
+
+          // Borne l'historique envoyé au coach à 40 derniers messages (C3)
+          if (state.conversationLog.length > 40) {
+            state.conversationLog = state.conversationLog.slice(-40);
+          }
 
           // UI agents à partir du tour 2 (tour 1 = juste prénom, rien à montrer)
           if (state.userTurnCount >= 2) callUIAgents();
@@ -1845,25 +2155,68 @@
 
   async function connect() {
     try {
+      // Reset COMPLET de l'état UI (fix B7/B8 : pas de carte zombie, pas de
+      // briefing / silence / pattern-interrupt rémanents d'un appel précédent).
+      hidePostCallScreen();
+      hideClosingOverlay();
+      hideAllSmartCards();
+      hideClosingCta();
+      clearConfettiTimers();
+      clearAllEphemeralTimers();
+      // Remise à zéro de l'orb + de l'anneau de chaleur (le coach relèvera
+      // la chaleur au premier appel). Les pips restent tous éteints pour
+      // éviter le flash "froid" avant même que le prospect parle.
+      resetOrbVisuals();
+      document.querySelectorAll(".heat-pip").forEach(function(p) {
+        p.classList.remove("active", "cold", "warm", "hot", "ready");
+      });
+      var $hl = $("heat-label"); if ($hl) $hl.textContent = "";
+
       document.body.classList.add("in-call");
       $startBtn.style.display = "none";
       $hangupBtn.style.display = "inline-block";
+      $("mute-btn").style.display = "inline-flex";
       $orbContainer.className = "orb-container connecting";
       $("status").textContent = "Connexion…";
+      $("turn-num").textContent = "0";
 
       state.conversationLog = [];
       state.conversationStartedAt = new Date().toISOString();
-      state.sessionId = "s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+      state.sessionId = null;
       state.pendingUserText = "";
       state.pendingBotText = "";
       state.userTurnCount = 0;
       state.coachDirective = null;
       state.lastDossier = {};
+      state.currentRecommendedProduct = null;
       previousDossierSignature = new Map();
-      hideAllSmartCards();
-      hideClosingCta();
+      localCardShown = new Set();
+      briefingInjected = false;
+      silenceInjected = false;
+      userSpeakingStart = null;
+      closingOverlayShown = false;
+      wsRetryCount = 0;
+      currentAlphaMsg = null;
+      currentUserMsg = null;
+      lastCoachCall = 0;
+      lastUIAgentsCall = 0;
+      lastLocalCardTime = 0;
+      lastCardsWhileSpeakingCall = 0;
 
-      // D3 : prompt déjà pre-fetché au bootstrap
+      // Session signée côté serveur : évite qu'un attaquant écrase le coach_cache
+      // d'un autre utilisateur en devinant le pattern "s_timestamp_random".
+      try {
+        var sRes = await fetch(BACKEND_URL + "/api/session", { method: "POST" });
+        var sJson = await sRes.json();
+        state.sessionId = sJson.session_id;
+      } catch (e) {
+        // Fallback random sécurisé (crypto.randomUUID si dispo)
+        state.sessionId = (window.crypto && crypto.randomUUID)
+          ? "s_" + crypto.randomUUID()
+          : ("s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10));
+      }
+
+      // Prompt déjà pre-fetché au bootstrap — sinon on le fetch
       if (!state.systemPrompt) {
         var pRes = await fetch(PROMPT_ENDPOINT);
         var pJson = await pRes.json();
@@ -1884,6 +2237,23 @@
       $("status").textContent = "Erreur : " + err.message;
       setTimeout(disconnect, 3000);
     }
+  }
+
+  // ============ PRE-WARM (gain -800ms sur le premier mot d'Argos) ============
+  var preWarmed = false;
+  function preWarmConnection() {
+    if (preWarmed) return;
+    preWarmed = true;
+    // Déclenche les fetch critiques en parallèle, sans attendre le click.
+    try { fetch(PROMPT_ENDPOINT).then(function(r) { return r.json(); }).then(function(j) {
+      if (j && j.prompt) state.systemPrompt = j.prompt;
+    }).catch(function() {}); } catch (e) {}
+    try { fetch(TOKEN_ENDPOINT, { method: "POST" }).catch(function() {}); } catch (e) {}
+    try { fetch(BACKEND_URL + "/api/session", { method: "POST" }).then(function(r) { return r.json(); }).then(function(j) {
+      if (j && j.session_id) state._prewarmSessionId = j.session_id;
+    }).catch(function() {}); } catch (e) {}
+    // Pré-init de l'AudioContext partagé (nécessite un geste user — on retente au click)
+    try { getSharedAudioCtx(); } catch (e) {}
   }
 
   // ============ AUTO-INJECTION BRIEFING PRODUIT ============
@@ -1945,8 +2315,28 @@
       });
   }
 
+  // ============ GESTION DES TIMERS ÉPHÉMÈRES ============
+  // Centralise les setTimeout d'injection (briefing, pattern interrupt, silence)
+  // pour pouvoir les cancel proprement au disconnect.
+  var ephemeralTimers = [];
+  function scheduleEphemeral(fn, ms) {
+    var t = setTimeout(function() {
+      // Retire de la liste quand exécuté
+      ephemeralTimers = ephemeralTimers.filter(function(x) { return x !== t; });
+      fn();
+    }, ms);
+    ephemeralTimers.push(t);
+    return t;
+  }
+  function clearAllEphemeralTimers() {
+    if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    ephemeralTimers.forEach(function(t) { clearTimeout(t); });
+    ephemeralTimers = [];
+  }
+
   // ============ CARDS TEMPS RÉEL — matching local (zéro latence) ============
   var lastLocalCardTime = 0;
+  var lastCardsWhileSpeakingCall = 0;
   var localCardShown = new Set(); // évite doublons
 
   // Mapping mot-clé → carte à afficher (instantané, pas de LLM)
@@ -1971,6 +2361,7 @@
 
   function triggerCardsWhileSpeaking() {
     var now = Date.now();
+    lastCardsWhileSpeakingCall = now; // track pour debug
     if (now - lastLocalCardTime < 4000) return; // throttle 4s
     var text = (state.pendingBotText || "").toLowerCase();
     if (text.length < 20) return;
@@ -1994,14 +2385,37 @@
     }
   }
 
-  // ============ BARRE DE CHALEUR (A1) ============
-  var $heatFill = $("heat-bar-fill");
+  // ============ BARRE DE CHALEUR ============
+  // Pilote les 4 pips (.heat-pip), le label texte, ET les CSS vars
+  // --heat-pct / --heat-color qui animent l'anneau SVG autour de l'orb.
+  var HEAT_STEPS = {
+    froid:           { pips: 1, pct: 20,  color: "#6688aa", label: "Froid",         cls: "cold"  },
+    tiede:           { pips: 2, pct: 45,  color: "#b89441", label: "Tiède",         cls: "warm"  },
+    chaud:           { pips: 3, pct: 75,  color: "#d4a030", label: "Chaud",         cls: "hot"   },
+    pret_a_acheter:  { pips: 4, pct: 100, color: "#d4b45a", label: "Prêt à acheter", cls: "ready" },
+  };
+  var $heatPips = document.querySelectorAll(".heat-pip");
+  var $heatLabel = $("heat-label");
   function updateHeat(chaleur) {
-    if ($heatFill && chaleur) $heatFill.setAttribute("data-heat", chaleur);
+    var step = HEAT_STEPS[chaleur];
+    if (!step) return;
+    // Pips actifs (allume les N premiers avec la classe du niveau atteint)
+    $heatPips.forEach(function(pip, i) {
+      pip.classList.remove("active", "cold", "warm", "hot", "ready");
+      if (i < step.pips) {
+        pip.classList.add("active", step.cls);
+      }
+    });
+    // Label textuel
+    if ($heatLabel) $heatLabel.textContent = step.label;
+    // CSS vars → anneau SVG autour de l'orb
+    $orbContainer.style.setProperty("--heat-pct", step.pct);
+    $orbContainer.style.setProperty("--heat-color", step.color);
   }
 
   // ============ CLOSING CINÉMATIQUE (A2) ============
   var $closingOverlay = $("closing-overlay");
+  var closingOverlayShown = false;
   function showClosingOverlay() {
     var pid = state.currentRecommendedProduct;
     var pm = pid ? state.catalog[pid] : null;
@@ -2013,12 +2427,19 @@
     $("closing-price").textContent = tierA ? (tierA.label || tierA.price_eur + "€/an") : "";
     $("closing-bonus").textContent = pm.lead_magnet ? "Bonus offert : " + pm.lead_magnet : "";
     $closingOverlay.classList.add("active");
+    // Confettis au moment de l'overlay (pas au clic CTA qui envoie ailleurs)
+    if (!closingOverlayShown) {
+      closingOverlayShown = true;
+      launchConfetti();
+    }
   }
   function hideClosingOverlay() { $closingOverlay.classList.remove("active"); }
   $("closing-dismiss").addEventListener("click", hideClosingOverlay);
-  $("closing-cta-btn").addEventListener("click", function() { launchConfetti(); });
+  // Les confettis partent MAINTENANT, quand l'overlay apparaît — si on attend
+  // le clic CTA, l'utilisateur est déjà parti vers argo-editions.com et ne les voit pas.
 
   // ============ CONFETTI (A5) ============
+  var confettiTimers = [];
   function launchConfetti() {
     var colors = ["#d4b45a", "#b89441", "#f0d98c", "#fff8dc", "#8b7d3c"];
     for (var i = 0; i < 40; i++) {
@@ -2031,8 +2452,16 @@
       p.style.width = (5 + Math.random() * 6) + "px";
       p.style.height = (5 + Math.random() * 6) + "px";
       document.body.appendChild(p);
-      setTimeout(function() { p.remove(); }, 3500);
+      (function(node) {
+        var t = setTimeout(function() { try { node.remove(); } catch (e) {} }, 3500);
+        confettiTimers.push(t);
+      })(p);
     }
+  }
+  function clearConfettiTimers() {
+    confettiTimers.forEach(function(t) { clearTimeout(t); });
+    confettiTimers = [];
+    document.querySelectorAll(".confetti-particle").forEach(function(el) { try { el.remove(); } catch (e) {} });
   }
 
   // ============ POST-CALL SCREEN (A3) ============
@@ -2057,16 +2486,25 @@
     if (d.profil_detecte) dossierHtml += "<p>Profil : " + escapeHtml(d.profil_detecte) + "</p>";
     $("postcall-dossier").innerHTML = dossierHtml;
 
+    // Masque la page principale (sinon superposition visuelle avec le .page)
+    document.body.classList.add("postcall-active");
     $pc.classList.add("active");
+  }
+  function hidePostCallScreen() {
+    document.body.classList.remove("postcall-active");
+    var $pc = $("postcall-screen");
+    if ($pc) $pc.classList.remove("active");
   }
 
   // ============ B2 — SILENCE APRÈS LE PRIX ============
   var silenceInjected = false;
+  var silenceTimer = null;
   function checkSilenceAfterPrice(text) {
     if (silenceInjected) return;
     if (/euros?\s*(par\s*an|par\s*mois|\/an|\/mois)/i.test(text) || /€\s*\/?\s*(an|mois|trim)/i.test(text)) {
       silenceInjected = true;
-      setTimeout(function() {
+      silenceTimer = setTimeout(function() {
+        silenceTimer = null;
         if (state.ws && state.ws.readyState === 1) {
           state.ws.send(JSON.stringify({
             realtimeInput: { text: "STOP. Tu viens de donner le prix. NE DIS PLUS RIEN. Silence absolu. Laisse le prospect parler. Le premier qui parle a perdu." }
@@ -2131,17 +2569,36 @@
     if (state.audioStreamer) { state.audioStreamer.stop(); state.audioStreamer = null; }
     if (state.ws) { try { state.ws.close(); } catch (e) {} state.ws = null; }
     if (state.audioPlayer) { state.audioPlayer.interrupt(); state.audioPlayer = null; }
+    // Ferme le contexte audio partagé (pas nécessaire pour "Reprendre", mais
+    // sûr pour éviter que le mic continue à traiter silencieusement).
+    if (sharedAudioCtx && sharedAudioCtx.state !== "closed") {
+      try { sharedAudioCtx.close(); } catch (e) {}
+      sharedAudioCtx = null;
+    }
+    // C4 — Clear tous les timers pendants
+    clearAllEphemeralTimers();
+    clearConfettiTimers();
+
     state.isConnected = false;
     $orbContainer.className = "orb-container idle";
     updateOrbLevel(0);
     updateHeat("froid");
+    resetOrbVisuals();
     $("status").textContent = "Conversation terminée";
     $startBtn.style.display = "inline-block";
     $startBtn.textContent = "Reprendre la conversation";
     $hangupBtn.style.display = "none";
+    var $mb = $("mute-btn");
+    if ($mb) {
+      $mb.style.display = "none";
+      $mb.classList.remove("muted");
+      $mb.setAttribute("aria-pressed", "false");
+      var $ml = $("mute-label"); if ($ml) $ml.textContent = "Micro actif";
+    }
     document.body.classList.remove("in-call");
     silenceInjected = false;
     userSpeakingStart = null;
+    closingOverlayShown = false;
     hideClosingOverlay();
 
     // Affiche l'écran post-appel (A3)
@@ -2176,7 +2633,27 @@
   }
 
   $startBtn.addEventListener("click", connect);
+  // Pré-chauffage au survol : déclenche prompt/token/session en parallèle
+  // AVANT le click — gain 800ms-1.5s sur le premier mot d'Argos.
+  $startBtn.addEventListener("mouseenter", preWarmConnection, { passive: true });
+  $startBtn.addEventListener("focus", preWarmConnection);
+  $startBtn.addEventListener("touchstart", preWarmConnection, { passive: true });
   $hangupBtn.addEventListener("click", disconnect);
+
+  // Mute button : couper le mic sans fermer la session.
+  var $muteBtn = $("mute-btn");
+  var $muteLabel = $("mute-label");
+  if ($muteBtn) {
+    $muteBtn.addEventListener("click", function() {
+      if (!state.audioStreamer) return;
+      var newMuted = !state.audioStreamer.muted;
+      state.audioStreamer.setMuted(newMuted);
+      $muteBtn.classList.toggle("muted", newMuted);
+      $muteBtn.setAttribute("aria-pressed", newMuted ? "true" : "false");
+      if ($muteLabel) $muteLabel.textContent = newMuted ? "Micro coupé" : "Micro actif";
+    });
+  }
+
   window.addEventListener("beforeunload", function() {
     if (state.isConnected) { try { saveConversation(); } catch (e) {} }
   });

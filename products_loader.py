@@ -307,10 +307,14 @@ class ProductsRegistry:
     def list_ready(self) -> list[str]:
         return list(self.products.keys())
 
-    def search(self, product_id: str, query: str, k: int = 4) -> list[Chunk]:
+    def search(self, product_id: str, query: str, k: int = 2) -> list[Chunk]:
         """
         Retourne les k chunks les plus pertinents pour la query, dans l'ordre décroissant.
         Filtre : score > 0. Retourne [] si produit inconnu, query vide, ou aucun match.
+
+        Re-ranking : boost des sections chiffrées (proof/numbers/track_record)
+        quand la query contient des signaux numériques, et pénalité du chunk
+        "intro" qui matche trivialement le nom du produit.
         """
         product = self.products.get(product_id)
         if not product or not product.bm25 or not query.strip():
@@ -321,14 +325,53 @@ class ProductsRegistry:
             return []
 
         scores = product.bm25.get_scores(query_tokens)
-        # On indexe en même temps que le score pour garder l'ordre
-        ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
-        results: list[Chunk] = []
-        for idx, score in ranked[:k]:
+
+        # Boost/penalty par section selon la nature de la query
+        boosts = _section_boosts_for_query(query)
+        adjusted = []
+        for idx, score in enumerate(scores):
             if score <= 0:
-                break
-            results.append(product.chunks[idx])
-        return results
+                continue
+            section = product.chunks[idx].section
+            factor = boosts.get(section, 1.0)
+            # Pénalité générique sur intro/preamble (matchent trop souvent par nom de produit)
+            if section in ("intro", "preamble") and factor == 1.0:
+                factor = 0.75
+            adjusted.append((idx, score * factor))
+
+        ranked = sorted(adjusted, key=lambda x: x[1], reverse=True)
+        return [product.chunks[idx] for idx, _ in ranked[:k]]
+
+
+# Mots-clés → boost sur certaines sections (re-ranking léger, pas d'embedding)
+_NUMERIC_HINTS = re.compile(r"(\+?\d{1,3}[\s\u00a0]?(?:\d{3})+|\d+[.,]\d+|\d+\s*%|x\s*\d+|%)", re.IGNORECASE)
+_OBJECTION_HINTS = re.compile(r"\b(cher|prix|co[uû]t|risque|arnaque|confiance)\b", re.IGNORECASE)
+_GUARANTEE_HINTS = re.compile(r"\b(garantie|rembours\w*|satisfait|engagement)\b", re.IGNORECASE)
+_EXPERT_HINTS = re.compile(r"\b(expert|exp[ée]rience|r[ée]f[ée]rence|cr[ée]dentials?|parcours)\b", re.IGNORECASE)
+
+
+def _section_boosts_for_query(query: str) -> dict[str, float]:
+    """
+    Retourne un multiplicateur par section selon la query.
+    1.0 = neutre. >1 = boost. <1 = pénalité.
+    """
+    q = query.lower()
+    boosts: dict[str, float] = {}
+    if _NUMERIC_HINTS.search(query):
+        for s in ("proof", "numbers", "track_record", "performance", "simulated_performance"):
+            boosts[s] = 1.6
+    if _OBJECTION_HINTS.search(q):
+        for s in ("objections", "offer", "pricing", "guarantee"):
+            boosts[s] = 1.5
+    if _GUARANTEE_HINTS.search(q):
+        boosts["guarantee"] = 1.8
+    if _EXPERT_HINTS.search(q):
+        for s in ("authority", "expert", "bio"):
+            boosts[s] = 1.5
+    if "opportunit" in q or "maintenant" in q or "urgence" in q:
+        for s in ("hook", "opportunity", "urgency"):
+            boosts[s] = 1.4
+    return boosts
 
 
 # Singleton global
