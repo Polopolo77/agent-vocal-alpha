@@ -891,12 +891,16 @@ def build_ui_cards_prompt(
             "═══════════════════\n"
             "PRODUIT ACTIF : non encore décidé\n"
             "═══════════════════\n\n"
-            "Le coach n'a pas encore tranché. Tu peux piocher dans n'importe quel produit.\n"
-            "- `expert_portrait` AUTORISÉ si l'expert est nommé dans les messages d'Argos (Tilson / Wade / Ferris / Simons).\n"
-            "- `proof_number` AUTORISÉ si un chiffre concret vient d'être prononcé.\n"
-            "- `opportunity` / `comparison` / `testimonial` AUTORISÉS selon le thème.\n"
-            "- `offer_card` INTERDIT tant qu'aucun produit ni prix n'a été annoncé.\n"
-            "Sois actif : si Argos cite un expert ou un chiffre, tu affiches la carte correspondante SANS attendre."
+            "Le coach n'a pas encore tranché. Tu piches dans TOUS les produits disponibles.\n"
+            "SOIS PROACTIF — le prospect a BESOIN de support visuel même en phase diagnostic :\n"
+            "- `expert_portrait` dès qu'Argos nomme l'expert (Tilson / Wade / Ferris / Simons / Stansberry).\n"
+            "- `proof_number` dès qu'un chiffre concret est prononcé (+548%, x475, +8 900%, 3 400 Md€…).\n"
+            "- `opportunity` dès qu'Argos teaser une 'opportunité', 'fenêtre de tir', 'quelque chose qui vient de tomber'.\n"
+            "- `comparison` dès qu'Argos oppose livret A / banque / inflation à une stratégie.\n"
+            "- `testimonial` dès qu'Argos raconte un abonné (‘un de nos membres…‘).\n"
+            "- `opportunity` encore si le PROSPECT parle de crypto, d'or, de peur de perdre, de livret A.\n"
+            "- Seul `offer_card` est INTERDIT tant qu'aucun produit ni prix n'a été annoncé.\n"
+            "Quand le thème est clair, tu affiches — ne retourne `null` que si aucun signal."
         )
 
     return (
