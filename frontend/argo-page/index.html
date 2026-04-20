@@ -199,6 +199,9 @@
     display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
     align-items: center;
   }
+  /* En appel, le headline + sub sont effondres : il faut restaurer l'air
+     entre le bas de l'orbe (A R G O S) et les boutons Micro/Raccrocher. */
+  body.in-call .o-cta-row { margin-top: 36px; }
   .btn {
     font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
