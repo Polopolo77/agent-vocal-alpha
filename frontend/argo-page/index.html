@@ -911,6 +911,233 @@
     margin-top: 6px;
   }
 
+  /* ================ CARDS DIAGNOSTIC / ÉDUCATIVES ================ */
+  /* Welcome steps (T1) */
+  .smart-card.welcome .ws-list {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 6px;
+  }
+  .smart-card.welcome .ws-row {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; color: var(--fg);
+    line-height: 1.45;
+  }
+  .smart-card.welcome .ws-num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    border: 1px solid var(--gold-soft);
+    color: var(--gold);
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Did-you-know */
+  .smart-card.dyk .dyk-fact {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 17px;
+    color: var(--fg);
+    line-height: 1.4;
+    margin: 4px 0 10px;
+  }
+  .smart-card.dyk .dyk-source {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Glossary */
+  .smart-card.gloss h4 {
+    color: var(--gold);
+    font-style: italic;
+    font-size: 20px;
+  }
+  .smart-card.gloss p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fg);
+  }
+
+  /* Patrimony donut */
+  .smart-card.patrimony svg.patrimony-donut {
+    display: block;
+    margin: 6px auto 12px;
+    overflow: visible;
+  }
+  .smart-card.patrimony .pat-legend {
+    display: flex; flex-direction: column; gap: 6px;
+    margin-top: 6px;
+  }
+  .smart-card.patrimony .pl-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--fg);
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .smart-card.patrimony .pl-row:last-child { border: none; }
+  .smart-card.patrimony .pl-row .pl-name { display: flex; align-items: center; gap: 8px; }
+  .smart-card.patrimony .pl-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .smart-card.patrimony .pl-pct {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    color: var(--gold);
+    font-size: 14px;
+  }
+
+  /* Quick-reply interactive cards */
+  .smart-card.qr .qr-q {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    color: var(--fg);
+    line-height: 1.35;
+    margin: 4px 0 14px;
+  }
+  .smart-card.qr .qr-options {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .smart-card.qr .qr-opt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--line-2);
+    color: var(--fg);
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all .2s;
+    text-align: left;
+    font-weight: 500;
+  }
+  .smart-card.qr .qr-opt:hover {
+    border-color: var(--gold-soft);
+    background: rgba(212,180,90,0.05);
+    color: var(--gold);
+  }
+  .smart-card.qr .qr-opt.selected {
+    background: var(--gold-dim);
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .smart-card.qr .qr-submit {
+    margin-top: 12px;
+    background: var(--gold);
+    color: var(--bg);
+    border: none;
+    padding: 12px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-weight: 600;
+    width: 100%;
+  }
+  .smart-card.qr .qr-submit:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Risk scale (1-5) */
+  .smart-card.qr .risk-scale {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0 6px;
+  }
+  .smart-card.qr .risk-opt {
+    flex: 1;
+    padding: 12px 4px;
+    border: 1px solid var(--line-2);
+    background: transparent;
+    cursor: pointer;
+    text-align: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 18px;
+    transition: all .2s;
+  }
+  .smart-card.qr .risk-opt:hover { border-color: var(--gold-soft); transform: translateY(-1px); }
+  .smart-card.qr .risk-opt .rl {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-style: normal;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-top: 4px;
+  }
+  .smart-card.qr .risk-opt.r1 { color: #6688aa; }
+  .smart-card.qr .risk-opt.r2 { color: #88aa88; }
+  .smart-card.qr .risk-opt.r3 { color: #d4b45a; }
+  .smart-card.qr .risk-opt.r4 { color: #d4a030; }
+  .smart-card.qr .risk-opt.r5 { color: #d47a30; }
+
+  /* RGPD + no_commit */
+  .smart-card.rgpd {
+    background: rgba(255,255,255,0.015);
+    border-color: var(--line);
+  }
+  .smart-card.rgpd .smart-card-badge { color: var(--dim); background: transparent; border-color: var(--line); }
+  .smart-card.rgpd p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .smart-card.no-commit {
+    border-color: var(--gold-soft);
+  }
+  .smart-card.no-commit p {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--fg);
+    margin: 6px 0;
+  }
+
+  /* Live market card */
+  .smart-card.market .lm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .smart-card.market .lm-item {
+    padding: 10px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--line);
+  }
+  .smart-card.market .lm-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+  .smart-card.market .lm-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--fg);
+    line-height: 1;
+  }
+  .smart-card.market .lm-change {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .smart-card.market .lm-change.up { color: #6bbd7a; }
+  .smart-card.market .lm-change.down { color: #d47a7a; }
+  .smart-card.market .lm-unit { color: var(--dim); font-size: 10px; }
+
   /* ================ CLOSING CINÉMATIQUE OVERLAY ================ */
   .closing-overlay {
     display: none;
@@ -2272,6 +2499,20 @@
     if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer") return buildOfferCard(card);
     if (tpl === "guarantee_generic" || tpl === "guarantee") return buildGuaranteeCard(card);
 
+    // Nouveaux templates : diagnostic, educatif, interactifs
+    if (tpl === "welcome_steps") return buildWelcomeStepsCard(card);
+    if (tpl === "did_you_know") return buildDidYouKnowCard(card, cardData);
+    if (tpl === "glossary") return buildGlossaryCard(card, cardData);
+    if (tpl === "patrimony_chart") return buildPatrimonyChartCard(card);
+    if (tpl === "rgpd_notice") return buildRGPDCard(card);
+    if (tpl === "no_commit") return buildNoCommitCard(card);
+    if (tpl === "live_market") return buildMarketCard(card, cardData);
+    if (tpl === "quickreply_experience") return buildQRExperienceCard(card);
+    if (tpl === "quickreply_capital") return buildQRCapitalCard(card);
+    if (tpl === "quickreply_horizon") return buildQRHorizonCard(card);
+    if (tpl === "quickreply_risk") return buildQRRiskCard(card);
+    if (tpl === "quickreply_concerns") return buildQRConcernsCard(card);
+
     const imgKey = cardData.image_key;
     const img = imgKey ? state.imagesByCardKey[imgKey] : null;
     const imgUrl = img ? img.url : null;
@@ -2400,6 +2641,417 @@
       '<h4>Essayez sans risque</h4>' +
       list;
     return card;
+  }
+
+  // ============ NOUVELLES CARTES DIAGNOSTIC / ÉDUCATIVES / INTERACTIVES ============
+
+  // Databases
+  var DYK_FACTS = [
+    { fact: "Le livret A : 2.4% / an. L'inflation 2026 : ~2.1%. Gain réel : 0.3%.", source: "Banque de France" },
+    { fact: "Le CAC 40 : +11% / an en moyenne sur 20 ans, dividendes réinvestis.", source: "Euronext" },
+    { fact: "70% du patrimoine financier des Français dort sur livret A ou assurance-vie.", source: "Banque de France" },
+    { fact: "1 000 € placés sur le S&P 500 en 2000 valent 5 400 € aujourd'hui.", source: "S&P Global" },
+    { fact: "Seuls 18% des Français investissent en bourse — contre 55% aux États-Unis.", source: "AMF" },
+  ];
+  var GLOSSARY = {
+    "pea":          { term: "PEA",           def: "Plan d'Épargne en Actions — enveloppe fiscale française. Après 5 ans : 17.2% d'imposition au lieu de 30%." },
+    "etf":          { term: "ETF",           def: "Fonds indiciel coté — un seul achat te donne des centaines d'entreprises d'un indice (ex: CAC 40, S&P 500)." },
+    "dividende":    { term: "Dividende",     def: "Part du bénéfice qu'une entreprise reverse à ses actionnaires, souvent chaque trimestre." },
+    "volatilité":   { term: "Volatilité",    def: "Amplitude des variations de prix. Forte volatilité = plus de risque ET plus de potentiel de gain." },
+    "value":        { term: "Value investing", def: "Méthode de Warren Buffett : acheter des entreprises dont le prix est sous leur valeur réelle." },
+    "blue chip":    { term: "Blue chip",     def: "Grande entreprise stable et rentable (Apple, LVMH, Coca-Cola). Le socle d'un portefeuille prudent." },
+    "obligation":   { term: "Obligation",    def: "Dette émise par un État ou une entreprise, remboursée avec un intérêt fixe. Moins risqué que l'action." },
+    "small cap":    { term: "Small cap",     def: "Petite capitalisation boursière. Plus volatile mais potentiel de multiples bien plus élevé." },
+    "diversification": { term: "Diversification", def: "Répartir ses placements entre plusieurs actifs pour réduire le risque global." },
+  };
+
+  // Helper : injecte une réponse comme si le prospect l'avait prononcée.
+  // Déclenche la réponse d'Argos + met à jour dossier + coach.
+  function injectAsUserReply(text) {
+    if (!text) return;
+    text = String(text).trim();
+    if (!text || !state.ws || state.ws.readyState !== 1) return;
+
+    // Affichage immédiat dans le transcript
+    addMessage("user", text);
+    state.conversationLog.push({ role: "user", text: text });
+    state.userTurnCount++;
+
+    // Turn badge
+    var $tn = $("turn-num");
+    if ($tn) $tn.textContent = String(state.userTurnCount);
+
+    // Envoie à Gemini Live comme tour utilisateur complet → Argos répond
+    try {
+      state.ws.send(JSON.stringify({
+        clientContent: {
+          turns: [{ role: "user", parts: [{ text: text }] }],
+          turnComplete: true
+        }
+      }));
+    } catch (e) {
+      console.warn("[Argo] injectAsUserReply clientContent failed, fallback:", e);
+      try {
+        state.ws.send(JSON.stringify({ realtimeInput: { text: text } }));
+      } catch (e2) {}
+    }
+
+    // Rafraîchit dossier + coach sur la nouvelle info
+    callUIAgents();
+    if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
+  }
+
+  function buildWelcomeStepsCard(card) {
+    card.classList.add("welcome");
+    card.innerHTML =
+      '<span class="smart-card-badge">Bienvenue</span>' +
+      '<h4>Comment ça va se passer</h4>' +
+      '<div class="ws-list">' +
+        '<div class="ws-row"><div class="ws-num">1</div><div>Je vous écoute 5 minutes.</div></div>' +
+        '<div class="ws-row"><div class="ws-num">2</div><div>J\'analyse votre situation et vos objectifs.</div></div>' +
+        '<div class="ws-row"><div class="ws-num">3</div><div>Je vous recommande l\'expert Argo Éditions adapté.</div></div>' +
+      '</div>';
+    return card;
+  }
+
+  function buildDidYouKnowCard(card, cardData) {
+    card.classList.add("dyk");
+    var fact = cardData.fact || "";
+    var source = cardData.source || "";
+    if (!fact) {
+      var idx = Math.floor(Math.random() * DYK_FACTS.length);
+      fact = DYK_FACTS[idx].fact;
+      source = DYK_FACTS[idx].source;
+    }
+    card.innerHTML =
+      '<span class="smart-card-badge">Saviez-vous que</span>' +
+      '<p class="dyk-fact">' + escapeHtml(fact) + '</p>' +
+      (source ? '<p class="dyk-source">— ' + escapeHtml(source) + '</p>' : '');
+    return card;
+  }
+
+  function buildGlossaryCard(card, cardData) {
+    card.classList.add("gloss");
+    card.innerHTML =
+      '<span class="smart-card-badge">Glossaire</span>' +
+      '<h4>' + escapeHtml(cardData.term || "") + '</h4>' +
+      '<p>' + escapeHtml(cardData.def || "") + '</p>';
+    return card;
+  }
+
+  function buildPatrimonyChartCard(card) {
+    card.classList.add("patrimony");
+    // Donut : 70/15/8/7 — segments en CSS conic gradient serait plus simple, mais SVG est plus fin
+    var segments = [
+      { label: "Livret A / Assurance-vie", pct: 70, color: "#6688aa" },
+      { label: "Immobilier locatif",       pct: 15, color: "#b89441" },
+      { label: "Actions / ETF",            pct:  8, color: "#d4b45a" },
+      { label: "Autres",                   pct:  7, color: "#5a5854" },
+    ];
+    var r = 48, cx = 60, cy = 60, circ = 2 * Math.PI * r;
+    var offset = 0;
+    var paths = segments.map(function(s) {
+      var len = (s.pct / 100) * circ;
+      var p = '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + s.color +
+              '" stroke-width="16" stroke-dasharray="' + len + ' ' + circ + '" stroke-dashoffset="' + (-offset) + '" />';
+      offset += len;
+      return p;
+    }).join("");
+    var legend = segments.map(function(s) {
+      return '<div class="pl-row">' +
+        '<span class="pl-name"><span class="pl-dot" style="background:' + s.color + '"></span>' + escapeHtml(s.label) + '</span>' +
+        '<span class="pl-pct">' + s.pct + '%</span>' +
+      '</div>';
+    }).join("");
+    card.innerHTML =
+      '<span class="smart-card-badge">Patrimoine français</span>' +
+      '<h4>Où dort l\'argent des Français</h4>' +
+      '<svg class="patrimony-donut" width="120" height="120" viewBox="0 0 120 120" style="transform: rotate(-90deg);">' + paths + '</svg>' +
+      '<div class="pat-legend">' + legend + '</div>';
+    return card;
+  }
+
+  function buildRGPDCard(card) {
+    card.classList.add("rgpd");
+    card.innerHTML =
+      '<span class="smart-card-badge">Transparence</span>' +
+      '<p>🔒 Conversation stockée 30 jours · Aucune vente agressive · Vous pouvez partir à tout moment.</p>';
+    return card;
+  }
+
+  function buildNoCommitCard(card) {
+    card.classList.add("no-commit");
+    card.innerHTML =
+      '<span class="smart-card-badge">Aucun engagement</span>' +
+      '<p>À la fin, c\'est vous qui décidez. On ne vous rappelle pas, on ne vous harcèle pas. Prenez votre temps.</p>';
+    return card;
+  }
+
+  function buildMarketCard(card, cardData) {
+    card.classList.add("market");
+    var data = (cardData && cardData.data) || {};
+    function fmt(n, unit) {
+      if (n == null || isNaN(n)) return "—";
+      var num = Number(n);
+      if (num >= 1000) return num.toLocaleString("fr-FR", {maximumFractionDigits: 0}) + (unit ? " " + unit : "");
+      return num.toLocaleString("fr-FR", {maximumFractionDigits: 3}) + (unit ? " " + unit : "");
+    }
+    function pct(p) {
+      if (p == null || isNaN(p)) return "";
+      var sign = p >= 0 ? "+" : "";
+      var cls = p >= 0 ? "up" : "down";
+      return '<div class="lm-change ' + cls + '">' + sign + Number(p).toFixed(2) + "%</div>";
+    }
+    function item(name, info) {
+      if (!info || info.price == null) return '';
+      return '<div class="lm-item">' +
+        '<div class="lm-name">' + escapeHtml(name) + '</div>' +
+        '<div class="lm-price">' + escapeHtml(fmt(info.price, info.unit || "")) + '</div>' +
+        pct(info.change_pct) +
+      '</div>';
+    }
+    var grid =
+      item("CAC 40", data.cac40) +
+      item("Or (spot)", data.gold) +
+      item("Bitcoin", data.bitcoin) +
+      item("EUR/USD", data.eurusd);
+    if (!grid) grid = '<p style="font-size:12px;color:var(--muted);">Données indisponibles pour le moment.</p>';
+    card.innerHTML =
+      '<span class="smart-card-badge">Marchés aujourd\'hui</span>' +
+      '<h4>Où en sont les marchés</h4>' +
+      '<div class="lm-grid">' + grid + '</div>';
+    return card;
+  }
+
+  // ===== Quick-replies interactives =====
+
+  function _buildQRSingle(card, key, badge, question, options) {
+    card.classList.add("qr");
+    var optsHtml = options.map(function(o) {
+      return '<button type="button" class="qr-opt" data-reply="' + escapeHtml(o.reply) + '">' + escapeHtml(o.label) + '</button>';
+    }).join("");
+    card.innerHTML =
+      '<span class="smart-card-badge">' + escapeHtml(badge) + '</span>' +
+      '<p class="qr-q">' + escapeHtml(question) + '</p>' +
+      '<div class="qr-options">' + optsHtml + '</div>';
+    // Wire clicks
+    card.querySelectorAll('.qr-opt').forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var reply = btn.dataset.reply || btn.textContent || "";
+        hideSmartCard(key);
+        injectAsUserReply(reply);
+      });
+    });
+    return card;
+  }
+
+  function buildQRExperienceCard(card) {
+    return _buildQRSingle(card, "qr_experience", "À vous",
+      "Où en êtes-vous avec l'investissement ?",
+      [
+        { label: "Je débute",            reply: "Je suis débutant, je n'ai jamais investi." },
+        { label: "Un peu d'expérience",  reply: "J'investis un peu, de temps en temps." },
+        { label: "Investisseur régulier", reply: "J'investis régulièrement en bourse." },
+      ]
+    );
+  }
+
+  function buildQRCapitalCard(card) {
+    return _buildQRSingle(card, "qr_capital", "À vous",
+      "Quel capital voulez-vous mettre de côté ?",
+      [
+        { label: "Moins de 2 000 €",    reply: "Je peux placer moins de 2 000 €." },
+        { label: "2 000 – 10 000 €",    reply: "Je peux placer entre 2 000 et 10 000 €." },
+        { label: "10 000 – 50 000 €",   reply: "Je peux placer entre 10 000 et 50 000 €." },
+        { label: "Plus de 50 000 €",    reply: "Je peux placer plus de 50 000 €." },
+      ]
+    );
+  }
+
+  function buildQRHorizonCard(card) {
+    return _buildQRSingle(card, "qr_horizon", "À vous",
+      "Sur quel horizon voulez-vous placer ?",
+      [
+        { label: "Court terme (1-3 ans)",   reply: "Mon horizon est court terme, 1 à 3 ans." },
+        { label: "Moyen (3-10 ans)",        reply: "Mon horizon est moyen terme, 3 à 10 ans." },
+        { label: "Long (10+ ans)",          reply: "Mon horizon est long terme, plus de 10 ans." },
+      ]
+    );
+  }
+
+  function buildQRRiskCard(card) {
+    card.classList.add("qr");
+    card.innerHTML =
+      '<span class="smart-card-badge">À vous</span>' +
+      '<p class="qr-q">Votre tolérance au risque ?</p>' +
+      '<div class="risk-scale">' +
+        '<button type="button" class="risk-opt r1" data-reply="Je veux zéro risque, je privilégie la sécurité avant tout.">😌<span class="rl">Prudent</span></button>' +
+        '<button type="button" class="risk-opt r2" data-reply="Je préfère jouer la sécurité avec un peu de rendement.">🙂<span class="rl">Calme</span></button>' +
+        '<button type="button" class="risk-opt r3" data-reply="Je cherche un équilibre entre sécurité et rendement.">😊<span class="rl">Équilibré</span></button>' +
+        '<button type="button" class="risk-opt r4" data-reply="Je suis prêt à prendre des risques pour plus de rendement.">😃<span class="rl">Dynamique</span></button>' +
+        '<button type="button" class="risk-opt r5" data-reply="Je veux du rendement maximum, même si c\'est risqué.">🔥<span class="rl">Agressif</span></button>' +
+      '</div>';
+    card.querySelectorAll('.risk-opt').forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var reply = btn.dataset.reply || "";
+        hideSmartCard("qr_risk");
+        injectAsUserReply(reply);
+      });
+    });
+    return card;
+  }
+
+  function buildQRConcernsCard(card) {
+    card.classList.add("qr");
+    var selected = new Set();
+    var options = [
+      { id: "inflation",  label: "Inflation qui ronge" },
+      { id: "crise",      label: "Crise / krach boursier" },
+      { id: "perte",      label: "Perdre du capital" },
+      { id: "complique",  label: "C'est trop compliqué" },
+      { id: "rien",       label: "Rien, je veux gagner" },
+    ];
+    var optsHtml = options.map(function(o) {
+      return '<button type="button" class="qr-opt" data-id="' + o.id + '">' + escapeHtml(o.label) + '</button>';
+    }).join("");
+    card.innerHTML =
+      '<span class="smart-card-badge">À vous</span>' +
+      '<p class="qr-q">Qu\'est-ce qui vous préoccupe le plus ? (plusieurs choix possibles)</p>' +
+      '<div class="qr-options">' + optsHtml + '</div>' +
+      '<button type="button" class="qr-submit" disabled>Valider mes choix</button>';
+    var $submit = card.querySelector('.qr-submit');
+    card.querySelectorAll('.qr-opt').forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var id = btn.dataset.id;
+        if (selected.has(id)) { selected.delete(id); btn.classList.remove("selected"); }
+        else { selected.add(id); btn.classList.add("selected"); }
+        $submit.disabled = selected.size === 0;
+      });
+    });
+    $submit.addEventListener("click", function() {
+      if (selected.size === 0) return;
+      var labels = options.filter(function(o) { return selected.has(o.id); }).map(function(o) { return o.label; });
+      var reply = "Ce qui me préoccupe : " + labels.join(", ") + ".";
+      hideSmartCard("qr_concerns");
+      injectAsUserReply(reply);
+    });
+    return card;
+  }
+
+  // ===== Trigger logic — phase diagnostic (T1-5) =====
+
+  // Séquence de cartes : welcome → rgpd → did-you-know → patrimony + quick-replies selon gaps
+  function triggerEarlyDiagnosticCard() {
+    var d = state.lastDossier || {};
+    var turn = state.userTurnCount;
+
+    // Quick-reply : expérience (situation) — T2+
+    if (turn >= 2 && (!d.situation || d.situation.length === 0) && !localCardShown.has("qr_experience")) {
+      showSmartCard({ template: "quickreply_experience" });
+      return;
+    }
+    // Quick-reply : horizon — T3+
+    if (turn >= 3 && !d.horizon && !localCardShown.has("qr_horizon")) {
+      showSmartCard({ template: "quickreply_horizon" });
+      return;
+    }
+    // Quick-reply : capital — T3+
+    if (turn >= 3 && !d.capital && !localCardShown.has("qr_capital")) {
+      showSmartCard({ template: "quickreply_capital" });
+      return;
+    }
+    // Quick-reply : risk — T4+ (si profil pas détecté)
+    if (turn >= 4 && !d.profil_detecte && !localCardShown.has("qr_risk")) {
+      showSmartCard({ template: "quickreply_risk" });
+      return;
+    }
+    // Quick-reply : concerns — T4+ (si vigilance vide)
+    if (turn >= 4 && (!d.vigilance || d.vigilance.length === 0) && !localCardShown.has("qr_concerns")) {
+      showSmartCard({ template: "quickreply_concerns" });
+      return;
+    }
+
+    // Saviez-vous que — T2-3 en fill-in quand le quick-reply a été répondu
+    if (turn >= 2 && turn <= 4 && !localCardShown.has("dyk_1") && state.currentRecommendedProduct === null) {
+      // Montre une DYK pédagogique, choisie aléatoirement
+      var idx = Math.floor(Math.random() * DYK_FACTS.length);
+      var f = DYK_FACTS[idx];
+      localCardShown.add("dyk_1");
+      showSmartCard({ template: "did_you_know", fact: f.fact, source: f.source });
+      return;
+    }
+
+    // Patrimoine français — T2-3
+    if (turn === 3 && !localCardShown.has("patrimony_1") && state.currentRecommendedProduct === null) {
+      showSmartCard({ template: "patrimony_chart" });
+      return;
+    }
+  }
+
+  // Hesitation detection → no_commit card (au premier "je sais pas")
+  var HESITATION_RES = [
+    /je\s+(?:n'?)?sais\s+pas/i,
+    /j'?sais\s+pas/i,
+    /pas\s+sûr/i,
+    /j'?h[ée]site/i,
+    /c'?est\s+compliqu[ée]/i,
+  ];
+  function checkHesitation(text) {
+    if (!text) return;
+    if (localCardShown.has("no_commit")) return;
+    for (var i = 0; i < HESITATION_RES.length; i++) {
+      if (HESITATION_RES[i].test(text)) {
+        showSmartCard({ template: "no_commit" });
+        return;
+      }
+    }
+  }
+
+  // Glossary trigger — scan la parole d'Argos pour mots techniques
+  var _glossaryShownAt = 0;
+  function maybeTriggerGlossary() {
+    var now = Date.now();
+    if (now - _glossaryShownAt < 10000) return; // max 1 glossaire toutes les 10s
+    var bot = (state.pendingBotText || "").toLowerCase();
+    if (bot.length < 40) return;
+    for (var key in GLOSSARY) {
+      var gKey = "gloss_" + key.replace(/\s+/g, "_");
+      if (localCardShown.has(gKey)) continue;
+      // match mot entier (pas sous-string)
+      var re = new RegExp("\\b" + key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+      if (re.test(bot)) {
+        _glossaryShownAt = now;
+        var entry = GLOSSARY[key];
+        // Marque AVANT showSmartCard pour éviter re-entrance
+        localCardShown.add(gKey);
+        showSmartCard({ template: "glossary", key: gKey, term: entry.term, def: entry.def });
+        return;
+      }
+    }
+  }
+
+  // Market card — fetché une fois au démarrage, affiché T2
+  var _marketData = null;
+  function fetchMarketData() {
+    if (_marketData) return Promise.resolve(_marketData);
+    return fetch(BACKEND_URL + "/api/market")
+      .then(function(r) { return r.json(); })
+      .then(function(j) {
+        _marketData = (j && j.data) || {};
+        return _marketData;
+      })
+      .catch(function() { _marketData = {}; return _marketData; });
+  }
+  function showMarketCardOnce() {
+    if (localCardShown.has("market_1")) return;
+    localCardShown.add("market_1");
+    fetchMarketData().then(function(data) {
+      if (!data || Object.keys(data).length === 0) {
+        localCardShown.delete("market_1"); // retry later
+        return;
+      }
+      showSmartCard({ template: "live_market", data: data });
+    });
   }
 
   // ============ CLOSING CTA ============
@@ -2678,6 +3330,10 @@
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " parle…";
         startParticles(); // V2 — émission continue tant qu'il parle
+        // Phase diagnostic : cartes d'accueil + RGPD + market
+        scheduleEphemeral(function() { showSmartCard({ template: "welcome_steps" }); localCardShown.add("welcome_steps"); }, 600);
+        scheduleEphemeral(function() { showSmartCard({ template: "rgpd_notice" }); localCardShown.add("rgpd_notice"); }, 4000);
+        scheduleEphemeral(showMarketCardOnce, 9000);
         // Message d'ouverture : générique (on ne sait pas encore quel produit recommander).
         ws.send(JSON.stringify({
           realtimeInput: {
@@ -2754,6 +3410,8 @@
         checkPatternInterrupt();
         // P7 : détection fin d'appel naturelle (si le prospect dit "au revoir"…)
         checkEndOfCall(state.pendingUserText, "user");
+        // Hesitation → carte "aucun engagement"
+        checkHesitation(state.pendingUserText);
         // UI agents EN SIMULTANÉ : dès que le prospect a parlé et fait une micro-pause
         // (1.2s sans nouveau chunk de transcription), on déclenche dossier + cards
         // sans attendre qu'Argos finisse. Ils travaillent en parallèle de l'audio.
@@ -2770,6 +3428,8 @@
         checkSilenceAfterPrice(state.pendingBotText);
         // Cards en temps réel PENDANT qu'Argos parle (local matching, zéro latence)
         triggerCardsWhileSpeaking();
+        // Glossaire : PEA / ETF / dividende / volatilité → carte définition
+        maybeTriggerGlossary();
         // Cards LLM PENDANT qu'Argos parle aussi (routing thématique fin)
         scheduleCardsAgentWhileSpeaking();
         // P7 : Argos prononce la phrase de fin → auto-disconnect
@@ -2812,6 +3472,8 @@
           // UI agents dès le tour 1 (pour que le dossier commence à se remplir
           // avec le prénom dès qu'il est donné)
           if (state.userTurnCount >= 1) callUIAgents();
+          // Cards diagnostic : 1 quick-reply ou fait éducatif par tour selon gaps
+          scheduleEphemeral(triggerEarlyDiagnosticCard, 900);
           // Coach selon règle
           if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
 

@@ -681,6 +681,83 @@ async def handle_save_conversation(request: web.Request) -> web.Response:
         return web.json_response({"error": str(e)}, status=500)
 
 
+# =============================================================================
+# MARKET DATA — indices live (CAC 40, or, Bitcoin, EUR/USD)
+# =============================================================================
+
+_MARKET_CACHE: dict = {"data": None, "ts": 0.0}
+_MARKET_TTL = 600  # 10 min
+
+async def _fetch_market_data() -> dict:
+    """Récupère des données marché depuis des APIs gratuites sans auth.
+    Dégrade gracieusement si une source fail."""
+    import aiohttp as _aiohttp
+    result: dict = {}
+
+    # Yahoo Finance (CAC 40, Or spot, EUR/USD) — single batch call
+    yh_url = "https://query1.finance.yahoo.com/v7/finance/quote?symbols=^FCHI,GC=F,EURUSD=X"
+    yh_headers = {"User-Agent": "Mozilla/5.0 (Macintosh) Chrome/120"}
+    try:
+        async with _aiohttp.ClientSession() as session:
+            async with session.get(yh_url, headers=yh_headers, timeout=6) as r:
+                if r.status == 200:
+                    j = await r.json()
+                    for q in j.get("quoteResponse", {}).get("result", []):
+                        sym = q.get("symbol")
+                        price = q.get("regularMarketPrice")
+                        pct = q.get("regularMarketChangePercent")
+                        if sym == "^FCHI":
+                            result["cac40"] = {"price": price, "change_pct": pct, "unit": "pts"}
+                        elif sym == "GC=F":
+                            result["gold"] = {"price": price, "change_pct": pct, "unit": "$/oz"}
+                        elif sym == "EURUSD=X":
+                            result["eurusd"] = {"price": price, "change_pct": pct, "unit": ""}
+    except Exception as e:
+        log.debug("Yahoo market fetch failed: %s", e)
+
+    # CoinGecko (Bitcoin) — rock-solid free API
+    btc_url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur&include_24hr_change=true"
+    try:
+        async with _aiohttp.ClientSession() as session:
+            async with session.get(btc_url, timeout=6) as r:
+                if r.status == 200:
+                    j = await r.json()
+                    btc = j.get("bitcoin", {})
+                    if btc:
+                        result["bitcoin"] = {
+                            "price": btc.get("eur"),
+                            "change_pct": btc.get("eur_24h_change"),
+                            "unit": "€",
+                        }
+    except Exception as e:
+        log.debug("CoinGecko fetch failed: %s", e)
+
+    return result
+
+
+async def handle_market(request: web.Request) -> web.Response:
+    now = time.time()
+    cached = _MARKET_CACHE.get("data")
+    ts = _MARKET_CACHE.get("ts", 0.0)
+    if cached and (now - ts) < _MARKET_TTL:
+        return web.json_response({"data": cached, "cached": True, "age_s": int(now - ts)})
+    try:
+        data = await _fetch_market_data()
+        if data:
+            _MARKET_CACHE["data"] = data
+            _MARKET_CACHE["ts"] = now
+            return web.json_response({"data": data, "cached": False})
+        # Rien reçu — retourne cache précédent si possible
+        if cached:
+            return web.json_response({"data": cached, "cached": True, "stale": True})
+        return web.json_response({"data": {}, "error": "no_data_available"})
+    except Exception as e:
+        log.exception("Market fetch error")
+        if cached:
+            return web.json_response({"data": cached, "cached": True, "stale": True, "error": str(e)})
+        return web.json_response({"data": {}, "error": str(e)}, status=500)
+
+
 async def handle_list_conversations(request: web.Request) -> web.Response:
     """List latest 100 conversations (simple admin view)."""
     conn = sqlite3.connect(DB_PATH, timeout=5.0)
@@ -768,6 +845,7 @@ app.router.add_post("/api/ui-cards", handle_ui_cards)
 app.router.add_post("/api/briefing", handle_briefing)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_get("/api/conversations", handle_list_conversations)
+app.router.add_get("/api/market", handle_market)
 app.router.add_get("/", handle_static)
 app.router.add_get("/{path:.*}", handle_static)
 
