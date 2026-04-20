@@ -643,62 +643,72 @@
   }
   @media (max-width: 980px) { .dossier-close { display: flex; } }
 
-  /* ================ EXPERTS BAR + MARQUEE ================ */
-  .experts-bar {
-    max-width: 1480px;
-    margin: 40px auto 0;
+  /* ================ HOW IT WORKS (3 étapes) ================ */
+  .how-it-works {
+    max-width: 980px;
+    margin: 80px auto 60px;
     padding: 50px 40px;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--line-soft);
     text-align: center;
-    transition: opacity 0.5s, max-height 0.5s, padding 0.5s;
+    transition: opacity 0.5s, max-height 0.5s, padding 0.5s, margin 0.5s;
   }
-  body.in-call .experts-bar {
+  body.in-call .how-it-works {
     opacity: 0;
     max-height: 0;
+    margin: 0 auto;
     padding: 0 40px;
     overflow: hidden;
     border: none;
     pointer-events: none;
   }
-  .experts-bar .eyebrow { color: var(--dim); margin-bottom: 30px; }
-  .experts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
-  .expert { padding: 0 20px; border-right: 1px solid var(--line); text-align: left; }
-  .expert:last-child { border-right: none; }
-  .expert-name {
+  .how-it-works .eyebrow { color: var(--dim); margin-bottom: 36px; }
+  .hiw-steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+  .hiw-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+    position: relative;
+  }
+  .hiw-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 30px;
+    right: -30px;
+    width: 40px; height: 1px;
+    background: linear-gradient(90deg, var(--gold-soft), transparent);
+  }
+  .hiw-num {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: 1px solid var(--gold-soft);
+    background: var(--bg-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
     font-style: italic;
-    font-size: 24px;
     color: var(--gold);
-    margin-bottom: 6px;
     font-weight: 500;
   }
-  .expert-role { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 4px; }
-  .expert-pub {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: var(--dim);
-    letter-spacing: 0.12em; text-transform: uppercase;
+  .hiw-text {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-family: 'Inter', sans-serif;
   }
-
-  .marquee {
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    padding: 16px 0;
-    overflow: hidden;
-    background: var(--bg-2);
-    margin-top: 60px;
-    transition: opacity 0.5s;
+  @media (max-width: 720px) {
+    .hiw-steps { grid-template-columns: 1fr; gap: 28px; }
+    .hiw-step:not(:last-child)::after { display: none; }
   }
-  body.in-call .marquee { opacity: 0; }
-  .marquee-track {
-    display: flex; gap: 50px;
-    white-space: nowrap;
-    animation: marquee 40s linear infinite;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; letter-spacing: 0.2em; color: var(--dim);
-  }
-  .marquee-track .gold { color: var(--gold); }
-  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
   /* ================ TRANSCRIPT (pendant l'appel, sous les CTAs) ================ */
   #transcript {
@@ -1053,8 +1063,7 @@
     margin: 4px 0;
   }
   body.postcall-active .oracle,
-  body.postcall-active .experts-bar,
-  body.postcall-active .marquee,
+  body.postcall-active .how-it-works,
   body.postcall-active .turn-badge { display: none !important; }
 
   .remember-me {
@@ -1332,50 +1341,21 @@
 
 </section>
 
-<div class="experts-bar" id="experts">
-  <div class="eyebrow">Quatre experts. Quatre stratégies. Une seule conversation.</div>
-  <div class="experts-grid">
-    <div class="expert">
-      <div class="expert-name">Whitney Tilson</div>
-      <div class="expert-role">Investisseur value</div>
-      <div class="expert-pub">Actions Gagnantes</div>
+<div class="how-it-works" id="how-it-works">
+  <div class="eyebrow">Comment ça fonctionne</div>
+  <div class="hiw-steps">
+    <div class="hiw-step">
+      <div class="hiw-num">1</div>
+      <div class="hiw-text">Démarrez l'appel<br>depuis votre navigateur</div>
     </div>
-    <div class="expert">
-      <div class="expert-name">Eric Wade</div>
-      <div class="expert-role">Spécialiste asymétrie</div>
-      <div class="expert-pub">Profits Asymétriques</div>
+    <div class="hiw-step">
+      <div class="hiw-num">2</div>
+      <div class="hiw-text">Parlez naturellement<br>en français</div>
     </div>
-    <div class="expert">
-      <div class="expert-name">Stansberry &amp; W. Tilson</div>
-      <div class="expert-role">Intelligence quantitative</div>
-      <div class="expert-pub">Agent Alpha</div>
+    <div class="hiw-step">
+      <div class="hiw-num">3</div>
+      <div class="hiw-text">Argos vous recommande<br>la bonne publication</div>
     </div>
-    <div class="expert">
-      <div class="expert-name">Dan Ferris</div>
-      <div class="expert-role">Or, mines &amp; matières</div>
-      <div class="expert-pub">Stratégie Haut Rendement</div>
-    </div>
-  </div>
-</div>
-
-<div class="marquee">
-  <div class="marquee-track">
-    <span>ARGO ÉDITIONS</span><span class="gold">·</span>
-    <span>WHITNEY TILSON</span><span class="gold">·</span>
-    <span>ACTIONS GAGNANTES</span><span class="gold">·</span>
-    <span>ERIC WADE</span><span class="gold">·</span>
-    <span>PROFITS ASYMÉTRIQUES</span><span class="gold">·</span>
-    <span>DAN FERRIS</span><span class="gold">·</span>
-    <span>STRATÉGIE HAUT RENDEMENT</span><span class="gold">·</span>
-    <span>AGENT ALPHA</span><span class="gold">·</span>
-    <span>ARGO ÉDITIONS</span><span class="gold">·</span>
-    <span>WHITNEY TILSON</span><span class="gold">·</span>
-    <span>ACTIONS GAGNANTES</span><span class="gold">·</span>
-    <span>ERIC WADE</span><span class="gold">·</span>
-    <span>PROFITS ASYMÉTRIQUES</span><span class="gold">·</span>
-    <span>DAN FERRIS</span><span class="gold">·</span>
-    <span>STRATÉGIE HAUT RENDEMENT</span><span class="gold">·</span>
-    <span>AGENT ALPHA</span><span class="gold">·</span>
   </div>
 </div>
 
