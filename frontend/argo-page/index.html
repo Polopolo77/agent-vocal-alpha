@@ -3,22 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Argos · Concierge IA Argo Éditions</title>
+<title>Argos · L'Oracle de votre patrimoine — Argo Éditions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
   :root {
-    --bg: #0b0b0b;
-    --bg-2: #111111;
-    --bg-3: #161616;
+    --bg: #0a0908;
+    --bg-2: #100e0b;
+    --bg-3: #15130f;
     --fg: #f3efe6;
     --muted: #8a8783;
+    --dim: #5a5854;
     --gold: #d4b45a;
     --gold-2: #b89441;
-    --gold-dim: rgba(212, 180, 90, 0.18);
-    --line: #232323;
-    --line-2: #2a2a2a;
+    --gold-soft: #b89441;
+    --gold-light: #e8d39a;
+    --gold-dim: rgba(212,180,90,0.15);
+    --gold-dark: #8a6d2a;
+    --line: #232120;
+    --line-2: #2a2726;
+    --line-soft: rgba(212,180,90,0.12);
     --danger: #b85454;
     --success: #5ab85a;
   }
@@ -28,178 +34,337 @@
     min-height: 100%;
     background: var(--bg);
     color: var(--fg);
-    font-family: 'Inter', -apple-system, 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', -apple-system, sans-serif;
     font-weight: 400;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
   body {
     background:
-      radial-gradient(1200px 900px at 50% -5%, rgba(212,180,90,0.07), transparent 55%),
-      radial-gradient(800px 600px at 85% 100%, rgba(60,80,120,0.04), transparent 50%),
-      radial-gradient(400px 400px at 15% 60%, rgba(212,180,90,0.03), transparent 50%),
-      #0a0a0a;
+      radial-gradient(900px 700px at 50% -10%, rgba(212,180,90,0.06), transparent 55%),
+      radial-gradient(700px 500px at 100% 100%, rgba(60,80,120,0.04), transparent 50%),
+      var(--bg);
   }
 
-  /* ============ LAYOUT ============ */
-  /* Avant l'appel : centré classique */
-  .page {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 48px 28px 120px;
-    transition: max-width 0.55s cubic-bezier(.16,.78,.31,.98),
-                margin 0.55s cubic-bezier(.16,.78,.31,.98);
-  }
-
-  /* Pendant l'appel AVANT que le dossier s'ouvre : reste centré */
-  body.in-call .page {
-    transition: max-width 0.6s cubic-bezier(.16,.78,.31,.98),
-                margin 0.6s cubic-bezier(.16,.78,.31,.98),
-                padding 0.6s cubic-bezier(.16,.78,.31,.98);
-  }
-
-  /* Quand le dossier s'ouvre : le .page glisse à droite pour laisser la place */
-  body.dossier-open .page {
-    max-width: 440px;
-    margin: 0 0 0 auto;
-    padding: 28px 24px 100px 16px;
-  }
-
-  /* ============ HEADER / BRAND ============ */
-  .brand {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.72rem;
-    letter-spacing: 7px;
-    color: #5a5854;
-    text-align: center;
-    margin-bottom: 28px;
+  .serif { font-family: 'Cormorant Garamond', serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.32em;
     text-transform: uppercase;
-  }
-  .brand strong {
     color: var(--gold);
-    font-weight: 700;
-  }
-
-  /* ============ HERO ============ */
-  .headline {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: clamp(2rem, 4.5vw, 3.2rem);
     font-weight: 500;
-    line-height: 1.15;
-    text-align: center;
-    margin-bottom: 6px;
   }
-  .headline span { color: var(--gold); font-style: italic; }
-  /* Fine gold line under headline */
-  .headline::after {
-    content: "";
-    display: block;
-    width: 60px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-    margin: 16px auto 0;
-  }
+  .eyebrow.dim { color: var(--dim); }
 
-  /* ============ HOW IT WORKS (sous l'orb avant l'appel) ============ */
-  .how-it-works {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin: 28px auto 0;
-    max-width: 560px;
-    opacity: 1;
-    transition: opacity 0.4s, max-height 0.5s, margin 0.4s;
-    max-height: 160px;
-    overflow: hidden;
+  /* ================ NAV ================ */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(14px) saturate(140%);
+    background: rgba(10,9,8,0.7);
+    border-bottom: 1px solid var(--line-soft);
   }
-  body.in-call .how-it-works { opacity: 0; max-height: 0; pointer-events: none; margin: 0; }
-
-  .step {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 12px;
-    padding: 14px 12px;
-    text-align: center;
-    transition: border-color 0.3s;
+  .nav-inner {
+    max-width: 1480px; margin: 0 auto;
+    padding: 18px 40px;
+    display: flex; align-items: center; justify-content: space-between;
   }
-  .step:hover { border-color: rgba(212,180,90,0.25); }
-  .step-num {
+  .brand-logo { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: 32px; height: 32px;
+    border: 1px solid var(--gold);
+    border-radius: 50%;
+    position: relative;
+  }
+  .brand-mark::after {
+    content: ""; position: absolute;
+    inset: 4px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, var(--gold-light), var(--gold-soft));
+  }
+  .brand-name {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.6rem;
-    color: var(--gold);
-    line-height: 1;
+    font-size: 22px; font-weight: 600;
+    letter-spacing: 0.04em;
   }
-  .step-text {
-    font-size: 0.78rem;
-    color: #7a7773;
-    margin-top: 6px;
-    line-height: 1.4;
+  .brand-name em { color: var(--gold); font-style: italic; font-weight: 500; }
+  .nav-links {
+    display: flex; gap: 36px;
+    font-size: 13px; color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+  .nav-links a { color: inherit; text-decoration: none; transition: color .2s; }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-cta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid var(--gold-soft);
+    padding: 10px 18px;
+    background: transparent;
+    cursor: pointer;
+    transition: all .25s;
+  }
+  .nav-cta:hover { background: var(--gold); color: var(--bg); }
+  @media (max-width: 860px) { .nav-links { display: none; } }
+
+  /* ================ ORACLE LAYOUT (3-column) ================ */
+  .oracle {
+    min-height: calc(100vh - 73px);
+    padding: 0 40px;
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    gap: 40px;
+    align-items: center;
+    max-width: 1480px;
+    margin: 0 auto;
   }
 
-  /* ============ ORB ============ */
+  .o-left {
+    padding: 40px 40px 40px 0;
+    border-right: 1px solid var(--line-soft);
+    transition: opacity 0.6s;
+  }
+  body.in-call .o-left { opacity: 0.45; }
+  .o-left .eyebrow { margin-bottom: 24px; }
+  .o-quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 24px;
+    line-height: 1.4;
+    color: var(--fg);
+    margin-bottom: 24px;
+  }
+  .o-quote::before {
+    content: "\201C";
+    font-size: 60px;
+    color: var(--gold);
+    line-height: 0;
+    vertical-align: -20px;
+    margin-right: 4px;
+  }
+  .o-attrib {
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 0.05em;
+    border-left: 1px solid var(--gold-soft);
+    padding-left: 12px;
+  }
+  .o-attrib strong { color: var(--gold); font-weight: 500; }
+  .o-press { margin-top: 60px; }
+  .o-press-list { display: flex; flex-direction: column; gap: 14px; }
+  .o-press-list div {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--gold);
+  }
+
+  /* ==== CENTER COLUMN ==== */
+  .o-center { text-align: center; padding: 20px 0; position: relative; }
+  .o-headline {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(36px, 4.4vw, 60px);
+    line-height: 1.05;
+    margin-bottom: 18px;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+  }
+  .o-headline em { color: var(--gold); font-style: italic; }
+  .o-sub {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 420px;
+    margin: 0 auto 28px;
+  }
+  body.in-call .o-headline, body.in-call .o-sub {
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0;
+    margin: 0;
+    overflow: hidden;
+    transition: all 0.5s;
+  }
+  .o-cta-row {
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+    align-items: center;
+  }
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 16px 26px;
+    transition: all .3s;
+    display: inline-flex; align-items: center; gap: 12px;
+    text-decoration: none;
+    background: transparent;
+    border: 1px solid transparent;
+    font-weight: 500;
+  }
+  .btn-primary {
+    background: var(--gold);
+    color: var(--bg);
+    border-color: var(--gold);
+  }
+  .btn-primary:hover {
+    background: var(--gold-light);
+    box-shadow: 0 8px 30px rgba(212,180,90,0.25);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5; cursor: not-allowed; box-shadow: none;
+  }
+  .btn-ghost { color: var(--fg); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--gold-soft); color: var(--gold); }
+  .btn-danger {
+    background: rgba(184,84,84,0.08);
+    border: 1px solid rgba(184,84,84,0.35);
+    color: #d88888;
+  }
+  .btn-danger:hover { background: rgba(184,84,84,0.18); border-color: #d88888; }
+  .btn-mute {
+    border: 1px solid var(--line);
+    color: #cfc9bd;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn-mute:hover { border-color: var(--gold-soft); }
+  .btn-mute.muted { background: rgba(184,84,84,0.12); border-color: rgba(184,84,84,0.4); color: #e8a3a3; }
+  .btn-mute .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #5ab85a;
+    box-shadow: 0 0 6px rgba(90,184,90,0.6);
+  }
+  .btn-mute.muted .dot { background: #b85454; box-shadow: 0 0 6px rgba(184,84,84,0.6); }
+  .btn-icon { width: 14px; height: 14px; }
+
+  .status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 20px;
+    min-height: 18px;
+    text-align: center;
+  }
+
+  /* ========= ORACLE ORB (SVG) ========= */
   .orb-container {
     --orb-scale: 1;
     --orb-glow: 0.25;
-    --orb-px: 0;
-    --orb-py: 0;
     --heat-color: #6688aa;
     --heat-pct: 0;
     position: relative;
-    width: 260px;
-    height: 260px;
-    margin: 24px auto 20px;
+    width: 380px;
+    height: 460px;
+    margin: 0 auto 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transform: translate3d(var(--orb-px), var(--orb-py), 0);
-    transition: transform 0.4s cubic-bezier(.16,.78,.31,.98);
+  }
+  .oracle-svg {
+    width: 100%; height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  /* Sphere group : reactive au voice RMS */
+  .oracle-sphere-scale {
+    transform-origin: 200px 220px;
+    transform: scale(var(--orb-scale));
+    transition: transform 60ms linear;
+  }
+  /* Aura : opacity liée à --orb-glow */
+  .oracle-aura { opacity: calc(0.5 + 0.5 * var(--orb-glow)); transition: opacity 0.3s; }
+
+  .oracle-ring-outer {
+    transform-origin: 200px 220px;
+    animation: oracle-rotate-slow 40s linear infinite;
+  }
+  .oracle-ring-mid {
+    transform-origin: 200px 220px;
+    animation: oracle-rotate-rev 30s linear infinite;
+  }
+  .oracle-core {
+    transform-origin: 200px 220px;
+    animation: oracle-core-breathe 4s ease-in-out infinite;
+  }
+  .orb-container.speaking .oracle-core {
+    animation: oracle-core-pulse 0.8s ease-in-out infinite alternate;
+  }
+  .orb-container.speaking .oracle-aura {
+    animation: oracle-aura-pulse 3s ease-in-out infinite;
+  }
+  .oracle-pulse-out {
+    transform-origin: 200px 220px;
+    opacity: 0;
+  }
+  .orb-container.speaking .oracle-pulse-out {
+    animation: oracle-pulse-out 1.6s ease-out infinite;
+  }
+  .orb-container.speaking .oracle-pulse-out:nth-child(2) { animation-delay: 0.5s; }
+  .orb-container.speaking .oracle-pulse-out:nth-child(3) { animation-delay: 1s; }
+
+  @keyframes oracle-rotate-slow { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+  @keyframes oracle-rotate-rev { from { transform: rotate(0deg);} to { transform: rotate(-360deg);} }
+  @keyframes oracle-core-breathe {
+    0%,100% { transform: scale(0.95); }
+    50% { transform: scale(1.05); }
+  }
+  @keyframes oracle-core-pulse {
+    0% { transform: scale(0.9); opacity: 0.85; }
+    100% { transform: scale(1.18); opacity: 1; }
+  }
+  @keyframes oracle-aura-pulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+  @keyframes oracle-pulse-out {
+    0% { r: 35; opacity: 0.6; }
+    100% { r: 150; opacity: 0; }
   }
 
-  /* ===== V4 — Halo de chaleur derrière l'orb (couleur pilotée en live) ===== */
+  /* Heat halo derrière l'orb */
   .heat-halo {
     position: absolute;
-    inset: -40%;
+    inset: 8% 15%;
     border-radius: 50%;
     background: radial-gradient(circle, var(--heat-color) 0%, transparent 55%);
     opacity: 0;
-    filter: blur(24px);
+    filter: blur(28px);
     pointer-events: none;
     z-index: 0;
     transition: opacity 0.8s, background 0.8s;
   }
-  body.in-call .heat-halo { opacity: calc(0.12 + var(--heat-pct) / 350); }
-  body.in-call.chaleur-ready .heat-halo { animation: heat-halo-pulse 2s ease-in-out infinite; }
-  @keyframes heat-halo-pulse {
-    0%, 100% { transform: scale(1); opacity: calc(0.18 + var(--heat-pct) / 350); }
-    50%      { transform: scale(1.08); opacity: calc(0.28 + var(--heat-pct) / 300); }
-  }
+  body.in-call .heat-halo { opacity: calc(0.1 + var(--heat-pct) / 350); }
 
-  /* ===== V1 — Waveform spectrale autour de l'orb (SVG 64 barres en cercle) ===== */
+  /* Waveform bars + particle canvas superposés */
   .orb-waveform {
     position: absolute;
     top: 50%; left: 50%;
     width: 280px; height: 280px;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -48%);
     opacity: 0;
     transition: opacity 0.5s;
     pointer-events: none;
-    z-index: 1;
+    z-index: 3;
   }
   body.in-call .orb-container.speaking .orb-waveform { opacity: 1; }
   .orb-waveform line {
     stroke: var(--gold);
-    stroke-width: 2.2;
+    stroke-width: 2;
     stroke-linecap: round;
     transform-origin: 140px 140px;
     filter: drop-shadow(0 0 3px rgba(212,180,90,0.5));
   }
-
-  /* ===== V2 — Canvas de particules d'or ===== */
   #particle-canvas {
     position: absolute;
     top: 50%; left: 50%;
-    width: 340px; height: 340px;
-    transform: translate(-50%, -50%);
+    width: 380px; height: 380px;
+    transform: translate(-50%, -48%);
     pointer-events: none;
     z-index: 2;
     opacity: 0;
@@ -207,88 +372,7 @@
   }
   body.in-call .orb-container.speaking #particle-canvas { opacity: 1; }
 
-  /* Progress ring SVG retiré (anneau de chaleur autour de l'orb) */
-  .orb-ring {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 220px; height: 220px;
-    border: 1px solid rgba(212,180,90,0.2);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  .orb-ring:nth-child(2) { width: 260px; height: 260px; border-color: rgba(212,180,90,0.1); }
-  .orb-container.connecting .orb-ring,
-  .orb-container.speaking   .orb-ring {
-    opacity: 1;
-    animation: ring-pulse 1.1s ease-in-out infinite;
-  }
-  .orb-container.speaking .orb-ring:nth-child(2) { animation-delay: 0.25s; }
-  @keyframes ring-pulse {
-    0%   { transform: translate(-50%, -50%) scale(0.92); opacity: 0.9; }
-    100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0; }
-  }
-
-  .orb {
-    width: 180px; height: 180px;
-    border-radius: 50%;
-    border: 1.5px solid var(--gold);
-    background: radial-gradient(circle at 32% 28%, #5a4a2a, #1b140a 65%, #0c0905);
-    box-shadow:
-      0 0 calc(60px * var(--orb-glow)) rgba(212,180,90,0.55),
-      0 0 calc(120px * var(--orb-glow)) rgba(212,180,90,0.25),
-      inset 0 0 40px rgba(212,180,90,0.18),
-      inset 0 0 90px rgba(255,220,140,0.06);
-    transform: scale(var(--orb-scale));
-    transition: transform 60ms linear, box-shadow 0.3s;
-    position: relative;
-    overflow: hidden;
-  }
-  /* Wave caustique à l'intérieur de l'orb pendant que Argos parle */
-  /* Fix : l'ancien inset -20% + overflow:hidden rendait la wave invisible.
-     Nouveau : inset 0 (stay inside) + rotation sur z-axis, visible. */
-  .orb::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 30% 40%, rgba(212,180,90,0.28) 0%, transparent 40%),
-      radial-gradient(circle at 70% 60%, rgba(255,220,140,0.2) 0%, transparent 45%);
-    opacity: 0;
-    transition: opacity 0.4s;
-    animation: orb-wave 4s linear infinite;
-  }
-  .orb-container.speaking .orb::after { opacity: 1; }
-  @keyframes orb-wave {
-    0%   { transform: rotate(0deg) scale(1); }
-    50%  { transform: rotate(180deg) scale(1.15); }
-    100% { transform: rotate(360deg) scale(1); }
-  }
-  .orb-container.idle      .orb { animation: breathe 6s ease-in-out infinite; }
-  .orb-container.connecting .orb { animation: pulse 1.1s ease-in-out infinite; }
-  @keyframes breathe { 0%,100%{ transform: scale(0.985);} 50% { transform: scale(1.015);} }
-  @keyframes pulse   { 0%,100%{ transform: scale(0.95);} 50% { transform: scale(1.04);} }
-
-  .agent-name {
-    text-align: center;
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.7rem;
-    font-weight: 500;
-    margin-top: 10px;
-    color: var(--gold);
-  }
-  .status {
-    text-align: center;
-    font-size: 0.82rem;
-    color: var(--muted);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-top: 8px;
-    min-height: 18px;
-  }
-
-  /* ============ SCORING METER (4 paliers colorés) ============ */
+  /* Heat meter + tour badge */
   .heat-meter {
     display: flex;
     gap: 4px;
@@ -309,35 +393,39 @@
   .heat-pip.active.cold { background: #6688aa; box-shadow: 0 0 8px rgba(102,136,170,0.6); }
   .heat-pip.active.warm { background: #b89441; box-shadow: 0 0 8px rgba(184,148,65,0.6); }
   .heat-pip.active.hot  { background: #d4a030; box-shadow: 0 0 10px rgba(212,160,48,0.7); }
-  .heat-pip.active.ready { background: #d4b45a; box-shadow: 0 0 14px rgba(212,180,90,0.9); animation: pip-pulse 1.6s ease-in-out infinite; }
+  .heat-pip.active.ready {
+    background: #d4b45a; box-shadow: 0 0 14px rgba(212,180,90,0.9);
+    animation: pip-pulse 1.6s ease-in-out infinite;
+  }
   @keyframes pip-pulse { 0%,100% { box-shadow: 0 0 14px rgba(212,180,90,0.9);} 50% { box-shadow: 0 0 22px rgba(212,180,90,1);} }
   .heat-label {
-    text-align: center;
-    font-size: 0.65rem;
-    letter-spacing: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
     color: var(--muted);
+    text-align: center;
     margin-top: 8px;
     opacity: 0;
-    transition: opacity 0.5s;
     min-height: 12px;
+    transition: opacity 0.5s;
   }
   body.in-call .heat-label { opacity: 0.7; }
 
-  /* ============ BADGE TOUR ============ */
   .turn-badge {
     position: fixed;
-    top: 22px;
-    right: 22px;
+    top: 86px;
+    right: 24px;
     background: rgba(20,20,20,0.85);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(212,180,90,0.25);
     color: var(--gold);
     padding: 8px 14px;
     border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 1.5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     z-index: 60;
     opacity: 0;
@@ -348,486 +436,166 @@
   .turn-badge .turn-num {
     color: #fff;
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1rem;
+    font-size: 18px;
     font-weight: 700;
-    margin-right: 4px;
+    font-style: italic;
+    margin-right: 6px;
   }
 
-  /* ============ SHIMMER doré sur les chiffres importants ============ */
-  .shimmer {
-    background: linear-gradient(90deg, var(--gold) 25%, #fff8dc 50%, var(--gold) 75%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shimmer-slide 2.4s ease-in-out infinite;
+  /* ================ DOSSIER CARD (right column) ================ */
+  .o-right {
+    padding: 40px 0 40px 40px;
+    border-left: 1px solid var(--line-soft);
   }
-  @keyframes shimmer-slide {
-    0%   { background-position: 100% 0; }
-    100% { background-position: -100% 0; }
-  }
-
-  /* ============ CLOSING CINÉMATIQUE ============ */
-  .closing-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(6px);
-    animation: closing-fade-in 0.6s ease-out;
-  }
-  .closing-overlay.active { display: flex; }
-  @keyframes closing-fade-in { from { opacity: 0; } to { opacity: 1; } }
-
-  .closing-card {
-    background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
-    border: 1px solid var(--gold);
-    border-radius: 20px;
-    padding: 36px 40px;
-    max-width: 420px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 30px rgba(212,180,90,0.12);
-    animation: closing-card-in 0.5s 0.2s ease-out both;
-  }
-  @keyframes closing-card-in { from { transform: scale(0.9) translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
-
-  .closing-card h3 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem;
-    color: var(--gold);
-    margin-bottom: 8px;
-  }
-  .closing-card .closing-expert { color: #ccc; font-size: 0.95rem; margin-bottom: 16px; }
-  .closing-card .closing-price {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 2.2rem;
-    color: var(--gold);
-    margin: 16px 0;
-  }
-  .closing-card .closing-bonus { color: #aaa; font-size: 0.88rem; margin-bottom: 16px; }
-  .closing-card .closing-guarantee { color: #8a8; font-size: 0.82rem; margin-bottom: 20px; }
-  .closing-card .closing-cta-btn {
-    display: inline-block;
-    background: linear-gradient(135deg, var(--gold), var(--gold-2));
-    color: #1a1205;
-    padding: 14px 36px;
-    border-radius: 30px;
-    font-weight: 700;
-    font-size: 1rem;
-    text-decoration: none;
-    animation: pulse-btn 2s ease-in-out infinite;
-    cursor: pointer;
-    border: none;
-    font-family: inherit;
-  }
-  @keyframes pulse-btn {
-    0%, 100% { box-shadow: 0 4px 20px rgba(212,180,90,0.3); }
-    50%      { box-shadow: 0 6px 32px rgba(212,180,90,0.55); }
-  }
-  .closing-card .closing-dismiss {
-    display: block;
-    margin-top: 14px;
-    color: #666;
-    font-size: 0.78rem;
-    cursor: pointer;
-    background: none;
-    border: none;
-    font-family: inherit;
-  }
-
-  /* ============ CONFETTI ============ */
-  .confetti-particle {
-    position: fixed;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    pointer-events: none;
-    z-index: 200;
-    animation: confetti-fall 2.5s ease-out forwards;
-  }
-  @keyframes confetti-fall {
-    0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
-    100% { opacity: 0; transform: translateY(80vh) rotate(720deg); }
-  }
-
-  /* ============ POST-CALL RECAP ============ */
-  .postcall-screen {
-    display: none;
-    text-align: center;
-    padding: 40px 20px;
-    animation: line-in 0.5s ease-out;
-  }
-  .postcall-screen.active { display: block; }
-  .postcall-screen h2 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.8rem;
-    color: var(--gold);
-    margin-bottom: 12px;
-  }
-  .postcall-screen .postcall-product {
-    font-size: 1.1rem;
-    color: var(--fg);
-    margin-bottom: 24px;
-  }
-  .postcall-screen .postcall-link {
-    display: inline-block;
-    background: var(--gold);
-    color: #1a1205;
-    padding: 14px 32px;
-    border-radius: 30px;
-    font-weight: 600;
-    text-decoration: none;
-    margin-bottom: 16px;
-  }
-  .postcall-screen .postcall-dossier {
-    text-align: left;
-    max-width: 400px;
-    margin: 20px auto 0;
+  .o-right .eyebrow { margin-bottom: 24px; }
+  .dossier-card {
     background: var(--bg-2);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 20px;
-  }
-  .postcall-screen .postcall-dossier h4 {
-    color: var(--gold);
-    font-size: 0.9rem;
-    margin-bottom: 10px;
-  }
-  .postcall-screen .postcall-dossier p {
-    color: #bbb;
-    font-size: 0.85rem;
-    margin: 4px 0;
-  }
-
-  /* Quand le dossier s'ouvre : orb plus petit pour la colonne droite */
-  body.dossier-open .orb-container { width: 200px; height: 200px; margin-top: 16px; margin-bottom: 12px; }
-  body.dossier-open .orb { width: 140px; height: 140px; }
-  body.dossier-open .orb-ring { width: 170px; height: 170px; }
-  body.dossier-open .orb-ring:nth-child(2) { width: 200px; height: 200px; }
-  body.dossier-open .headline { font-size: 1.4rem; margin-bottom: 8px; }
-  body.dossier-open .headline::after { display: none; }
-  body.dossier-open .brand { margin-bottom: 16px; font-size: 0.7rem; }
-
-  /* ============ BUTTONS ============ */
-  .actions { text-align: center; margin-top: 28px; }
-
-  .btn-primary, .btn-danger {
-    font-family: inherit;
-    font-weight: 600;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 16px 38px;
-    letter-spacing: 1px;
-    transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
-    color: #1a1205;
-    box-shadow: 0 4px 24px rgba(212,180,90,0.25), 0 1px 3px rgba(0,0,0,0.3);
+    padding: 24px;
     position: relative;
-    overflow: hidden;
   }
-  .btn-primary::before {
-    content: "";
-    position: absolute;
-    top: 0; left: -100%; width: 60%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-    transition: left 0.6s;
+  .dossier-card::before {
+    content: ""; position: absolute;
+    top: -1px; left: -1px; right: -1px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
   }
-  .btn-primary:hover::before { left: 120%; }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 32px rgba(212,180,90,0.4); }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-  .btn-danger {
-    background: rgba(184,84,84,0.08);
-    border: 1px solid rgba(184,84,84,0.35);
-    color: #d88888;
-    padding: 14px 32px;
-    font-size: 0.92rem;
-  }
-  .btn-danger:hover { background: rgba(184,84,84,0.18); border-color: #d88888; }
-
-  .btn-mute {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.18);
-    color: #cfc9bd;
-    padding: 14px 22px;
-    font-size: 0.92rem;
-    margin-left: 10px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-family: inherit;
-    font-weight: 600;
-    border-radius: 40px;
-    cursor: pointer;
-    letter-spacing: 1px;
-    transition: background 0.2s, border-color 0.2s, color 0.2s;
-  }
-  .btn-mute:hover { background: rgba(255,255,255,0.08); }
-  .btn-mute.muted {
-    background: rgba(184,84,84,0.12);
-    border-color: rgba(184,84,84,0.4);
-    color: #e8a3a3;
-  }
-  .btn-mute .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #5ab85a;
-    box-shadow: 0 0 6px rgba(90,184,90,0.6);
-  }
-  .btn-mute.muted .dot { background: #b85454; box-shadow: 0 0 6px rgba(184,84,84,0.6); }
-
-  /* Pendant l'écran post-call, on masque la page principale pour ne pas se superposer */
-  body.postcall-active .page,
-  body.postcall-active #dossier-panel,
-  body.postcall-active #smart-card-area,
-  body.postcall-active .turn-badge { display: none !important; }
-
-  /* ============ TRANSCRIPT ============ */
-  #transcript {
-    margin: 44px auto 0;
-    max-width: 620px;
-    max-height: 260px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-right: 8px;
-  }
-  #transcript::-webkit-scrollbar { width: 4px; }
-  #transcript::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
-
-  .transcript-line {
-    padding: 10px 15px;
-    border-radius: 14px;
-    line-height: 1.5;
-    font-size: 0.95rem;
-    animation: line-in 0.35s ease-out;
-  }
-  .transcript-line.alpha {
-    background: linear-gradient(135deg, rgba(212,180,90,0.1), rgba(212,180,90,0.04));
-    border: 1px solid rgba(212,180,90,0.18);
-    align-self: flex-start;
-    max-width: 85%;
-    border-left: 2px solid var(--gold);
-  }
-  .transcript-line.user {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    align-self: flex-end;
-    max-width: 85%;
-    color: #ccc;
-  }
-  @keyframes line-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-
-  /* ============ CLOSING CTA ============ */
-  #closing-cta {
-    text-align: center;
-    margin-top: 32px;
-    padding: 22px 20px;
-    background: linear-gradient(135deg, rgba(212,180,90,0.08), rgba(212,180,90,0.02));
-    border: 1px solid rgba(212,180,90,0.3);
-    border-radius: 16px;
-    opacity: 0;
-    transform: translateY(12px);
-    transition: opacity 0.5s, transform 0.5s;
-  }
-  #closing-cta.visible { opacity: 1; transform: none; }
-  #closing-cta .label {
-    display: block;
-    color: var(--muted);
-    font-size: 0.82rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  #closing-cta a {
-    display: inline-block;
-    background: var(--gold);
-    color: #1a1205;
-    padding: 12px 28px;
-    text-decoration: none;
-    font-weight: 600;
-    border-radius: 30px;
-    transition: transform 0.15s;
-  }
-  #closing-cta a:hover { transform: translateY(-1px); }
-
-  /* ============ DOSSIER PANEL (gauche fixe) ============ */
-  #dossier-panel {
-    position: fixed;
-    top: 0; left: 0;
-    width: 380px;
-    height: 100vh;
-    background: linear-gradient(180deg, #0f0f0f, #0a0a0a);
-    border-right: 1px solid var(--line);
-    padding: 32px 26px;
-    z-index: 40;
-    transform: translateX(-102%);
-    transition: transform 0.55s cubic-bezier(.16,.78,.31,.98);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-  #dossier-panel.open { transform: translateX(0); }
-  #dossier-panel::-webkit-scrollbar { width: 4px; }
-  #dossier-panel::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
-
-  /* Quand le dossier s'ouvre, le body ne translateX plus (le .page est déjà à droite via in-call) */
-
   .dossier-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 14px; margin-bottom: 14px;
     border-bottom: 1px solid var(--line);
-    padding-bottom: 18px;
-    margin-bottom: 20px;
   }
   .dossier-title-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .dossier-title {
+    display: flex; align-items: center; gap: 10px;
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.4rem;
-    color: var(--gold);
+    font-size: 18px;
+    letter-spacing: 0.04em;
   }
-  .dossier-thinking {
+  .dossier-title-row .dossier-thinking {
     display: none;
-    font-size: 0.7rem;
-    letter-spacing: 1.5px;
-    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
+    color: var(--dim);
+    align-items: center;
+    gap: 6px;
   }
-  .dossier-thinking.active { display: inline-flex; align-items: center; gap: 6px; }
+  .dossier-thinking.active { display: inline-flex; }
   .dossier-thinking::before {
     content: "";
-    width: 6px; height: 6px;
-    border-radius: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
     background: var(--gold);
     animation: thinking-pulse 1.2s ease-in-out infinite;
   }
   @keyframes thinking-pulse { 0%,100% { opacity: 1;} 50% { opacity: 0.25;} }
+  .dossier-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+  }
 
   .dossier-progress {
     height: 2px;
     background: var(--line);
-    border-radius: 2px;
+    margin-bottom: 6px;
     overflow: hidden;
-    margin-bottom: 4px;
   }
   .dossier-progress-bar {
-    height: 100%;
-    width: 0%;
+    height: 100%; width: 0%;
     background: linear-gradient(90deg, var(--gold-2), var(--gold));
     transition: width 0.7s cubic-bezier(.16,.78,.31,.98);
   }
   .dossier-progress-label {
-    font-size: 0.7rem;
-    color: var(--muted);
-    letter-spacing: 1px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
   }
 
-  .dossier-body { display: flex; flex-direction: column; gap: 0; }
+  .dossier-body { display: flex; flex-direction: column; }
   .dossier-empty {
-    color: var(--muted);
-    font-size: 0.85rem;
+    font-family: 'Cormorant Garamond', serif;
     font-style: italic;
-    line-height: 1.6;
+    color: #9a968c;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 20px 0;
   }
 
+  /* Chaque section = une row "Label   Value" */
   .dossier-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--line);
+    font-size: 13px;
     animation: dossier-fade-in 0.4s ease-out;
-    padding: 14px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
   }
   .dossier-section:last-child { border-bottom: none; }
-  @keyframes dossier-fade-in { from { opacity: 0; transform: translateX(-8px);} to { opacity: 1; transform: none;} }
+  @keyframes dossier-fade-in { from { opacity: 0; transform: translateX(6px);} to { opacity: 1; transform: none;} }
 
   .dossier-label {
-    font-size: 0.62rem;
-    font-weight: 700;
-    color: #5a5854;
-    letter-spacing: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    white-space: nowrap;
+    padding-top: 3px;
   }
-  .dossier-label::before {
-    content: "";
-    width: 12px;
-    height: 1px;
-    background: var(--gold);
-    flex-shrink: 0;
-  }
-
   .dossier-value {
-    font-size: 0.95rem;
-    line-height: 1.5;
     color: var(--fg);
-    padding-left: 20px;
+    text-align: right;
+    max-width: 62%;
+    line-height: 1.45;
   }
   .dossier-value.highlight {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.4rem;
+    font-style: italic;
     color: var(--gold);
-    font-weight: 500;
-    padding-left: 20px;
+    font-size: 18px;
   }
   .dossier-badge {
     display: inline-block;
-    padding: 5px 14px;
-    border: 1px solid var(--gold);
-    color: var(--gold);
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    margin-left: 20px;
+    padding: 3px 8px;
     background: var(--gold-dim);
+    color: var(--gold);
+    border: 1px solid var(--gold-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
   }
-
   .dossier-item {
     display: block;
-    padding: 5px 0 5px 20px;
-    position: relative;
-    font-size: 0.9rem;
+    padding: 3px 0;
     color: #d4d0c8;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.45;
   }
-  .dossier-item::before {
-    content: "";
-    position: absolute;
-    left: 6px; top: 14px;
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: var(--gold);
-    opacity: 0.6;
-  }
-  /* Item nouvellement ajouté : glow + typewriter cursor */
+  .dossier-item + .dossier-item { border-top: 1px solid rgba(255,255,255,0.04); margin-top: 3px; padding-top: 5px; }
+  .dossier-value-list { display: flex; flex-direction: column; gap: 2px; text-align: right; align-items: flex-end; }
+  .dossier-value-list .dossier-item { text-align: right; padding-left: 0; }
+  .dossier-value-list .dossier-item::before { display: none; }
   .dossier-item.new {
-    animation: new-item-glow 2.4s ease-out;
+    animation: new-item-glow 2.2s ease-out;
+    padding-left: 8px;
+    border-left: 2px solid var(--gold);
   }
   @keyframes new-item-glow {
-    0%   { box-shadow: inset 3px 0 0 var(--gold); background: rgba(212,180,90,0.12); }
-    60%  { box-shadow: inset 2px 0 0 var(--gold); background: rgba(212,180,90,0.06); }
-    100% { box-shadow: inset 0 0 0 transparent; background: transparent; }
+    0% { background: rgba(212,180,90,0.15); }
+    100% { background: transparent; }
   }
 
-  /* Curseur typewriter (bord droit clignotant doré) */
+  /* Curseur typewriter */
   .typing-cursor::after {
-    content: "";
-    display: inline-block;
-    width: 2px;
-    height: 0.95em;
+    content: ""; display: inline-block;
+    width: 2px; height: 0.95em;
     background: var(--gold);
     vertical-align: text-bottom;
     margin-left: 2px;
@@ -835,295 +603,10 @@
   }
   @keyframes blink { 0%,50% { opacity: 1;} 51%,100% { opacity: 0;} }
 
-  /* ============ SMART CARDS (centre, entre dossier et orb) ============ */
-  #smart-card-area {
-    position: fixed;
-    left: 400px;
-    top: 60px;
-    bottom: 60px;
-    width: calc(100vw - 400px - 460px);
-    min-width: 280px;
-    max-width: 520px;
-    z-index: 30;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 0 16px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.5s;
-    overflow-y: auto;
-    justify-content: center;
-  }
-  /* Quand 2+ cartes : plus compactes */
-  #smart-card-area .smart-card:not(:only-child) {
-    padding: 18px 20px;
-    font-size: 0.92em;
-  }
-  #smart-card-area .smart-card:not(:only-child) img {
-    max-height: 240px;
-    object-fit: contain;
-    width: 100%;
-  }
-  #smart-card-area .smart-card:not(:only-child) .big-number {
-    font-size: 2.2rem;
-  }
-  /* Cards visibles dès qu'on est en appel (pas besoin d'attendre le dossier) */
-  body.in-call #smart-card-area {
-    opacity: 1;
-  }
-  body:not(.in-call) #smart-card-area {
-    display: none;
-  }
-  /* Quand le dossier s'ouvre, les cards se repositionnent à gauche du dossier → centre */
-  body.dossier-open #smart-card-area {
-    left: 400px;
-  }
-  /* Avant le dossier : cards centrées */
-  body.in-call:not(.dossier-open) #smart-card-area {
-    left: 50%;
-    transform: translateX(-50%) translateY(-50%);
-  }
-
-  .smart-card {
-    pointer-events: auto;
-    background: linear-gradient(180deg, rgba(20,20,20,0.97), rgba(10,10,10,0.97));
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(212,180,90,0.25);
-    border-radius: 20px;
-    padding: 26px 28px;
-    box-shadow:
-      0 16px 50px rgba(0,0,0,0.7),
-      0 0 1px rgba(212,180,90,0.3),
-      inset 0 1px 0 rgba(255,255,255,0.04);
-    opacity: 0;
-    transform: translateY(40px) rotateY(15deg) rotateX(-5deg) scale(0.88);
-    transform-origin: center bottom;
-    transform-style: preserve-3d;
-    perspective: 1000px;
-    transition: opacity 0.8s cubic-bezier(.16,.78,.31,.98),
-                transform 0.9s cubic-bezier(.16,.78,.31,.98),
-                box-shadow 0.6s;
-    will-change: transform, opacity;
-  }
-  .smart-card.visible {
-    opacity: 1;
-    transform: translateY(0) rotateY(0deg) rotateX(0deg) scale(1);
-    animation: card-glow-in 1s ease-out;
-  }
-  .smart-card.visible:hover {
-    transform: translateY(-3px) rotateY(0deg) rotateX(2deg) scale(1.01);
-    box-shadow:
-      0 20px 60px rgba(0,0,0,0.8),
-      0 0 24px rgba(212,180,90,0.2),
-      inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-  .smart-card.exiting {
-    opacity: 0;
-    transform: translateY(-20px) rotateY(-10deg) scale(0.9);
-  }
-  @keyframes card-glow-in {
-    0%   {
-      box-shadow:
-        0 16px 50px rgba(0,0,0,0.7),
-        0 0 60px rgba(212,180,90,0.5),
-        inset 0 1px 0 rgba(255,255,255,0.06);
-    }
-    100% {
-      box-shadow:
-        0 16px 50px rgba(0,0,0,0.7),
-        0 0 1px rgba(212,180,90,0.3),
-        inset 0 1px 0 rgba(255,255,255,0.04);
-    }
-  }
-  /* Sweep doré qui traverse la carte à l'arrivée */
-  .smart-card.visible::before {
-    content: "";
-    position: absolute;
-    top: 0; left: -100%;
-    width: 60%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(212,180,90,0.08), transparent);
-    pointer-events: none;
-    animation: card-sweep 1.4s ease-out;
-  }
-  @keyframes card-sweep {
-    0%   { left: -100%; opacity: 0; }
-    20%  { opacity: 1; }
-    100% { left: 200%; opacity: 0; }
-  }
-
-  .smart-card-badge {
-    display: inline-block;
-    font-size: 0.62rem;
-    letter-spacing: 2.5px;
-    font-weight: 700;
-    color: var(--gold);
-    background: var(--gold-dim);
-    border: 1px solid rgba(212,180,90,0.3);
-    padding: 4px 10px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-  .smart-card h4 {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--fg);
-    margin-bottom: 10px;
-    line-height: 1.3;
-  }
-  .smart-card img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 12px;
-    margin: 10px 0 14px;
-    border: 1px solid var(--line);
-  }
-  .smart-card .big-number {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 2.8rem;
-    font-weight: 700;
-    color: var(--gold);
-    line-height: 1;
-    margin: 8px 0 6px;
-  }
-  .smart-card p {
-    font-size: 0.9rem;
-    color: #c8c4bb;
-    line-height: 1.55;
-  }
-  .smart-card .product-price {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem;
-    color: var(--gold);
-    margin: 10px 0 12px;
-  }
-  .smart-card .btn-cta {
-    display: inline-block;
-    background: var(--gold);
-    color: #1a1205;
-    padding: 10px 22px;
-    text-decoration: none;
-    font-weight: 600;
-    border-radius: 24px;
-    font-size: 0.88rem;
-  }
-
-  /* ============ FOOTER ============ */
-  footer {
-    margin-top: 60px;
-    padding-top: 20px;
-    border-top: 1px solid rgba(255,255,255,0.04);
-    text-align: center;
-    color: #3a3a3a;
-    font-size: 0.68rem;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-  }
-  body.in-call footer { opacity: 0.4; }
-
-  /* ============ MOBILE / TABLETTE ============ */
-  @media (max-width: 1100px) {
-    /* Sur écran moyen : smart cards passent en bas, dossier en overlay */
-    body.dossier-open .page {
-      max-width: 100%;
-      margin: 0 auto;
-      padding: 20px 16px 100px;
-    }
-    #smart-card-area {
-      position: fixed;
-      left: 16px; right: 16px;
-      bottom: 16px;
-      top: auto;
-      transform: none;
-      width: auto;
-      max-width: none;
-      min-width: unset;
-      max-height: 35vh;
-      overflow-y: auto;
-      flex-direction: row;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    #smart-card-area .smart-card { max-width: 320px; }
-    #dossier-panel { width: 320px; }
-  }
-  @media (max-width: 720px) {
-    #dossier-panel { width: 100%; }
-    body.dossier-open .page { filter: blur(2px); }
-    .how-it-works { grid-template-columns: 1fr; max-height: 400px; }
-    body.in-call .how-it-works { max-height: 0; }
-  }
-
-  /* Screen reader only */
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
-
-  /* Compteur de valeur perçue retiré */
-
-  /* ============ V9 — BORDURE DORÉE DU VIEWPORT (chaleur=chaud/ready) ============ */
-  .viewport-glow {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 150;
-    box-shadow: inset 0 0 0 rgba(212,180,90,0);
-    transition: box-shadow 1.2s;
-  }
-  body.chaleur-hot .viewport-glow {
-    box-shadow: inset 0 0 50px rgba(212,180,90,0.22);
-  }
-  body.chaleur-ready .viewport-glow {
-    box-shadow: inset 0 0 90px rgba(212,180,90,0.38);
-    animation: viewport-glow-pulse 3s ease-in-out infinite;
-  }
-  @keyframes viewport-glow-pulse {
-    0%, 100% { box-shadow: inset 0 0 90px rgba(212,180,90,0.32); }
-    50%      { box-shadow: inset 0 0 140px rgba(212,180,90,0.55); }
-  }
-
-  /* Ligne Belfort retirée */
-
-  /* ============ V5 — SMART CARDS EN CASCADE 3D ============ */
-  #smart-card-area .smart-card:not(:first-child) {
-    transform: translateY(0) rotateX(2.5deg) scale(0.98);
-    margin-top: -14px;
-  }
-  #smart-card-area .smart-card:not(:first-child):not(:nth-child(2)) {
-    transform: translateY(0) rotateX(5deg) scale(0.96);
-  }
-
-  /* ============ V7 — CARTE OFFRE QUI SE DÉPLIE (rotateX) ============ */
-  .smart-card.offer-reveal {
-    transform-origin: top center;
-    animation: offer-unfold 0.9s cubic-bezier(.16,.78,.31,.98) both;
-  }
-  @keyframes offer-unfold {
-    0%   { transform: perspective(900px) rotateX(-180deg) scale(0.7); opacity: 0; }
-    55%  { transform: perspective(900px) rotateX(-10deg)  scale(0.98); opacity: 1; }
-    100% { transform: perspective(900px) rotateX(0deg)    scale(1); opacity: 1; }
-  }
-
-  /* ============ V3 — BULLET-TIME au closing ============ */
-  body.closing-freeze .orb-container,
-  body.closing-freeze #smart-card-area,
-  body.closing-freeze #dossier-panel {
-    transition: filter 1.4s, transform 1.4s, opacity 1.4s !important;
-    filter: blur(2px) saturate(0.7);
-    transform: scale(0.985);
-  }
-  body.closing-freeze .orb { animation: closing-heartbeat 1.2s ease-in-out 1; }
-  @keyframes closing-heartbeat {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 60px rgba(212,180,90,0.3), 0 0 120px rgba(212,180,90,0.15); }
-    50%      { transform: scale(1.08); box-shadow: 0 0 120px rgba(212,180,90,0.9), 0 0 240px rgba(212,180,90,0.45); }
-  }
-
-  /* ============ DOSSIER — fermeture mobile ============ */
   .dossier-close {
     position: absolute;
-    top: 16px; right: 16px;
-    width: 32px; height: 32px;
+    top: 12px; right: 12px;
+    width: 28px; height: 28px;
     border-radius: 50%;
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.12);
@@ -1135,30 +618,443 @@
     justify-content: center;
     font-family: inherit;
   }
-  .dossier-close:hover { background: rgba(255,255,255,0.12); }
-  @media (max-width: 720px) {
-    .dossier-close { display: flex; }
+  @media (max-width: 980px) { .dossier-close { display: flex; } }
+
+  /* ================ EXPERTS BAR + MARQUEE ================ */
+  .experts-bar {
+    max-width: 1480px;
+    margin: 40px auto 0;
+    padding: 50px 40px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+    transition: opacity 0.5s, max-height 0.5s, padding 0.5s;
+  }
+  body.in-call .experts-bar {
+    opacity: 0;
+    max-height: 0;
+    padding: 0 40px;
+    overflow: hidden;
+    border: none;
+    pointer-events: none;
+  }
+  .experts-bar .eyebrow { color: var(--dim); margin-bottom: 30px; }
+  .experts-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+  .expert { padding: 0 20px; border-right: 1px solid var(--line); text-align: left; }
+  .expert:last-child { border-right: none; }
+  .expert-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 24px;
+    color: var(--gold);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .expert-role { font-size: 12px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 4px; }
+  .expert-pub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--dim);
+    letter-spacing: 0.12em; text-transform: uppercase;
   }
 
-  /* ============ POST-CALL — opt-in mémoire (P8) ============ */
+  .marquee {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 0;
+    overflow: hidden;
+    background: var(--bg-2);
+    margin-top: 60px;
+    transition: opacity 0.5s;
+  }
+  body.in-call .marquee { opacity: 0; }
+  .marquee-track {
+    display: flex; gap: 50px;
+    white-space: nowrap;
+    animation: marquee 40s linear infinite;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; letter-spacing: 0.2em; color: var(--dim);
+  }
+  .marquee-track .gold { color: var(--gold); }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ================ TRANSCRIPT (pendant l'appel, sous les CTAs) ================ */
+  #transcript {
+    max-width: 540px;
+    margin: 28px auto 0;
+    max-height: 220px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 6px;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  body.in-call #transcript { opacity: 1; }
+  #transcript::-webkit-scrollbar { width: 3px; }
+  #transcript::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
+  .transcript-line {
+    padding: 10px 14px;
+    border-radius: 10px;
+    line-height: 1.5;
+    font-size: 14px;
+    animation: line-in 0.35s ease-out;
+    text-align: left;
+  }
+  .transcript-line.alpha {
+    background: linear-gradient(135deg, rgba(212,180,90,0.08), rgba(212,180,90,0.02));
+    border: 1px solid rgba(212,180,90,0.16);
+    align-self: flex-start;
+    max-width: 90%;
+    border-left: 2px solid var(--gold);
+  }
+  .transcript-line.user {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    align-self: flex-end;
+    max-width: 90%;
+    color: #ccc;
+  }
+  @keyframes line-in { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none;} }
+
+  /* Closing CTA (sous l'orb, gold bubble) */
+  #closing-cta {
+    text-align: center;
+    margin-top: 24px;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, rgba(212,180,90,0.08), rgba(212,180,90,0.02));
+    border: 1px solid rgba(212,180,90,0.3);
+    border-radius: 12px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s, transform 0.5s;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #closing-cta.visible { opacity: 1; transform: none; }
+  #closing-cta .label {
+    display: block;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  #closing-cta a {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--bg);
+    padding: 12px 28px;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 26px;
+    font-size: 14px;
+    transition: transform 0.15s;
+  }
+  #closing-cta a:hover { transform: translateY(-1px); }
+
+  /* ================ SMART CARDS (centre, stack max 2) ================ */
+  #smart-card-area {
+    position: fixed;
+    right: 40px;
+    top: 120px;
+    width: 320px;
+    max-width: 32vw;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  body.in-call #smart-card-area { opacity: 1; }
+  body:not(.in-call) #smart-card-area { display: none; }
+  /* Quand le dossier panel est ouvert (mobile), on replace les cartes */
+  @media (max-width: 980px) {
+    #smart-card-area {
+      position: fixed;
+      left: 16px; right: 16px;
+      bottom: 16px; top: auto;
+      width: auto; max-width: none;
+      max-height: 40vh;
+      overflow-y: auto;
+      flex-direction: row; flex-wrap: wrap;
+    }
+  }
+  .smart-card {
+    pointer-events: auto;
+    background: var(--bg-2);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--line);
+    padding: 20px 22px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+    transition: opacity 0.6s, transform 0.6s;
+    position: relative;
+  }
+  .smart-card::before {
+    content: ""; position: absolute;
+    top: -1px; left: -1px; right: -1px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .smart-card.visible { opacity: 1; transform: none; }
+  .smart-card.exiting { opacity: 0; transform: translateY(-12px) scale(0.94); }
+  .smart-card.offer-reveal { animation: offer-unfold 0.8s cubic-bezier(.16,.78,.31,.98) both; }
+  @keyframes offer-unfold {
+    0% { transform: perspective(900px) rotateX(-120deg) scale(0.7); opacity: 0; }
+    60% { transform: perspective(900px) rotateX(-6deg) scale(0.98); opacity: 1; }
+    100% { transform: perspective(900px) rotateX(0deg) scale(1); opacity: 1; }
+  }
+
+  .smart-card-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    font-weight: 500;
+    color: var(--gold);
+    background: var(--gold-dim);
+    border: 1px solid rgba(212,180,90,0.3);
+    padding: 3px 8px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .smart-card h4 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--fg);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  .smart-card img {
+    display: block; width: 100%; height: auto;
+    border-radius: 8px;
+    margin: 8px 0 10px;
+    border: 1px solid var(--line);
+  }
+  .smart-card .big-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 42px;
+    font-weight: 600;
+    font-style: italic;
+    color: var(--gold);
+    line-height: 1;
+    margin: 6px 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .smart-card p {
+    font-size: 13px;
+    color: #c8c4bb;
+    line-height: 1.5;
+  }
+  .smart-card .product-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--gold);
+    margin: 8px 0;
+  }
+  .smart-card .btn-cta {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--bg);
+    padding: 9px 18px;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* ================ CLOSING CINÉMATIQUE OVERLAY ================ */
+  .closing-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    animation: closing-fade-in 0.4s ease-out;
+  }
+  .closing-overlay.active { display: flex; }
+  @keyframes closing-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  .closing-card {
+    background: linear-gradient(180deg, var(--bg-2), var(--bg-3));
+    border: 1px solid var(--gold);
+    padding: 36px 40px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: closing-card-in 0.5s 0.1s ease-out both;
+    position: relative;
+  }
+  .closing-card::before {
+    content: ""; position: absolute;
+    top: -1px; left: -1px; right: -1px; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  @keyframes closing-card-in { from { transform: scale(0.9) translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .closing-card h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .closing-card .closing-expert {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    color: #ccc;
+    font-size: 15px;
+    margin-bottom: 14px;
+  }
+  .closing-card .closing-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 40px;
+    color: var(--gold);
+    margin: 14px 0;
+    letter-spacing: -0.02em;
+  }
+  .closing-card .closing-bonus { color: #aaa; font-size: 14px; margin-bottom: 12px; }
+  .closing-card .closing-guarantee {
+    font-family: 'JetBrains Mono', monospace;
+    color: #8a8;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .closing-card .closing-cta-btn {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--bg);
+    padding: 14px 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    animation: pulse-btn 2s ease-in-out infinite;
+    border: none;
+  }
+  @keyframes pulse-btn {
+    0%,100% { box-shadow: 0 4px 20px rgba(212,180,90,0.3); }
+    50% { box-shadow: 0 6px 32px rgba(212,180,90,0.55); }
+  }
+  .closing-card .closing-dismiss {
+    display: block;
+    margin-top: 14px;
+    color: #666;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* Confetti */
+  .confetti-particle {
+    position: fixed;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 200;
+    animation: confetti-fall 2.5s ease-out forwards;
+  }
+  @keyframes confetti-fall {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(80vh) rotate(720deg); }
+  }
+
+  /* ================ POST-CALL SCREEN ================ */
+  .postcall-screen {
+    display: none;
+    max-width: 620px;
+    margin: 80px auto;
+    padding: 40px;
+    text-align: center;
+    animation: line-in 0.5s ease-out;
+  }
+  .postcall-screen.active { display: block; }
+  .postcall-screen h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 36px;
+    font-weight: 500;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+  .postcall-screen .postcall-product {
+    font-size: 16px;
+    color: var(--fg);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .postcall-screen .postcall-link {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--bg);
+    padding: 14px 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 500;
+    text-decoration: none;
+    margin-bottom: 24px;
+  }
+  .postcall-screen .postcall-dossier {
+    text-align: left;
+    max-width: 400px;
+    margin: 20px auto 0;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    padding: 20px;
+  }
+  .postcall-screen .postcall-dossier h4 {
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--gold);
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  .postcall-screen .postcall-dossier p {
+    color: #bbb;
+    font-size: 14px;
+    margin: 4px 0;
+  }
+  body.postcall-active .oracle,
+  body.postcall-active .experts-bar,
+  body.postcall-active .marquee,
+  body.postcall-active .turn-badge { display: none !important; }
+
   .remember-me {
     margin-top: 22px;
     background: rgba(212,180,90,0.06);
     border: 1px solid rgba(212,180,90,0.2);
-    border-radius: 12px;
     padding: 14px 18px;
     max-width: 400px;
     margin-left: auto; margin-right: auto;
     text-align: left;
   }
   .remember-me label {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+    display: flex; align-items: flex-start; gap: 10px;
     cursor: pointer;
     color: #c8c4bb;
-    font-size: 0.85rem;
-    line-height: 1.45;
+    font-size: 13px;
+    line-height: 1.5;
   }
   .remember-me input[type="checkbox"] {
     accent-color: var(--gold);
@@ -1167,136 +1063,319 @@
     cursor: pointer;
   }
 
-  /* ============ ACCESSIBILITÉ ============ */
+  /* Viewport glow chaleur hot/ready */
+  .viewport-glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 150;
+    box-shadow: inset 0 0 0 rgba(212,180,90,0);
+    transition: box-shadow 1.2s;
+  }
+  body.chaleur-hot .viewport-glow { box-shadow: inset 0 0 50px rgba(212,180,90,0.18); }
+  body.chaleur-ready .viewport-glow {
+    box-shadow: inset 0 0 90px rgba(212,180,90,0.32);
+    animation: vglow-pulse 3s ease-in-out infinite;
+  }
+  @keyframes vglow-pulse {
+    0%,100% { box-shadow: inset 0 0 90px rgba(212,180,90,0.3); }
+    50% { box-shadow: inset 0 0 130px rgba(212,180,90,0.5); }
+  }
+
+  /* Accessibilité */
   :focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 3px;
-    border-radius: 6px;
   }
-  /* Contraste WCAG AA : text plus clair sur le dossier */
-  .dossier-empty { color: #9a968c; }
-  /* Lisibilité 65+ : labels remontés à 11-12px */
-  .dossier-label { font-size: 0.72rem; }
-  .dossier-progress-label { font-size: 0.78rem; }
-  .status { font-size: 0.88rem; }
-  .heat-label { font-size: 0.72rem; }
-
-  /* ============ RESPONSIVE — fix zone morte 1100-1280px ============ */
-  @media (min-width: 1101px) and (max-width: 1280px) {
-    #smart-card-area {
-      left: 50%;
-      right: auto;
-      width: min(480px, 44vw);
-      max-width: 480px;
-      transform: translateX(-50%) translateY(-50%);
-    }
-    body.dossier-open #smart-card-area {
-      left: auto;
-      right: 24px;
-      transform: translateY(0);
-      top: 100px;
-      bottom: 100px;
-    }
-  }
-
-  /* ============ prefers-reduced-motion ============ */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.08s !important;
+      transition-duration: 0.1s !important;
     }
-    .heat-halo,
-    #particle-canvas,
-    .orb-waveform,
-    .viewport-glow { animation: none !important; }
   }
+
+  /* ================ RESPONSIVE ================ */
+  @media (max-width: 980px) {
+    .oracle { grid-template-columns: 1fr; gap: 30px; padding: 20px; }
+    .o-left, .o-right { border: none; padding: 20px 0; }
+    .o-left { display: none; }
+    body.in-call .o-right { display: none; }
+    .experts-grid { grid-template-columns: 1fr 1fr; }
+    .expert { border-right: none; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .nav-inner { padding: 14px 20px; }
+    #smart-card-area { top: auto; }
+    .turn-badge { top: 74px; right: 14px; }
+  }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
 </style>
 </head>
 <body>
 
-<div class="page">
-  <div class="brand">Argo · <strong>Éditions</strong> · Concierge IA</div>
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand-logo">
+      <span class="brand-mark"></span>
+      <span class="brand-name">Argo<em> Éditions</em></span>
+    </div>
+    <nav class="nav-links">
+      <a href="https://argo-editions.com" target="_blank" rel="noopener">Publications</a>
+      <a href="#experts">Experts</a>
+      <a href="#">Méthode</a>
+      <a href="https://argo-editions.com" target="_blank" rel="noopener">Bibliothèque</a>
+    </nav>
+    <button class="nav-cta">Mon espace</button>
+  </div>
+</header>
 
-  <h1 class="headline">
-    Discutez avec <span>Argos</span><br>
-    votre concierge IA d'investissement
-  </h1>
+<section class="oracle">
 
-  <div class="orb-container idle" id="orb-container">
-    <div class="heat-halo" aria-hidden="true"></div>
-    <div class="orb-ring"></div>
-    <div class="orb-ring"></div>
-    <svg class="orb-waveform" id="orb-waveform" viewBox="0 0 280 280" aria-hidden="true"></svg>
-    <canvas id="particle-canvas" width="680" height="680" aria-hidden="true"></canvas>
-    <div class="orb" id="orb"></div>
+  <aside class="o-left" aria-hidden="true">
+    <div class="eyebrow">Témoignage · Abonné depuis 2024</div>
+    <p class="o-quote">
+      Quinze minutes pour comprendre où j'en étais. C'est plus que ce que mon banquier a fait en quinze ans.
+    </p>
+    <div class="o-attrib">
+      <strong>Henri L.</strong><br>
+      Cadre dirigeant retraité — Lyon
+    </div>
+    <div class="o-press">
+      <div class="eyebrow dim" style="margin-bottom: 18px;">Recommandé par</div>
+      <div class="o-press-list">
+        <div>Les Échos</div>
+        <div>Capital Patrimoine</div>
+        <div>Investir Privé</div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="o-center">
+    <div class="orb-container idle" id="orb-container">
+      <div class="heat-halo" aria-hidden="true"></div>
+
+      <!-- ORACLE SVG ORB (robot / astrolabe) -->
+      <svg class="oracle-svg" viewBox="0 0 400 480" aria-hidden="true">
+        <defs>
+          <radialGradient id="oracle-sphere-grad" cx="40%" cy="35%" r="65%">
+            <stop offset="0%" stop-color="#2a241a" />
+            <stop offset="50%" stop-color="#15130f" />
+            <stop offset="100%" stop-color="#0a0908" />
+          </radialGradient>
+          <radialGradient id="oracle-core-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#fff" stop-opacity="0.95" />
+            <stop offset="20%" stop-color="#e8d39a" />
+            <stop offset="60%" stop-color="#d4b45a" />
+            <stop offset="100%" stop-color="#8a6d2a" stop-opacity="0.4" />
+          </radialGradient>
+          <radialGradient id="oracle-aura-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#d4b45a" stop-opacity="0.4" />
+            <stop offset="100%" stop-color="#d4b45a" stop-opacity="0" />
+          </radialGradient>
+          <filter id="oracle-glow-f">
+            <feGaussianBlur stdDeviation="5" />
+          </filter>
+          <path id="oracle-circle-path" d="M 200,220 m -135,0 a 135,135 0 1,1 270,0 a 135,135 0 1,1 -270,0" fill="none" />
+        </defs>
+
+        <!-- Aura externe -->
+        <circle class="oracle-aura" cx="200" cy="220" r="190" fill="url(#oracle-aura-grad)" />
+
+        <!-- Anneau externe (lent, ticks) -->
+        <g class="oracle-ring-outer">
+          <circle cx="200" cy="220" r="170" fill="none" stroke="#d4b45a" stroke-width="0.5" opacity="0.3" stroke-dasharray="2 8" />
+          <line x1="200" y1="50"   x2="200" y2="42"   stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="285" y1="72"   x2="291" y2="65"   stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="347" y1="135"  x2="355" y2="128"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="370" y1="220"  x2="378" y2="220"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="347" y1="305"  x2="355" y2="312"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="285" y1="368"  x2="291" y2="375"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="200" y1="390"  x2="200" y2="398"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="115" y1="368"  x2="109" y2="375"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="53"  y1="305"  x2="45"  y2="312"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="30"  y1="220"  x2="22"  y2="220"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="53"  y1="135"  x2="45"  y2="128"  stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+          <line x1="115" y1="72"   x2="109" y2="65"   stroke="#d4b45a" stroke-width="0.6" opacity="0.6" />
+        </g>
+
+        <!-- Anneau moyen contre-rotatif avec inscription -->
+        <g class="oracle-ring-mid">
+          <circle cx="200" cy="220" r="145" fill="none" stroke="#d4b45a" stroke-width="0.4" opacity="0.4" />
+          <text fill="#d4b45a" font-size="7" font-family="JetBrains Mono, monospace" letter-spacing="6" opacity="0.8">
+            <textPath href="#oracle-circle-path">
+              ARGOS · CONCIERGE PATRIMONIAL · ARGO ÉDITIONS · ARGOS · CONCIERGE PATRIMONIAL ·
+            </textPath>
+          </text>
+        </g>
+
+        <!-- Sphère centrale + cœur pulsant (reactive au voice RMS) -->
+        <g class="oracle-sphere-scale">
+          <circle cx="200" cy="220" r="120" fill="url(#oracle-sphere-grad)" stroke="#8a6d2a" stroke-width="1.2" />
+          <ellipse cx="170" cy="180" rx="35" ry="20" fill="#e8d39a" opacity="0.08" />
+          <ellipse cx="200" cy="220" rx="120" ry="40" fill="none" stroke="#d4b45a" stroke-width="0.4" opacity="0.3" />
+          <ellipse cx="200" cy="220" rx="120" ry="80" fill="none" stroke="#d4b45a" stroke-width="0.3" opacity="0.2" />
+          <line x1="200" y1="100" x2="200" y2="340" stroke="#d4b45a" stroke-width="0.3" opacity="0.25" />
+
+          <!-- Pulse rings (visible quand speaking) -->
+          <circle class="oracle-pulse-out" cx="200" cy="220" r="35" fill="none" stroke="#d4b45a" stroke-width="0.8" />
+          <circle class="oracle-pulse-out" cx="200" cy="220" r="35" fill="none" stroke="#d4b45a" stroke-width="0.8" />
+          <circle class="oracle-pulse-out" cx="200" cy="220" r="35" fill="none" stroke="#d4b45a" stroke-width="0.8" />
+
+          <!-- Cœur lumineux -->
+          <circle class="oracle-core" cx="200" cy="220" r="30" fill="url(#oracle-core-grad)" filter="url(#oracle-glow-f)" />
+          <circle cx="200" cy="220" r="6" fill="#fff" opacity="0.9" />
+
+          <!-- Constellation -->
+          <circle cx="160" cy="170" r="1.5" fill="#d4b45a" opacity="0.7" />
+          <circle cx="240" cy="175" r="1.5" fill="#d4b45a" opacity="0.7" />
+          <circle cx="155" cy="270" r="1.5" fill="#d4b45a" opacity="0.7" />
+          <circle cx="245" cy="265" r="1.5" fill="#d4b45a" opacity="0.7" />
+          <circle cx="200" cy="145" r="1.5" fill="#d4b45a" opacity="0.7" />
+          <circle cx="200" cy="295" r="1.5" fill="#d4b45a" opacity="0.7" />
+          <line x1="200" y1="220" x2="160" y2="170" stroke="#d4b45a" stroke-width="0.25" opacity="0.3" stroke-dasharray="1 2" />
+          <line x1="200" y1="220" x2="240" y2="175" stroke="#d4b45a" stroke-width="0.25" opacity="0.3" stroke-dasharray="1 2" />
+          <line x1="200" y1="220" x2="155" y2="270" stroke="#d4b45a" stroke-width="0.25" opacity="0.3" stroke-dasharray="1 2" />
+          <line x1="200" y1="220" x2="245" y2="265" stroke="#d4b45a" stroke-width="0.25" opacity="0.3" stroke-dasharray="1 2" />
+          <line x1="200" y1="220" x2="200" y2="145" stroke="#d4b45a" stroke-width="0.25" opacity="0.3" stroke-dasharray="1 2" />
+          <line x1="200" y1="220" x2="200" y2="295" stroke="#d4b45a" stroke-width="0.25" opacity="0.3" stroke-dasharray="1 2" />
+        </g>
+
+        <!-- Piédestal / socle -->
+        <g>
+          <line x1="200" y1="340" x2="200" y2="420" stroke="#d4b45a" stroke-width="0.5" opacity="0.4" />
+          <ellipse cx="200" cy="425" rx="60" ry="6" fill="none" stroke="#8a6d2a" stroke-width="0.8" />
+          <ellipse cx="200" cy="425" rx="60" ry="6" fill="#0a0908" opacity="0.6" />
+          <text x="200" y="450" text-anchor="middle" fill="#d4b45a" font-size="8" font-family="JetBrains Mono, monospace" letter-spacing="4" opacity="0.7">
+            A · R · G · O · S
+          </text>
+        </g>
+      </svg>
+
+      <!-- Waveform spectrale (rempli par JS, visible quand speaking) -->
+      <svg class="orb-waveform" id="orb-waveform" viewBox="0 0 280 280" aria-hidden="true"></svg>
+      <!-- Canvas pour les particules d'or -->
+      <canvas id="particle-canvas" width="680" height="680" aria-hidden="true"></canvas>
+      <!-- Anchor invisible pour l'API existante (updateOrbLevel) -->
+      <div class="orb" id="orb" style="display:none"></div>
+    </div>
+
+    <h1 class="o-headline">L'<em>Oracle</em><br>de votre patrimoine.</h1>
+    <p class="o-sub">
+      Argos analyse, écoute, oriente. Un diagnostic vocal pour trouver l'expert Argo Éditions qui correspond à votre profil.
+    </p>
+
+    <div class="o-cta-row">
+      <button class="btn btn-primary" id="start-btn">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+        Démarrer
+      </button>
+      <button class="btn btn-mute" id="mute-btn" style="display:none;" aria-pressed="false">
+        <span class="dot"></span><span id="mute-label">Micro actif</span>
+      </button>
+      <button class="btn btn-danger" id="hangup-btn" style="display:none;">
+        Raccrocher
+      </button>
+    </div>
+
+    <div class="status" id="status">Prêt à vous parler</div>
+
+    <div class="heat-meter" aria-label="Niveau de chaleur du prospect">
+      <div class="heat-pip" data-level="cold"></div>
+      <div class="heat-pip" data-level="warm"></div>
+      <div class="heat-pip" data-level="hot"></div>
+      <div class="heat-pip" data-level="ready"></div>
+    </div>
+    <div class="heat-label" id="heat-label"></div>
+
+    <div id="transcript" aria-live="polite"></div>
+
+    <div id="closing-cta">
+      <span class="label">Prêt à commencer ?</span>
+      <a href="https://argo-editions.com" target="_blank" rel="noopener">S'inscrire maintenant</a>
+    </div>
   </div>
 
-  <div class="agent-name">Argos</div>
-  <div class="status" id="status">Prêt à vous parler</div>
-  <div class="heat-meter" aria-label="Niveau de chaleur du prospect">
-    <div class="heat-pip" data-level="cold"></div>
-    <div class="heat-pip" data-level="warm"></div>
-    <div class="heat-pip" data-level="hot"></div>
-    <div class="heat-pip" data-level="ready"></div>
+  <aside class="o-right">
+    <div class="eyebrow">Aperçu · Dossier prospect</div>
+    <div class="dossier-card" id="dossier-panel">
+      <button class="dossier-close" id="dossier-close" aria-label="Fermer le dossier">×</button>
+      <div class="dossier-header">
+        <div class="dossier-title-row">
+          <span class="dossier-title">Votre dossier</span>
+          <div class="dossier-thinking" id="dossier-thinking">Analyse</div>
+        </div>
+        <div class="dossier-id" id="dossier-id">№ —</div>
+      </div>
+      <div class="dossier-progress"><div class="dossier-progress-bar" id="dossier-progress-bar"></div></div>
+      <div class="dossier-progress-label" id="dossier-progress-label">— en attente —</div>
+      <div class="dossier-body" id="dossier-body">
+        <div class="dossier-empty">Les informations que vous partagez avec Argos apparaîtront ici au fur et à mesure.</div>
+      </div>
+    </div>
+    <p style="font-size: 11px; color: var(--dim); margin-top: 12px; line-height: 1.5; font-style: italic;">
+      — Le dossier se construit en temps réel pendant l'entretien.
+    </p>
+  </aside>
+
+</section>
+
+<div class="experts-bar" id="experts">
+  <div class="eyebrow">Quatre experts. Quatre stratégies. Une seule conversation.</div>
+  <div class="experts-grid">
+    <div class="expert">
+      <div class="expert-name">Whitney Tilson</div>
+      <div class="expert-role">Investisseur value</div>
+      <div class="expert-pub">Actions Gagnantes</div>
+    </div>
+    <div class="expert">
+      <div class="expert-name">Eric Wade</div>
+      <div class="expert-role">Spécialiste asymétrie</div>
+      <div class="expert-pub">Profits Asymétriques</div>
+    </div>
+    <div class="expert">
+      <div class="expert-name">Stansberry &amp; W. Tilson</div>
+      <div class="expert-role">Intelligence quantitative</div>
+      <div class="expert-pub">Agent Alpha</div>
+    </div>
+    <div class="expert">
+      <div class="expert-name">Dan Ferris</div>
+      <div class="expert-role">Or, mines &amp; matières</div>
+      <div class="expert-pub">Stratégie Haut Rendement</div>
+    </div>
   </div>
-  <div class="heat-label" id="heat-label"></div>
-
-  <div class="actions">
-    <button class="btn-primary" id="start-btn">
-      Démarrer la conversation
-    </button>
-    <button class="btn-mute" id="mute-btn" style="display:none;" aria-pressed="false">
-      <span class="dot"></span><span id="mute-label">Micro actif</span>
-    </button>
-    <button class="btn-danger" id="hangup-btn" style="display:none;">
-      Raccrocher
-    </button>
-  </div>
-
-  <div class="how-it-works">
-    <div class="step"><div class="step-num">1</div><div class="step-text">Démarrez l'appel<br>depuis votre navigateur</div></div>
-    <div class="step"><div class="step-num">2</div><div class="step-text">Parlez naturellement<br>en français</div></div>
-    <div class="step"><div class="step-num">3</div><div class="step-text">Argos vous recommande<br>la bonne publication</div></div>
-  </div>
-
-  <div id="transcript" aria-live="polite"></div>
-
-  <div id="closing-cta">
-    <span class="label">Prêt à commencer ?</span>
-    <a href="https://argo-editions.com" target="_blank" rel="noopener">S'inscrire maintenant</a>
-  </div>
-
-  <footer>
-    © Argo Éditions · Concierge IA <span id="agent-name-footer">Argos</span> · Propulsé par Gemini
-  </footer>
 </div>
 
-<!-- V9 : Bordure dorée du viewport (activée sur chaleur=chaud/ready) -->
+<div class="marquee">
+  <div class="marquee-track">
+    <span>ARGO ÉDITIONS</span><span class="gold">·</span>
+    <span>WHITNEY TILSON</span><span class="gold">·</span>
+    <span>ACTIONS GAGNANTES</span><span class="gold">·</span>
+    <span>ERIC WADE</span><span class="gold">·</span>
+    <span>PROFITS ASYMÉTRIQUES</span><span class="gold">·</span>
+    <span>DAN FERRIS</span><span class="gold">·</span>
+    <span>STRATÉGIE HAUT RENDEMENT</span><span class="gold">·</span>
+    <span>AGENT ALPHA</span><span class="gold">·</span>
+    <span>ARGO ÉDITIONS</span><span class="gold">·</span>
+    <span>WHITNEY TILSON</span><span class="gold">·</span>
+    <span>ACTIONS GAGNANTES</span><span class="gold">·</span>
+    <span>ERIC WADE</span><span class="gold">·</span>
+    <span>PROFITS ASYMÉTRIQUES</span><span class="gold">·</span>
+    <span>DAN FERRIS</span><span class="gold">·</span>
+    <span>STRATÉGIE HAUT RENDEMENT</span><span class="gold">·</span>
+    <span>AGENT ALPHA</span><span class="gold">·</span>
+  </div>
+</div>
+
+<!-- Viewport glow (chaleur chaud/ready) -->
 <div class="viewport-glow" aria-hidden="true"></div>
 
-<!-- Dossier panel (left, slides in) -->
+<!-- Turn badge (top-right) -->
 <div class="turn-badge" id="turn-badge"><span class="turn-num" id="turn-num">0</span> tour</div>
 
-<aside id="dossier-panel" aria-label="Votre dossier en direct">
-  <button class="dossier-close" id="dossier-close" aria-label="Fermer le dossier">×</button>
-  <div class="dossier-header">
-    <div class="dossier-title-row">
-      <div class="dossier-title">Votre dossier</div>
-      <div class="dossier-thinking" id="dossier-thinking">Analyse…</div>
-    </div>
-    <div class="dossier-progress"><div class="dossier-progress-bar" id="dossier-progress-bar"></div></div>
-    <div class="dossier-progress-label" id="dossier-progress-label">0% complété</div>
-  </div>
-  <div class="dossier-body" id="dossier-body">
-    <div class="dossier-empty">Les informations que vous partagez avec Argos apparaîtront ici au fur et à mesure.</div>
-  </div>
-</aside>
-
-<!-- Smart cards stack (centre, up to 2 visible) -->
+<!-- Smart cards stack -->
 <aside id="smart-card-area" aria-label="Preuves et supports visuels" aria-live="assertive"></aside>
 
-<!-- Closing cinématique overlay -->
+<!-- Closing overlay -->
 <div class="closing-overlay" id="closing-overlay" role="dialog" aria-modal="true" aria-labelledby="closing-product-name" tabindex="-1">
   <div class="closing-card">
     <h3 id="closing-product-name">—</h3>
@@ -1309,21 +1388,21 @@
   </div>
 </div>
 
-<!-- Écran post-appel -->
+<!-- Post-call screen -->
 <div class="postcall-screen" id="postcall-screen">
   <h2>Merci pour cette conversation</h2>
   <div class="postcall-product" id="postcall-product"></div>
   <a class="postcall-link" id="postcall-link" href="https://argo-editions.com" target="_blank" rel="noopener">Découvrir l'offre</a>
   <div class="postcall-dossier" id="postcall-dossier"></div>
-
-  <!-- P8 — opt-in mémoire cross-session (dossier pré-rempli au retour) -->
   <div class="remember-me" id="remember-me">
     <label>
       <input type="checkbox" id="remember-check" />
-      <span>Souvenez-vous de moi lors de ma prochaine visite (stocké localement sur cet appareil, aucune donnée envoyée).</span>
+      <span>Souvenez-vous de moi lors de ma prochaine visite (stocké localement, aucune donnée envoyée).</span>
     </label>
   </div>
 </div>
+
+<span id="agent-name-footer" class="sr-only">Argos</span>
 
 <script>
 /* =============================================================
@@ -1958,14 +2037,18 @@
         maybeAnimate(v, s.label, s.items);
         section.appendChild(v);
       } else {
-        // list
+        // list : wrap dans un .dossier-value pour que le layout flex
+        // (label à gauche, contenu à droite) fonctionne avec plusieurs items
+        const wrap = document.createElement("div");
+        wrap.className = "dossier-value dossier-value-list";
         for (const item of s.items) {
           const it = document.createElement("div");
           it.className = "dossier-item";
           it.textContent = item;
           maybeAnimate(it, s.label, s.items, false, item);
-          section.appendChild(it);
+          wrap.appendChild(it);
         }
+        section.appendChild(wrap);
       }
       $dossierBody.appendChild(section);
     }
