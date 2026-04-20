@@ -1102,6 +1102,69 @@
     margin: 6px 0;
   }
 
+  /* Analysis / reveal cross-check card */
+  .smart-card.analysis {
+    border: 1px solid var(--gold);
+    background: linear-gradient(180deg, var(--bg-2), #17130c);
+    box-shadow: 0 10px 40px rgba(212,180,90,0.18), inset 0 0 30px rgba(212,180,90,0.05);
+    animation: analysis-glow 2.4s ease-in-out infinite;
+  }
+  @keyframes analysis-glow {
+    0%, 100% { box-shadow: 0 10px 40px rgba(212,180,90,0.18), inset 0 0 30px rgba(212,180,90,0.05); }
+    50%      { box-shadow: 0 14px 60px rgba(212,180,90,0.35), inset 0 0 50px rgba(212,180,90,0.12); }
+  }
+  .smart-card.analysis .an-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 20px;
+    color: var(--gold);
+    margin: 4px 0 14px;
+  }
+  .smart-card.analysis .an-log {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+    letter-spacing: 0.06em;
+  }
+  .smart-card.analysis .an-log .an-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 2px 0;
+    opacity: 0;
+    animation: an-reveal 0.5s ease-out forwards;
+  }
+  .smart-card.analysis .an-row:nth-child(1) { animation-delay: 0.2s; }
+  .smart-card.analysis .an-row:nth-child(2) { animation-delay: 0.9s; }
+  .smart-card.analysis .an-row:nth-child(3) { animation-delay: 1.6s; }
+  .smart-card.analysis .an-row:nth-child(4) { animation-delay: 2.3s; }
+  .smart-card.analysis .an-row:nth-child(5) { animation-delay: 3.0s; color: var(--gold); font-weight: 500; }
+  @keyframes an-reveal {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .smart-card.analysis .an-check {
+    color: var(--gold);
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+  .smart-card.analysis .an-bar {
+    margin-top: 14px;
+    height: 2px;
+    background: var(--line);
+    overflow: hidden;
+    position: relative;
+  }
+  .smart-card.analysis .an-bar::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    animation: an-bar-sweep 1.4s linear infinite;
+  }
+  @keyframes an-bar-sweep {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
+  }
+
   /* Live market card */
   .smart-card.market .lm-grid {
     display: grid;
@@ -2512,6 +2575,7 @@
     if (tpl === "quickreply_horizon") return buildQRHorizonCard(card);
     if (tpl === "quickreply_risk") return buildQRRiskCard(card);
     if (tpl === "quickreply_concerns") return buildQRConcernsCard(card);
+    if (tpl === "analysis_cross") return buildAnalysisCrossCard(card, cardData);
 
     const imgKey = cardData.image_key;
     const img = imgKey ? state.imagesByCardKey[imgKey] : null;
@@ -3042,6 +3106,67 @@
       })
       .catch(function() { _marketData = {}; return _marketData; });
   }
+  // ===== Analysis reveal : moment dramatique quand le coach passe ferme =====
+
+  function buildAnalysisCrossCard(card, cardData) {
+    card.classList.add("analysis");
+    var productName = (cardData && cardData.productName) || "la publication adaptée";
+    card.innerHTML =
+      '<span class="smart-card-badge">Analyse en cours</span>' +
+      '<p class="an-title">Je croise votre profil…</p>' +
+      '<div class="an-log">' +
+        '<div class="an-row"><span class="an-check">▸</span>Croisement profil DISC</div>' +
+        '<div class="an-row"><span class="an-check">▸</span>Analyse des 4 publications Argo</div>' +
+        '<div class="an-row"><span class="an-check">▸</span>Matching expert / horizon / capital</div>' +
+        '<div class="an-row"><span class="an-check">▸</span>Validation finale…</div>' +
+        '<div class="an-row"><span class="an-check">✓</span>' + escapeHtml(productName) + ' — match confirmé</div>' +
+      '</div>' +
+      '<div class="an-bar"></div>';
+    return card;
+  }
+
+  // Trigger UNE SEULE fois à la transition certitude → ferme :
+  // - Affiche la carte "Analyse en cours" avec animation de déroulement
+  // - Pousse une directive à Argos pour qu'il dise EXACTEMENT la phrase dramatique
+  //   avec pause, puis révèle le nom du produit.
+  var revealTriggered = false;
+  function triggerProductReveal(productId) {
+    if (revealTriggered) return;
+    if (!state.ws || state.ws.readyState !== 1) return;
+    if (!productId) return;
+    revealTriggered = true;
+
+    var pm = state.catalog[productId];
+    if (!pm) return;
+    var productName = pm.name || productId;
+    var expertName = pm.expert || "";
+    var prenom = (state.lastDossier && state.lastDossier.prenom) || "";
+    var prenomCall = prenom ? " " + prenom : "";
+
+    // 1) Carte visuelle : analyse en cours (s'anime 3s puis reste visible)
+    showSmartCard({ template: "analysis_cross", productName: productName });
+
+    // 2) Directive audio à Argos : il DOIT dire EXACTEMENT ces 2 phrases,
+    // avec la pause entre les deux pour créer le moment de vérité.
+    var directive =
+      "[REVEAL PRODUIT — INSTRUCTION ABSOLUE, priorité sur tout autre contexte]\n" +
+      "Au prochain message audio, tu dis MOT POUR MOT cette séquence, avec les pauses indiquées par '...' :\n\n" +
+      "Attendez" + prenomCall + ", donnez-moi un instant... Je croise votre profil avec des centaines de données dans nos publications... " +
+      "Voilà. Sans aucun doute, cette publication est faite pour vous. " +
+      "C'est " + productName + (expertName ? ", par " + expertName : "") + ".\n\n" +
+      "Après cette phrase, tu FAIS UNE PAUSE et tu ATTENDS la réaction du prospect. Tu ne continues PAS tout de suite. " +
+      "Tu respectes les points de suspension (pause 1 seconde à chaque '...').";
+
+    try {
+      state.ws.send(JSON.stringify({
+        realtimeInput: { text: directive }
+      }));
+      trackEvent("product_reveal", { product: productId });
+    } catch (e) {
+      console.warn("[Argo] reveal directive failed:", e);
+    }
+  }
+
   function showMarketCardOnce() {
     if (localCardShown.has("market_1")) return;
     localCardShown.add("market_1");
@@ -3140,6 +3265,10 @@
           }
           // Affiche la fiche produit en cas d'intent ferme
           if (recommande && certitude === "ferme") {
+            // MOMENT DE VÉRITÉ : quand le coach bascule en "ferme" pour la
+            // première fois, on déclenche le reveal dramatique (carte analyse
+            // + phrase scriptée "sans aucun doute, c'est fait pour vous").
+            triggerProductReveal(recommande);
             showSmartCard("offer_card");
             trackEvent("product_revealed", { product: recommande, tier: d.produit.tier_recommande });
           }
@@ -3544,6 +3673,7 @@
       document.body.classList.remove("chaleur-hot", "chaleur-ready", "closing-freeze");
       endCallDetected = false;
       modeClosingNudged = false;
+      revealTriggered = false;
       document.querySelectorAll(".heat-pip").forEach(function(p) {
         p.classList.remove("active", "cold", "warm", "hot", "ready");
       });
