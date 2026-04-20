@@ -110,7 +110,7 @@
 
   /* ================ ORACLE LAYOUT (3-column) ================ */
   .oracle {
-    padding: 30px 40px 10px;
+    padding: 30px 40px 0;
     display: grid;
     grid-template-columns: 1fr 1.3fr 1fr;
     gap: 40px;
@@ -256,7 +256,8 @@
     letter-spacing: 0.28em;
     text-transform: uppercase;
     color: var(--muted);
-    margin-top: 20px;
+    margin-top: 16px;
+    margin-bottom: 0;
     min-height: 18px;
     text-align: center;
   }
@@ -270,7 +271,7 @@
     position: relative;
     width: 320px;
     height: 384px;
-    margin: -20px auto 0;
+    margin: -60px auto -10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -647,8 +648,8 @@
   /* ================ HOW IT WORKS (3 étapes) ================ */
   .how-it-works {
     max-width: 980px;
-    margin: 8px auto 40px;
-    padding: 30px 40px;
+    margin: 0 auto 32px;
+    padding: 20px 40px;
     border-top: 1px solid var(--line-soft);
     border-bottom: 1px solid var(--line-soft);
     text-align: center;
@@ -663,7 +664,7 @@
     border: none;
     pointer-events: none;
   }
-  .how-it-works .eyebrow { color: var(--dim); margin-bottom: 22px; }
+  .how-it-works .eyebrow { color: var(--dim); margin-bottom: 16px; }
   .hiw-steps {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -714,17 +715,17 @@
   /* ================ TRANSCRIPT (pendant l'appel, sous les CTAs) ================ */
   #transcript {
     max-width: 540px;
-    margin: 28px auto 0;
-    max-height: 220px;
+    margin: 0 auto;
+    max-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 10px;
     padding-right: 6px;
     opacity: 0;
-    transition: opacity 0.5s;
+    transition: opacity 0.5s, max-height 0.5s, margin 0.5s;
   }
-  body.in-call #transcript { opacity: 1; }
+  body.in-call #transcript { opacity: 1; max-height: 220px; margin: 28px auto 0; }
   #transcript::-webkit-scrollbar { width: 3px; }
   #transcript::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 2px; }
   .transcript-line {
@@ -754,19 +755,26 @@
   /* Closing CTA (sous l'orb, gold bubble) */
   #closing-cta {
     text-align: center;
-    margin-top: 24px;
-    padding: 18px 20px;
+    margin: 0 auto;
+    padding: 0 20px;
     background: linear-gradient(135deg, rgba(212,180,90,0.08), rgba(212,180,90,0.02));
-    border: 1px solid rgba(212,180,90,0.3);
+    border: 1px solid transparent;
     border-radius: 12px;
     opacity: 0;
     transform: translateY(10px);
-    transition: opacity 0.5s, transform 0.5s;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.5s, transform 0.5s, max-height 0.5s, padding 0.5s, border-color 0.5s, margin 0.5s;
     max-width: 480px;
-    margin-left: auto;
-    margin-right: auto;
   }
-  #closing-cta.visible { opacity: 1; transform: none; }
+  #closing-cta.visible {
+    opacity: 1;
+    transform: none;
+    max-height: 160px;
+    margin: 24px auto 0;
+    padding: 18px 20px;
+    border-color: rgba(212,180,90,0.3);
+  }
   #closing-cta .label {
     display: block;
     color: var(--muted);
