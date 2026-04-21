@@ -2172,21 +2172,11 @@
   // Envoie un nudge à Argos au tour 6 pour confirmer qu'il bascule en mode closing.
   let modeClosingNudged = false;
   function nudgeToClosingMode(coachDirective) {
+    // Nudge closing desactive : Argos hallucine ces marqueurs et les lit
+    // a voix haute. La regle reste dans le system prompt.
     if (modeClosingNudged) return;
-    if (!state.ws || state.ws.readyState !== 1) return;
-    if (state.userTurnCount < 5) return;
-    const produit = coachDirective && coachDirective.produit;
-    if (!produit || produit.certitude !== "ferme") return;
     modeClosingNudged = true;
-    const chaleur = (coachDirective.etat_emotionnel && coachDirective.etat_emotionnel.chaleur) || "tiede";
-    const fusionHint = (chaleur === "chaud" || chaleur === "pret_a_acheter")
-      ? "Chaleur élevée → tu peux FUSIONNER 6c+6d en 1 message."
-      : "Chaleur moyenne → 1 message par phase, pas de fusion.";
-    try {
-      state.ws.send(JSON.stringify({
-        realtimeInput: { text: "[SWITCH MODE CLOSING] Le diagnostic est fini. Tu passes en mode closing structuré (phase 5 → 6a → 6b → 6c → 6d → 7). " + fusionHint + " Rappel chiffres : tu NE cites QUE les chiffres présents dans ton briefing — aucune invention." }
-      }));
-    } catch (e) {}
+    return;
   }
 
   // ============ ORB LEVEL ============
@@ -3081,14 +3071,10 @@
       "Après cette phrase, tu FAIS UNE PAUSE et tu ATTENDS la réaction du prospect. Tu ne continues PAS tout de suite. " +
       "Tu respectes les points de suspension (pause 1 seconde à chaque '...').";
 
-    try {
-      state.ws.send(JSON.stringify({
-        realtimeInput: { text: directive }
-      }));
-      trackEvent("product_reveal", { product: productId });
-    } catch (e) {
-      console.warn("[Argo] reveal directive failed:", e);
-    }
+    // NE PLUS envoyer la directive texte : Argos la paraphrase/hallucinate
+    // avec des marqueurs techniques. La carte "Analyse en cours" suffit a
+    // creer le moment visuel. Argos dit sa phrase naturelle (via prompt).
+    trackEvent("product_reveal", { product: productId });
   }
 
   function showMarketCardOnce() {
@@ -3456,17 +3442,8 @@
         currentAlphaMsg = null;
         $orbContainer.className = "orb-container";
         $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
-        // Nudge silencieux : Argos doit comprendre qu'il a ete coupe et NE
-        // PAS reprendre sa phrase au prochain tour. Envoi en clientContent
-        // turnComplete=false pour ne pas declencher de reponse supplementaire.
-        try {
-          state.ws.send(JSON.stringify({
-            clientContent: {
-              turns: [{ role: "user", parts: [{ text: "[INTERRUPTION — tu as ete coupe. Ne reprends PAS ta phrase precedente. Reponds uniquement a ce que je viens de dire.]" }] }],
-              turnComplete: false
-            }
-          }));
-        } catch (e) {}
+        // Nudge barge-in retire : Argos l'hallucinait aussi.
+        // La regle 10 du system prompt gere la non-reprise de phrase coupee.
       }
 
       // Audio out
@@ -3545,10 +3522,15 @@
             state.conversationLog = state.conversationLog.slice(-40);
           }
 
-          // UI agents dès le tour 1 (pour que le dossier commence à se remplir
-          // avec le prénom dès qu'il est donné)
+          // UI agents des le tour 1 (dossier + cards en parallele) pour que
+          // les infos arrivent rapidement.
           if (state.userTurnCount >= 1) callUIAgents();
-          // Cards diagnostic : 1 quick-reply ou fait éducatif par tour selon gaps
+          // Cards LLM : on relance aussi apres la reponse d'Argos, car c'est
+          // apres sa reponse qu'il y a le plus de nouveau contenu a illustrer
+          // (chiffres, experts, comparaisons). Fix "cards qui s'arretent".
+          scheduleEphemeral(scheduleCardsAgentWhileSpeaking, 400);
+          scheduleEphemeral(scheduleCardsAgentWhileSpeaking, 2200);
+          // Cards educatives (did-you-know, patrimony_chart) si gaps
           scheduleEphemeral(triggerEarlyDiagnosticCard, 900);
           // Coach selon règle
           if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
@@ -3627,22 +3609,14 @@
       });
       var $hl = $("heat-label"); if ($hl) $hl.textContent = "";
 
-      // P8 — si le prospect avait opté pour la mémoire, pré-remplit le dossier
+      // P8 — si le prospect avait opte pour la memoire, on pre-remplit
+      // uniquement l'UI (dossier). On n'injecte PAS de hint vers Argos :
+      // il l'hallucinait en direct. Le dossier visible a l'ecran suffit.
       var remembered = loadRememberedDossier();
       if (remembered && remembered.dossier) {
         state.lastDossier = remembered.dossier;
         if (remembered.product_id) state.currentRecommendedProduct = remembered.product_id;
         renderDossier(remembered.dossier);
-        // Sends le pré-remplissage à Argos pour qu'il le prenne en compte
-        scheduleEphemeral(function() {
-          if (!state.ws || state.ws.readyState !== 1) return;
-          var hint = "[CONTEXTE — visiteur qui revient] "
-            + "Tu connais déjà ce prospect. Son dossier : "
-            + JSON.stringify(remembered.dossier)
-            + ". Utilise son prénom immédiatement et enchaine avec un pont naturel ('Ravi de vous revoir, on s'était arrêtés sur…'). "
-            + "Ne repose pas les questions déjà répondues.";
-          state.ws.send(JSON.stringify({ realtimeInput: { text: hint } }));
-        }, 800);
       }
 
       document.body.classList.add("in-call");
@@ -3814,33 +3788,10 @@
           if (pm.lead_magnet) lines.push("Bonus : " + pm.lead_magnet);
         }
 
-        var injectionText = lines.join("\n");
-        console.log("[Argo] Injecting briefing:", injectionText.length, "chars");
-
-        // FIX CRITIQUE : on n'utilise PLUS realtimeInput.text (qui est traité
-        // comme de la parole utilisateur → Argos répond au briefing). On passe
-        // par clientContent.turnComplete=false : ajoute au contexte SANS
-        // déclencher de réponse. Argos aura l'info au prochain tour mais ne
-        // commentera pas le briefing lui-même.
-        // Ref : Gemini Live API — clientContent avec turnComplete=false est
-        // documenté comme "append to conversation without triggering response".
-        try {
-          state.ws.send(JSON.stringify({
-            clientContent: {
-              turns: [{
-                role: "user",
-                parts: [{ text: injectionText }]
-              }],
-              turnComplete: false
-            }
-          }));
-        } catch (e) {
-          // Fallback : realtimeInput.text avec instruction très ferme
-          console.warn("[Argo] clientContent failed, fallback realtimeInput:", e);
-          state.ws.send(JSON.stringify({
-            realtimeInput: { text: injectionText }
-          }));
-        }
+        // Fonction gardee pour compat API mais plus appelee (briefingInjected
+        // reste false). Aucun envoi texte a Gemini Live. Argos se debrouille
+        // avec le system prompt + tool obtenir_briefing.
+        console.log("[Argo] Briefing NO-OP (kept for compat):", lines.length, "lines");
       })
       .catch(function(err) {
         console.warn("[Argo] Briefing injection failed:", err);
@@ -4119,28 +4070,20 @@
     if (silenceInjected) return;
     if (/euros?\s*(par\s*an|par\s*mois|\/an|\/mois)/i.test(text) || /€\s*\/?\s*(an|mois|trim)/i.test(text)) {
       silenceInjected = true;
-      silenceTimer = setTimeout(function() {
-        silenceTimer = null;
-        if (state.ws && state.ws.readyState === 1) {
-          state.ws.send(JSON.stringify({
-            realtimeInput: { text: "STOP. Tu viens de donner le prix. NE DIS PLUS RIEN. Silence absolu. Laisse le prospect parler. Le premier qui parle a perdu." }
-          }));
-        }
-      }, 1500);
+      // Injection retiree : Argos respecte la regle de silence via le prompt.
+      // Envoyer du texte ici faisait vocaliser Argos "STOP. Tu viens de donner le prix..."
+      silenceTimer = null;
     }
   }
 
-  // ============ B3 — PATTERN INTERRUPT ============
+  // ============ B3 — PATTERN INTERRUPT (desactive) ============
+  // Le pattern interrupt envoyait du texte a Argos, qu'il vocalisait parfois.
+  // La regle reste dans le system prompt (Argos gere les monologues trop longs).
   var userSpeakingStart = null;
   function checkPatternInterrupt() {
-    if (!userSpeakingStart) { userSpeakingStart = Date.now(); return; }
-    var elapsed = (Date.now() - userSpeakingStart) / 1000;
-    if (elapsed > 45 && state.ws && state.ws.readyState === 1) {
-      state.ws.send(JSON.stringify({
-        realtimeInput: { text: "Le prospect parle depuis plus de 45 secondes. Interromps-le poliment : 'Attendez, ce que vous dites là est important — laissez-moi rebondir sur ce point.'" }
-      }));
-      userSpeakingStart = null;
-    }
+    // no-op : on ne laisse pas le flag tourner pour eviter des comportements
+    // residuels. Argos gere via son prompt.
+    userSpeakingStart = Date.now();
   }
 
   // ============ FUNNEL EVENTS (C1) ============
