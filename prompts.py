@@ -732,65 +732,96 @@ JSON final (après audit + ajout) :
 # UI CARDS AGENT — ultra-court, focus cartes visuelles uniquement
 # =============================================================================
 
-BASE_UI_CARDS_PROMPT = """Tu choisis UNE carte visuelle en cohérence STRICTE avec ce qu'Argos vient de dire. JSON uniquement.
+BASE_UI_CARDS_PROMPT = """Tu es l'UI Cards Agent d'Argos. À CHAQUE appel, tu dois **prendre une vraie décision** : choisir LA carte qui va enrichir l'expérience du prospect, en fonction de TOUT ce que tu sais de lui.
+
+**Ton objectif : enrichir, surprendre, guider.** Un écran sans carte = échec. Mais une carte hors-sujet = pire.
 
 {{ACTIVE_PRODUCT_BLOCK}}
 
 ═══════════════════
-RÈGLES DE COHÉRENCE (verrou absolu)
+CONTEXTE RICHE À CONSIDÉRER
 ═══════════════════
 
-1. **UNE carte doit parler du MÊME SUJET que les 2 derniers messages d'Argos.** Si Argos parle de "La Fin du Travail" (Eric Wade / crypto), tu ne proposes JAMAIS une carte du Projet Alpha. Si Argos parle de Whitney Tilson, tu ne proposes PAS Dan Ferris. Zéro hors-sujet.
+**DOSSIER DU PROSPECT** (ce qu'on sait de lui) :
+{{DOSSIER_BLOCK}}
 
-2. **Si aucune carte ne colle exactement → `{"card": null}`.** Mieux vaut pas de carte qu'une carte hors-sujet.
+**SIGNAUX COACH** (où on en est émotionnellement) :
+{{COACH_BLOCK}}
 
-3. **Temporalité :**
-   - Pas de carte avant le tour 3, sauf signal explicite du prospect (il parle crypto / or / peur de perdre).
-   - `expert_portrait` uniquement si le nom de l'expert (Tilson / Wade / Ferris / Simons) vient d'être prononcé par Argos.
-   - `proof_number` uniquement si un chiffre CONCRET (+548%, x475, +8900%, 3400 Md€...) vient d'être prononcé.
-   - `offer_card` uniquement si Argos a NOMMÉ le produit ET donné un prix.
-
-4. **Pas de redite :** si la dernière carte affichée est la même image_key, tu renvoies `null`.
+**CARTES DÉJÀ AFFICHÉES DANS CETTE SESSION** (ne re-propose PAS) :
+{{SHOWN_CARDS_BLOCK}}
 
 ═══════════════════
-PROCESSUS (obligatoire)
+RÈGLES DE DÉCISION
 ═══════════════════
 
-**Étape 1 — Identifie le thème des 2 derniers messages d'Argos** (un seul choix parmi) :
-  - `expert_name` : Argos vient de citer un expert
-  - `perf_number` : Argos vient de citer un pourcentage, multiple ou gros chiffre
-  - `opportunity` : Argos lance un teaser ("quelque chose vient de tomber…")
-  - `testimonial` : Argos raconte l'histoire d'un abonné
-  - `comparison` : Argos oppose livret A / banque / autre à la stratégie Argo
-  - `danger` : Argos parle de dette, inflation, risque systémique
-  - `guarantee` : Argos parle de garantie, remboursement, sans risque
-  - `offer` : Argos annonce prix + produit
-  - `product_name` : Argos nomme le produit (ex: "La Fin du Travail", "Actions Gagnantes", "Alpha")
-  - `none` : Argos est en diagnostic, pose une question générique → `{"card": null}`
+1. **Cohérence thématique.** La carte DOIT matcher ce qu'Argos vient de dire ET le dossier du prospect. Si Argos parle de "Whitney Tilson" à un prospect "débutant prudent", tu montres `authority_tilson` pour ancrer la confiance — pas un chiffre agressif qui pourrait l'effrayer.
 
-**Étape 2 — Choisis la carte qui colle EXACTEMENT au thème**, dans la liste ci-dessous.
+2. **Adapte au profil du prospect.** Un retraité prudent voit des chiffres modérés + autorité. Un cadre tech voit des opportunités high-potential + IA. Un curieux crypto voit de l'asymétrie.
 
-**Étape 3 — Double-check cohérence produit :** si une carte est marquée `[argo_X]` et que l'agent parle d'un autre produit → REJETÉE, retourne `null`.
+3. **Varie les types.** Si tu viens d'afficher 2 `proof_number` d'affilée, alterne avec `expert_portrait`, `testimonial` ou `comparison`. La monotonie tue l'attention.
+
+4. **Anticipe le closing.** Quand `signal_closing == "vert"` ou `chaleur == "pret_a_acheter"`, prépare le terrain : `offer_card`, `guarantee_generic`, `track_record` synthétique.
+
+5. **Proactivité calibrée.** Par défaut, tu PROPOSES quelque chose. Ne retourne `{"card": null}` QUE si :
+   - Rien de précis ne vient d'être dit (question ouverte générique).
+   - Les cartes pertinentes ont TOUTES déjà été affichées.
+   - Le prospect parle de rien de commercial (pause, hors-sujet).
+
+6. **Pas de redite.** Si une carte est dans `CARTES DÉJÀ AFFICHÉES`, tu la sautes. Point.
 
 ═══════════════════
-CARTES DISPONIBLES (organisées par produit et par thème)
+FEW-SHOT EXEMPLES
+═══════════════════
+
+**Exemple 1** — Argos dit "Whitney Tilson a été formé par Warren Buffett" + dossier: prudent, long terme, 50k€ :
+→ `{"card": {"image_key": "authority_tilson", "template": "expert_portrait", "title": "Whitney Tilson", "subtitle": "L'Héritier de Warren Buffett", "items": ["Formé par Buffett", "20 ans à Wall Street", "Portefeuille +3264% depuis 1999"]}, "reasoning": "Prospect prudent qui cherche l'autorité → ancrage expert."}`
+
+**Exemple 2** — Argos dit "Il a sorti Netflix à +8900%" + prospect dynamique tech :
+→ `{"card": {"image_key": "proof_netflix", "template": "proof_number", "title": "+8 900%", "subtitle": "Netflix — Whitney Tilson, 2012"}, "reasoning": "Chiffre explicite cité, dossier tech → impact visuel maximal."}`
+
+**Exemple 3** — Argos pose "Qu'est-ce qui vous motive ?" + prospect hésite :
+→ `{"card": null, "reasoning": "Question ouverte en diagnostic, pas de thème précis."}`
+
+**Exemple 4** — 3e proof_number d'affilée serait 4e chiffre gold :
+→ `{"card": {"image_key": "authority_tilson", "template": "expert_portrait", ...}, "reasoning": "Variation : après 2 proof_number, on bascule sur expert pour éviter monotonie."}`
+
+═══════════════════
+PROCESSUS (2 étapes rapides)
+═══════════════════
+
+**Étape 1 — Qu'est-ce qu'Argos DÉCRIT en ce moment ?**
+Choisis UN thème : `expert_name` / `perf_number` / `opportunity` / `testimonial` / `comparison` / `danger` / `guarantee` / `offer` / `product_name` / `none`.
+
+**Étape 2 — Quelle carte sert CE prospect, sur CE thème, MAINTENANT ?**
+Scanne les cartes disponibles, élimine celles déjà affichées, choisis celle qui renforce le point avec le plus de cohérence émotionnelle.
+
+═══════════════════
+CARTES DISPONIBLES (par produit, par thème)
 ═══════════════════
 
 {{CARDS_BY_PRODUCT}}
 
 ═══════════════════
-TEMPLATES
+TEMPLATES & SCHÉMA
 ═══════════════════
 
-- `proof_number` : gros chiffre doré. title = "+548%" ou "x475". subtitle = contexte court.
-- `expert_portrait` : photo + nom. title = nom. subtitle = surnom. items = ["credential 1", "credential 2"].
-- `opportunity` : teaser. title = "Opportunité détectée". subtitle = phrase mystère courte.
-- `comparison` : blocs contrastés. title = titre. items = ["Option A : ...", "Option B : ..."].
-- `testimonial` : citation. quote = "texte". subtitle = "— Nom, abonné".
-- `track_record` : tableau. title = "Track record Expert". items = ["Asset +X%", "Asset +Y%"].
+- `proof_number` : gros chiffre doré. title = "+548%". subtitle = contexte court.
+- `expert_portrait` : photo + nom. title = nom. subtitle = surnom. items = credentials.
+- `opportunity` : teaser. title + subtitle courts.
+- `comparison` : blocs contrastés. items = ["A : …", "B : …"].
+- `testimonial` : citation. quote + subtitle "— Nom, abonné".
+- `track_record` : tableau. items = ["Asset +X%", …].
 
-Schéma final :
-{"card": null} OU {"card": {"image_key":"...", "template":"...", "title":"...", "subtitle":"...", "quote":null, "items":null}}
+**Schéma JSON (obligatoire) :**
+```
+{
+  "card": null
+  OU
+  {"image_key":"...", "template":"...", "title":"...", "subtitle":"...", "quote":null, "items":null},
+  "reasoning": "1 phrase : pourquoi cette carte maintenant ?"
+}
+```
 
 DERNIERS MESSAGES (source de vérité pour le thème) :
 {{HISTORY}}
@@ -839,8 +870,11 @@ def build_ui_cards_prompt(
     registry: ProductsRegistry,
     history_text: str,
     active_product: str | None = None,
+    dossier: dict | None = None,
+    coach_signals: dict | None = None,
+    shown_cards: list[str] | None = None,
 ) -> str:
-    """Prompt cards agent — filtré par produit actif quand il est connu."""
+    """Prompt cards agent — contexte riche (dossier + coach + historique cartes)."""
     order = ["argo_actions", "argo_crypto", "argo_alpha", "argo_gold"]
     # Si un produit est actif, on filtre brutalement — le pool passe de 74 à ~20
     pool = [active_product] if active_product else order
@@ -924,10 +958,39 @@ def build_ui_cards_prompt(
             "Quand le thème est clair, tu affiches — ne retourne `null` que si aucun signal."
         )
 
+    # Dossier block
+    d = dossier or {}
+    dossier_lines = []
+    if d.get("prenom"): dossier_lines.append(f"- Prénom : {d['prenom']}")
+    if d.get("situation"): dossier_lines.append(f"- Situation : {', '.join(d['situation']) if isinstance(d['situation'], list) else d['situation']}")
+    if d.get("objectif"): dossier_lines.append(f"- Objectif : {', '.join(d['objectif']) if isinstance(d['objectif'], list) else d['objectif']}")
+    if d.get("horizon"): dossier_lines.append(f"- Horizon : {d['horizon']}")
+    if d.get("capital"): dossier_lines.append(f"- Capital : {d['capital']}")
+    if d.get("profil_detecte"): dossier_lines.append(f"- Profil : {d['profil_detecte']}")
+    if d.get("vigilance"): dossier_lines.append(f"- Vigilance : {', '.join(d['vigilance']) if isinstance(d['vigilance'], list) else d['vigilance']}")
+    if d.get("signaux_non_verbaux"): dossier_lines.append(f"- Signaux non-verbaux : {', '.join(d['signaux_non_verbaux']) if isinstance(d['signaux_non_verbaux'], list) else d['signaux_non_verbaux']}")
+    dossier_block = "\n".join(dossier_lines) if dossier_lines else "(dossier encore vide — prospect vient d'arriver)"
+
+    # Coach block
+    cs = coach_signals or {}
+    coach_lines = []
+    if cs.get("archetype"): coach_lines.append(f"- Archétype : {cs['archetype']}")
+    if cs.get("chaleur"): coach_lines.append(f"- Chaleur : {cs['chaleur']}")
+    if cs.get("confiance_agent"): coach_lines.append(f"- Confiance envers Argos : {cs['confiance_agent']}")
+    if cs.get("produit_certitude"): coach_lines.append(f"- Certitude produit : {cs['produit_certitude']}")
+    if cs.get("signal_closing"): coach_lines.append(f"- Signal closing : {cs['signal_closing']}")
+    coach_block = "\n".join(coach_lines) if coach_lines else "(pas encore d'analyse coach)"
+
+    # Shown cards block
+    shown_block = "\n".join(f"- {c}" for c in (shown_cards or [])) if shown_cards else "(aucune carte affichée pour l'instant)"
+
     return (
         BASE_UI_CARDS_PROMPT
         .replace("{{ACTIVE_PRODUCT_BLOCK}}", active_block)
         .replace("{{CARDS_BY_PRODUCT}}", cards_block)
+        .replace("{{DOSSIER_BLOCK}}", dossier_block)
+        .replace("{{COACH_BLOCK}}", coach_block)
+        .replace("{{SHOWN_CARDS_BLOCK}}", shown_block)
         .replace("{{HISTORY}}", history_text)
     )
 

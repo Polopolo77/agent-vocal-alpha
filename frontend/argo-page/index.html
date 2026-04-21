@@ -3361,7 +3361,8 @@
       body: JSON.stringify({
         history: historySlice,
         active_product: state.currentRecommendedProduct,
-        last_card_key: activeCards.length ? activeCards[activeCards.length - 1].key : null,
+        session_id: state.sessionId,
+        dossier: state.lastDossier,
       }),
     }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
 
@@ -3410,7 +3411,8 @@
       body: JSON.stringify({
         history: historySlice,
         active_product: state.currentRecommendedProduct,
-        last_card_key: activeCards.length ? activeCards[activeCards.length - 1].key : null,
+        session_id: state.sessionId,
+        dossier: state.lastDossier,
       }),
     }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
 
@@ -4024,7 +4026,7 @@
   function scheduleCardsAgentWhileSpeaking() {
     if (cardsAgentSpokenInFlight) return;
     var now = Date.now();
-    if (now - lastCardsAgentSpokenCall < 6000) return;
+    if (now - lastCardsAgentSpokenCall < 4000) return;
     var bot = (state.pendingBotText || "").trim();
     if (bot.length < 40) return; // attendre qu'Argos ait dit quelque chose de substantiel
     lastCardsAgentSpokenCall = now;
@@ -4039,7 +4041,8 @@
       body: JSON.stringify({
         history: historySlice,
         active_product: state.currentRecommendedProduct,
-        last_card_key: activeCards.length ? activeCards[activeCards.length - 1].key : null,
+        session_id: state.sessionId,
+        dossier: state.lastDossier,
       }),
     })
       .then(function(r) { return r.json(); })

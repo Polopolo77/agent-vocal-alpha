@@ -62,10 +62,10 @@ LIVE_MODEL = "gemini-3.1-flash-live-preview"
 
 # Modèle rapide pour coach et UI dossier
 COACH_MODEL = "gemini-2.5-flash-lite"
-# Modèle plus costaud pour l'agent cartes : il doit router
-# thématiquement 20+ cartes sans se tromper de produit, flash-lite
-# n'y arrivait pas de manière fiable.
-CARDS_MODEL = "gemini-2.5-flash"
+# Modèle costaud pour l'agent cartes : il doit raisonner sur contexte
+# riche (dossier + coach + historique cartes) et éviter les répétitions.
+# gemini-3.0-flash avec thinking_budget > 0 = sweet spot qualité/latence.
+CARDS_MODEL = "gemini-3.0-flash"
 
 # =============================================================================
 # SÉCURITÉ — rate limiting + security headers (CORS permissif)
@@ -125,11 +125,16 @@ def _cleanup_coach_cache() -> None:
 
 
 def _cleanup_sessions() -> None:
-    """Purge les sessions expirées."""
+    """Purge les sessions expirées + historique cartes des sessions disparues."""
     now = time.time()
     stale = [sid for sid, ts in _valid_sessions.items() if now - ts > SESSION_TTL_SECONDS]
     for sid in stale:
         _valid_sessions.pop(sid, None)
+    # Purge cards session history pour sessions plus dans _valid_sessions
+    valid_ids = set(_valid_sessions.keys())
+    orphans = [sid for sid in _cards_session_history.keys() if sid not in valid_ids and sid != "default"]
+    for sid in orphans:
+        _cards_session_history.pop(sid, None)
 
 
 def _cleanup_rate_buckets() -> None:
@@ -521,8 +526,29 @@ async def handle_ui_dossier(request: web.Request) -> web.Response:
         return web.json_response({})
 
 
+# Historique des cartes affichées par session_id (anti-répétition cross-appels).
+# TTL = 30 min (comme coach_cache), purge pilotée par le cleanup périodique.
+_cards_session_history: dict[str, list[dict]] = {}
+
+def _remember_card(session_id: str, card: dict) -> None:
+    if not session_id or not card:
+        return
+    entry = {
+        "key": card.get("image_key") or card.get("title") or "",
+        "template": card.get("template") or "",
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    lst = _cards_session_history.setdefault(session_id, [])
+    lst.append(entry)
+    # Garde max 20 cartes par session
+    if len(lst) > 20:
+        _cards_session_history[session_id] = lst[-20:]
+
+
 async def handle_ui_cards(request: web.Request) -> web.Response:
-    """Ultra-fast cards agent: picks which visual card to display."""
+    """Agent cartes : choisit la meilleure carte à afficher, avec mémoire
+    cross-appels + contexte riche (dossier + coach + historique cartes).
+    """
     if not client:
         return web.json_response({"card": None})
     try:
@@ -531,17 +557,43 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
         active_product = data.get("active_product")
         if active_product and active_product not in REGISTRY.products:
             active_product = None
-        last_card_key = str(data.get("last_card_key", ""))[:64] or None
+        session_id = str(data.get("session_id", "default"))[:64]
+        dossier = data.get("dossier") or {}
+        if not isinstance(dossier, dict):
+            dossier = {}
 
         if not history:
             return web.json_response({"card": None})
 
-        recent = history[-6:] if len(history) > 6 else history
+        # Fenêtre historique élargie : 12 messages pour voir la trame long
+        recent = history[-12:] if len(history) > 12 else history
         history_text = _format_history(recent)
-        if last_card_key:
-            history_text += f"\n\n[DERNIÈRE CARTE AFFICHÉE : {last_card_key}] — si le thème actuel reste identique, renvoie null."
 
-        prompt = build_ui_cards_prompt(REGISTRY, history_text, active_product=active_product)
+        # Signaux coach (archétype, chaleur, certitude, produit)
+        cached = coach_cache.get(session_id) or {}
+        directive = cached.get("directive", {}) if isinstance(cached, dict) else {}
+        coach_signals = {
+            "archetype": directive.get("archetype_detecte"),
+            "chaleur": (directive.get("etat_emotionnel", {}) or {}).get("chaleur"),
+            "confiance_agent": (directive.get("etat_emotionnel", {}) or {}).get("confiance_agent"),
+            "produit_certitude": (directive.get("produit", {}) or {}).get("certitude"),
+            "signal_closing": (directive.get("directive_prochain_tour", {}) or {}).get("signal_closing"),
+        }
+
+        # Cartes déjà affichées dans cette session (anti-répétition)
+        shown_cards = _cards_session_history.get(session_id, [])
+        shown_summary = [
+            f"{c['template'] or 'card'}:{c['key']}" for c in shown_cards[-12:]
+        ]
+
+        prompt = build_ui_cards_prompt(
+            REGISTRY,
+            history_text,
+            active_product=active_product,
+            dossier=dossier,
+            coach_signals=coach_signals,
+            shown_cards=shown_summary,
+        )
 
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
@@ -549,9 +601,9 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
-                    "temperature": 0.15,
-                    "max_output_tokens": 512,
-                    "thinking_config": {"thinking_budget": 0},
+                    "temperature": 0.45,  # plus de créativité pour éviter les choix répétitifs
+                    "max_output_tokens": 768,
+                    "thinking_config": {"thinking_budget": 256},  # raisonne avant de répondre
                 },
             )
         )
@@ -562,15 +614,13 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
             log.warning("UI cards JSON parse error: %s", parse_err)
             return web.json_response({"card": None})
 
-        # VERROU SERVEUR : si un produit est actif, la carte renvoyée DOIT
-        # appartenir à ce produit (ou être générique). Sinon on rejette côté
-        # serveur pour ne même pas envoyer au client.
         card = result.get("card") if isinstance(result, dict) else None
+
+        # VERROU SERVEUR : cross-produit
         if card and active_product:
             img_key = card.get("image_key") or ""
             generic_keys = {"guarantee_generic", "offer_card"}
             if img_key and img_key not in generic_keys:
-                # Trouve à quel produit appartient cette clé
                 owner = None
                 for pid, p in REGISTRY.products.items():
                     imgs = p.images.get("images", []) if isinstance(p.images, dict) else []
@@ -583,6 +633,23 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
                         img_key, owner, active_product,
                     )
                     return web.json_response({"card": None})
+
+        # VERROU ANTI-RÉPÉTITION côté serveur : si la carte a déjà été affichée
+        # dans cette session récemment, on la rejette.
+        if card:
+            key = card.get("image_key") or card.get("title") or ""
+            if key and any(c["key"] == key for c in shown_cards[-10:]):
+                log.info("UI cards repetition blocked: key=%s session=%s", key, session_id[:10])
+                return web.json_response({"card": None, "reason": "already_shown"})
+            # Mémorise cette carte pour les prochains appels
+            _remember_card(session_id, card)
+
+        log.info(
+            "UI cards decided: tpl=%s key=%s reason=%s",
+            (card or {}).get("template"),
+            (card or {}).get("image_key") or (card or {}).get("title"),
+            (result or {}).get("reasoning", "")[:80] if isinstance(result, dict) else "",
+        )
 
         return web.json_response(result)
     except Exception as e:
