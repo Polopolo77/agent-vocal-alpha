@@ -2424,7 +2424,7 @@
     // (declenchees au setupComplete pour introduire la conversation). On
     // return true immediatement, sinon la fonction tombait sur le `return
     // turn >= 2` final qui les bloquait au tour 0.
-    var INTRO_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "guarantee_generic", "no_commit", "did_you_know", "patrimony_chart"];
+    var INTRO_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "guarantee_generic", "no_commit", "did_you_know", "patrimony_chart", "glossary"];
     if (INTRO_TEMPLATES.indexOf(tpl) >= 0 || INTRO_TEMPLATES.indexOf(key) >= 0) return true;
     if (turn < 2) return false;
 
@@ -3152,9 +3152,14 @@
           if (recommande && (certitude === "moyen" || certitude === "ferme")) {
             if (state.currentRecommendedProduct !== recommande) {
               state.currentRecommendedProduct = recommande;
-              // FIX race : reset le flag pour permettre re-injection si produit change
+              // NOTE : on n'injecte PLUS le briefing via clientContent car
+              // Gemini Live vocalise parfois le contenu comme s'il etait
+              // une continuation audio (il a lu "[CONTEXTE INTERNE]" a voix
+              // haute). Argos a deja tous les chiffres + regles dans le
+              // system prompt : il applique l'angle (regle 8) et le tier
+              // (regle capital) sans avoir besoin d'injection. S'il a besoin
+              // d'un fait precis, il peut toujours appeler obtenir_briefing.
               briefingInjected = false;
-              injectProductBriefing(recommande);
             }
           }
           // Affiche la fiche produit en cas d'intent ferme
@@ -3203,7 +3208,7 @@
     if (state.uiDirectorInFlight) return;
     if (historySlice.length < 2) return;
     var now = Date.now();
-    if (now - lastUIAgentsCall < 2500) return; // throttle léger
+    if (now - lastUIAgentsCall < 1500) return; // throttle leger (rapide pour dossier reactif)
     lastUIAgentsCall = now;
     state.uiDirectorInFlight = true;
     setThinking(true);
@@ -3250,7 +3255,7 @@
     if (state.uiDirectorInFlight) return;
     if (state.conversationLog.length < 2) return;
     var now = Date.now();
-    if (now - lastUIAgentsCall < 3000) return; // throttle 3s minimum
+    if (now - lastUIAgentsCall < 2000) return; // throttle 2s pour reactivite dossier
     lastUIAgentsCall = now;
     state.uiDirectorInFlight = true;
     setThinking(true);
@@ -3476,14 +3481,8 @@
       if (sc.turnComplete) {
         userSpeakingStart = null; // reset pattern interrupt
 
-        // Flush de la file de briefing mise en attente pendant que les deux
-        // parlaient. C'est LE moment sûr pour l'injecter : tout le monde est
-        // silencieux, Argos répondra au briefing sans marcher sur le prospect.
-        if (pendingBriefingProductId && !briefingInjected) {
-          var pid = pendingBriefingProductId;
-          pendingBriefingProductId = null;
-          scheduleEphemeral(function() { injectProductBriefing(pid); }, 300);
-        }
+        // Injection briefing desactivee (cf. handler coach). Pas de flush.
+        pendingBriefingProductId = null;
 
         if (state.pendingBotText) {
           state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
