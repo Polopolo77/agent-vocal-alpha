@@ -2420,8 +2420,11 @@
       .concat([state.pendingBotText || "", state.pendingUserText || ""])
       .join(" ").toLowerCase();
 
-    // Avant le tour 2 : seuls les triggers génériques (guarantee) passent.
-    if (turn < 2 && tpl !== "guarantee_generic" && key !== "guarantee_generic") return false;
+    // Cartes d'accueil / transparence / market : autorisees des le tour 0
+    // (declenchees au setupComplete pour introduire la conversation).
+    var INTRO_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "guarantee_generic", "no_commit"];
+    var isIntro = INTRO_TEMPLATES.indexOf(tpl) >= 0 || INTRO_TEMPLATES.indexOf(key) >= 0;
+    if (!isIntro && turn < 2) return false;
 
     // Cross-produit : si la carte appartient à un produit connu et ce produit
     // n'est pas l'actif → rejet.
@@ -2570,11 +2573,6 @@
     if (tpl === "rgpd_notice") return buildRGPDCard(card);
     if (tpl === "no_commit") return buildNoCommitCard(card);
     if (tpl === "live_market") return buildMarketCard(card, cardData);
-    if (tpl === "quickreply_experience") return buildQRExperienceCard(card);
-    if (tpl === "quickreply_capital") return buildQRCapitalCard(card);
-    if (tpl === "quickreply_horizon") return buildQRHorizonCard(card);
-    if (tpl === "quickreply_risk") return buildQRRiskCard(card);
-    if (tpl === "quickreply_concerns") return buildQRConcernsCard(card);
     if (tpl === "analysis_cross") return buildAnalysisCrossCard(card, cardData);
 
     const imgKey = cardData.image_key;
@@ -2913,153 +2911,15 @@
     return card;
   }
 
-  // ===== Quick-replies interactives =====
-
-  function _buildQRSingle(card, key, badge, question, options) {
-    card.classList.add("qr");
-    var optsHtml = options.map(function(o) {
-      return '<button type="button" class="qr-opt" data-reply="' + escapeHtml(o.reply) + '">' + escapeHtml(o.label) + '</button>';
-    }).join("");
-    card.innerHTML =
-      '<span class="smart-card-badge">' + escapeHtml(badge) + '</span>' +
-      '<p class="qr-q">' + escapeHtml(question) + '</p>' +
-      '<div class="qr-options">' + optsHtml + '</div>';
-    // Wire clicks
-    card.querySelectorAll('.qr-opt').forEach(function(btn) {
-      btn.addEventListener("click", function() {
-        var reply = btn.dataset.reply || btn.textContent || "";
-        hideSmartCard(key);
-        injectAsUserReply(reply);
-      });
-    });
-    return card;
-  }
-
-  function buildQRExperienceCard(card) {
-    return _buildQRSingle(card, "qr_experience", "À vous",
-      "Où en êtes-vous avec l'investissement ?",
-      [
-        { label: "Je débute",            reply: "Je suis débutant, je n'ai jamais investi." },
-        { label: "Un peu d'expérience",  reply: "J'investis un peu, de temps en temps." },
-        { label: "Investisseur régulier", reply: "J'investis régulièrement en bourse." },
-      ]
-    );
-  }
-
-  function buildQRCapitalCard(card) {
-    return _buildQRSingle(card, "qr_capital", "À vous",
-      "Quel capital voulez-vous mettre de côté ?",
-      [
-        { label: "Moins de 2 000 €",    reply: "Je peux placer moins de 2 000 €." },
-        { label: "2 000 – 10 000 €",    reply: "Je peux placer entre 2 000 et 10 000 €." },
-        { label: "10 000 – 50 000 €",   reply: "Je peux placer entre 10 000 et 50 000 €." },
-        { label: "Plus de 50 000 €",    reply: "Je peux placer plus de 50 000 €." },
-      ]
-    );
-  }
-
-  function buildQRHorizonCard(card) {
-    return _buildQRSingle(card, "qr_horizon", "À vous",
-      "Sur quel horizon voulez-vous placer ?",
-      [
-        { label: "Court terme (1-3 ans)",   reply: "Mon horizon est court terme, 1 à 3 ans." },
-        { label: "Moyen (3-10 ans)",        reply: "Mon horizon est moyen terme, 3 à 10 ans." },
-        { label: "Long (10+ ans)",          reply: "Mon horizon est long terme, plus de 10 ans." },
-      ]
-    );
-  }
-
-  function buildQRRiskCard(card) {
-    card.classList.add("qr");
-    card.innerHTML =
-      '<span class="smart-card-badge">À vous</span>' +
-      '<p class="qr-q">Votre tolérance au risque ?</p>' +
-      '<div class="risk-scale">' +
-        '<button type="button" class="risk-opt r1" data-reply="Je veux zéro risque, je privilégie la sécurité avant tout.">😌<span class="rl">Prudent</span></button>' +
-        '<button type="button" class="risk-opt r2" data-reply="Je préfère jouer la sécurité avec un peu de rendement.">🙂<span class="rl">Calme</span></button>' +
-        '<button type="button" class="risk-opt r3" data-reply="Je cherche un équilibre entre sécurité et rendement.">😊<span class="rl">Équilibré</span></button>' +
-        '<button type="button" class="risk-opt r4" data-reply="Je suis prêt à prendre des risques pour plus de rendement.">😃<span class="rl">Dynamique</span></button>' +
-        '<button type="button" class="risk-opt r5" data-reply="Je veux du rendement maximum, même si c\'est risqué.">🔥<span class="rl">Agressif</span></button>' +
-      '</div>';
-    card.querySelectorAll('.risk-opt').forEach(function(btn) {
-      btn.addEventListener("click", function() {
-        var reply = btn.dataset.reply || "";
-        hideSmartCard("qr_risk");
-        injectAsUserReply(reply);
-      });
-    });
-    return card;
-  }
-
-  function buildQRConcernsCard(card) {
-    card.classList.add("qr");
-    var selected = new Set();
-    var options = [
-      { id: "inflation",  label: "Inflation qui ronge" },
-      { id: "crise",      label: "Crise / krach boursier" },
-      { id: "perte",      label: "Perdre du capital" },
-      { id: "complique",  label: "C'est trop compliqué" },
-      { id: "rien",       label: "Rien, je veux gagner" },
-    ];
-    var optsHtml = options.map(function(o) {
-      return '<button type="button" class="qr-opt" data-id="' + o.id + '">' + escapeHtml(o.label) + '</button>';
-    }).join("");
-    card.innerHTML =
-      '<span class="smart-card-badge">À vous</span>' +
-      '<p class="qr-q">Qu\'est-ce qui vous préoccupe le plus ? (plusieurs choix possibles)</p>' +
-      '<div class="qr-options">' + optsHtml + '</div>' +
-      '<button type="button" class="qr-submit" disabled>Valider mes choix</button>';
-    var $submit = card.querySelector('.qr-submit');
-    card.querySelectorAll('.qr-opt').forEach(function(btn) {
-      btn.addEventListener("click", function() {
-        var id = btn.dataset.id;
-        if (selected.has(id)) { selected.delete(id); btn.classList.remove("selected"); }
-        else { selected.add(id); btn.classList.add("selected"); }
-        $submit.disabled = selected.size === 0;
-      });
-    });
-    $submit.addEventListener("click", function() {
-      if (selected.size === 0) return;
-      var labels = options.filter(function(o) { return selected.has(o.id); }).map(function(o) { return o.label; });
-      var reply = "Ce qui me préoccupe : " + labels.join(", ") + ".";
-      hideSmartCard("qr_concerns");
-      injectAsUserReply(reply);
-    });
-    return card;
-  }
+  // Quick-replies interactives retirées (trop dirigiste, pas naturel a la voix).
 
   // ===== Trigger logic — phase diagnostic (T1-5) =====
 
-  // Séquence de cartes : welcome → rgpd → did-you-know → patrimony + quick-replies selon gaps
+  // Sequence : welcome + rgpd + market sont declenches au setupComplete.
+  // Ici on affiche did-you-know et patrimony en fill-in pendant le diagnostic.
   function triggerEarlyDiagnosticCard() {
     var d = state.lastDossier || {};
     var turn = state.userTurnCount;
-
-    // Quick-reply : expérience (situation) — T2+
-    if (turn >= 2 && (!d.situation || d.situation.length === 0) && !localCardShown.has("qr_experience")) {
-      showSmartCard({ template: "quickreply_experience" });
-      return;
-    }
-    // Quick-reply : horizon — T3+
-    if (turn >= 3 && !d.horizon && !localCardShown.has("qr_horizon")) {
-      showSmartCard({ template: "quickreply_horizon" });
-      return;
-    }
-    // Quick-reply : capital — T3+
-    if (turn >= 3 && !d.capital && !localCardShown.has("qr_capital")) {
-      showSmartCard({ template: "quickreply_capital" });
-      return;
-    }
-    // Quick-reply : risk — T4+ (si profil pas détecté)
-    if (turn >= 4 && !d.profil_detecte && !localCardShown.has("qr_risk")) {
-      showSmartCard({ template: "quickreply_risk" });
-      return;
-    }
-    // Quick-reply : concerns — T4+ (si vigilance vide)
-    if (turn >= 4 && (!d.vigilance || d.vigilance.length === 0) && !localCardShown.has("qr_concerns")) {
-      showSmartCard({ template: "quickreply_concerns" });
-      return;
-    }
 
     // Saviez-vous que — T2-3 en fill-in quand le quick-reply a été répondu
     if (turn >= 2 && turn <= 4 && !localCardShown.has("dyk_1") && state.currentRecommendedProduct === null) {
@@ -3869,55 +3729,35 @@
           asymetrie:  "ANGLE OBLIGATOIRE : ASYMÉTRIE. Parle de petites positions qui peuvent faire x10, de crypto, de gains rapides.",
         };
 
+        // BRIEFING COMPACT (<500 chars) pour limiter le temps de reprocessing
+        // par Gemini Live. Les chiffres et credentials experts sont DEJA dans
+        // le system prompt (cached), donc pas besoin de les re-injecter ici.
+        // On injecte UNIQUEMENT : angle de vente + produit + tier priorite.
         var lines = [
-          "[CONTEXTE INTERNE COACH — NE RÉPONDS PAS À CE MESSAGE]",
-          "Ce bloc est une note privée préparée pour toi. Tu l'ABSORBES silencieusement.",
-          "Tu NE le commentes PAS. Tu NE dis PAS 'merci pour ces infos' ni 'je vois'.",
-          "Tu NE le paraphrases PAS. Tu ne fais RIEN maintenant.",
-          "Tu continues la conversation au prochain tour en t'appuyant sur ces faits,",
-          "en répondant au DERNIER message audio du prospect.",
-          "---",
-          "[BRIEFING PRODUIT — utilise ces arguments pour les phases 6a, 6b, 6c. Ne les invente PAS.]",
+          "[NOTE COACH — absorbe silencieusement, NE REPONDS PAS]",
+          ANGLE_RULES[angle],
+          "Produit : " + (produit.nom || productId) + (produit.expert ? " / " + produit.expert : "") + ".",
         ];
-        lines.push(ANGLE_RULES[angle]);
-        lines.push("Produit recommandé : " + (produit.nom || productId));
-        lines.push("Expert : " + (produit.expert || ""));
-        lines.push("Lead magnet : " + (produit.lead_magnet || ""));
-        lines.push("");
-
-        if (sources.length > 0) {
-          lines.push("=== ARGUMENTS DE LA LETTRE DE VENTE (cite-les textuellement) ===");
-          for (var i = 0; i < sources.length; i++) {
-            lines.push("[" + sources[i].section + "] " + (sources[i].excerpt || "").slice(0, 500));
-            lines.push("");
-          }
-        }
-
-        // Ajouter les infos du catalog
         var pm = state.catalog[productId];
         if (pm) {
           var offers = pm.offers || {};
-          lines.push("=== OFFRES (TOUS LES TIERS DISPONIBLES) ===");
-          // Dump TOUS les tiers normalisés avec positioning → Argos peut
-          // justifier le tier qu'il propose ET répondre si le prospect
-          // demande "pourquoi pas l'option B ?".
-          var tierOrder = ["A", "B", "C", "D"];
-          tierOrder.forEach(function(tName) {
-            var o = offers[tName];
-            if (!o) return;
-            var priceLabel = o.label || (o.price_eur + "€/" + (o.period || "an"));
-            var pos = o.positioning || "";
-            lines.push("- Tier " + tName + " : " + priceLabel + (pos ? " — " + pos : ""));
-          });
-          // Info coach sur le tier à pousser selon capital du prospect
           var coachTier = coach.tier_recommande;
-          if (coachTier) {
-            lines.push("");
-            lines.push("[RECO COACH] Tier à proposer en PRIORITÉ : " + coachTier + ". Justifie ton choix en fonction du capital du prospect.");
+          var preferred = coachTier && offers[coachTier] ? coachTier : (offers.A ? "A" : Object.keys(offers)[0]);
+          var pTier = offers[preferred];
+          if (pTier) {
+            var priceLabel = pTier.label || (pTier.price_eur + "€/" + (pTier.period || "an"));
+            lines.push("Tier recommande : " + preferred + " a " + priceLabel + ".");
+            // Autres tiers en 1 ligne courte au cas ou le prospect challenge
+            var otherLines = [];
+            ["A","B","C","D"].forEach(function(t) {
+              if (t === preferred) return;
+              var o = offers[t];
+              if (!o) return;
+              otherLines.push(t + "=" + (o.label || o.price_eur + "€/" + (o.period || "an")));
+            });
+            if (otherLines.length) lines.push("Autres tiers : " + otherLines.join(" | "));
           }
-          lines.push("Bonus offert : " + (pm.lead_magnet || ""));
-          var guarantees = pm.guarantees || [];
-          if (guarantees.length) lines.push("Garanties : " + guarantees.join(" | "));
+          if (pm.lead_magnet) lines.push("Bonus : " + pm.lead_magnet);
         }
 
         var injectionText = lines.join("\n");

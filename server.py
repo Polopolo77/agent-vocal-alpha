@@ -439,8 +439,10 @@ async def handle_strategist(request: web.Request) -> web.Response:
                 config={
                     "response_mime_type": "application/json",
                     "temperature": 0.3,
-                    # Optimisation : un JSON coach fait <1k tokens, 8192 était délirant
-                    "max_output_tokens": 1024,
+                    # 2048 pour laisser de la marge sur le post_call (JSON plus
+                    # gros avec synthese finale). 1024 causait des invalid_json
+                    # sur troncature.
+                    "max_output_tokens": 2048,
                     "thinking_config": {"thinking_budget": 0},
                 },
             )
