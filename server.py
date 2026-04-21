@@ -60,11 +60,13 @@ DB_PATH = Path(__file__).parent / "conversations.db"
 # Modèle Gemini Live pour l'agent vocal (côté client)
 LIVE_MODEL = "gemini-3.1-flash-live-preview"
 
-# Modèle rapide pour coach et UI dossier
+# Modèle rapide pour coach
 COACH_MODEL = "gemini-2.5-flash-lite"
+# Modèle plus costaud pour le dossier : flash-lite hallucinait (ex: inventait
+# "salarié" et "peur de perdre" sans aucune citation du prospect).
+DOSSIER_MODEL = "gemini-2.5-flash"
 # Modèle costaud pour l'agent cartes : il doit raisonner sur contexte
 # riche (dossier + coach + historique cartes) et éviter les répétitions.
-# gemini-3.0-flash avec thinking_budget > 0 = sweet spot qualité/latence.
 CARDS_MODEL = "gemini-3.0-flash"
 
 # =============================================================================
@@ -506,14 +508,13 @@ async def handle_ui_dossier(request: web.Request) -> web.Response:
 
         response = await asyncio.to_thread(
             lambda: client.models.generate_content(
-                model=COACH_MODEL,
+                model=DOSSIER_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
-                    "temperature": 0.1,
-                    # +room pour l'audit du dossier précédent avant l'output JSON
-                    "max_output_tokens": 768,
-                    "thinking_config": {"thinking_budget": 0},
+                    "temperature": 0.05,  # ultra conservateur : zero invention
+                    "max_output_tokens": 1024,
+                    "thinking_config": {"thinking_budget": 128},  # raisonne avant d'extraire
                 },
             )
         )
