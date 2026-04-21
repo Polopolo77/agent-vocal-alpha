@@ -3895,9 +3895,24 @@
         var pm = state.catalog[productId];
         if (pm) {
           var offers = pm.offers || {};
-          var tierA = offers.A || Object.values(offers)[0] || {};
-          lines.push("=== OFFRE ===");
-          lines.push("Prix tier A : " + (tierA.label || tierA.price_eur + "€/an"));
+          lines.push("=== OFFRES (TOUS LES TIERS DISPONIBLES) ===");
+          // Dump TOUS les tiers normalisés avec positioning → Argos peut
+          // justifier le tier qu'il propose ET répondre si le prospect
+          // demande "pourquoi pas l'option B ?".
+          var tierOrder = ["A", "B", "C", "D"];
+          tierOrder.forEach(function(tName) {
+            var o = offers[tName];
+            if (!o) return;
+            var priceLabel = o.label || (o.price_eur + "€/" + (o.period || "an"));
+            var pos = o.positioning || "";
+            lines.push("- Tier " + tName + " : " + priceLabel + (pos ? " — " + pos : ""));
+          });
+          // Info coach sur le tier à pousser selon capital du prospect
+          var coachTier = coach.tier_recommande;
+          if (coachTier) {
+            lines.push("");
+            lines.push("[RECO COACH] Tier à proposer en PRIORITÉ : " + coachTier + ". Justifie ton choix en fonction du capital du prospect.");
+          }
           lines.push("Bonus offert : " + (pm.lead_magnet || ""));
           var guarantees = pm.guarantees || [];
           if (guarantees.length) lines.push("Garanties : " + guarantees.join(" | "));
