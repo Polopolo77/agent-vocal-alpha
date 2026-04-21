@@ -2940,6 +2940,42 @@
     }
   }
 
+  // BUY INTENT : detecte une intention d'achat EXPLICITE (cote prospect ou
+  // cote Argos quand il annonce le closing assumptif) et declenche l'overlay
+  // plein ecran UNE SEULE FOIS. Avant, l'overlay s'affichait sur signal=vert
+  // du coach → trop tot, le prospect n'avait pas encore dit oui.
+  var BUY_INTENT_USER_RES = [
+    /\b(?:ok|d'?accord|ouais|oui)[\s,.!]*je\s+m'?inscris\b/i,
+    /\bje\s+(?:prends|m'?engage|m'?inscris|veux\s+bien|signe)\b/i,
+    /\bc'?est\s+(?:bon|parti|ok)\s+(?:pour\s+moi|on\s+y\s+va)/i,
+    /\bon\s+y\s+va\b/i,
+    /\ballez[\s,]*j'?y\s+vais\b/i,
+    /\bjoker\s+valid/i,
+    /\bje\s+suis\s+partant/i,
+  ];
+  var BUY_INTENT_ALPHA_RES = [
+    /bouton\s+(?:s'?inscrire|qui\s+vient\s+d'?appara)/i,
+    /(?:voyez|vous\s+avez)\s+(?:le\s+)?bouton/i,
+    /cliquez\s+(?:dessus|sur\s+s'?inscrire)/i,
+    /c'?est\s+r[eé]gl[eé][\s,.!]*.{0,40}\bbouton/i,
+  ];
+  var buyIntentTriggered = false;
+  function checkBuyIntent(text, fromRole) {
+    if (buyIntentTriggered) return;
+    if (!text) return;
+    if (!state.currentRecommendedProduct) return; // pas d'overlay sans produit
+    var patterns = fromRole === "alpha" ? BUY_INTENT_ALPHA_RES : BUY_INTENT_USER_RES;
+    for (var i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(text)) {
+        buyIntentTriggered = true;
+        console.log("[Argo] Buy intent detected:", fromRole, "→ show overlay");
+        showClosingOverlay();
+        trackEvent("buy_intent_overlay", { from: fromRole, product: state.currentRecommendedProduct });
+        return;
+      }
+    }
+  }
+
   // Hesitation detection → no_commit card (au premier "je sais pas")
   var HESITATION_RES = [
     /je\s+(?:n'?)?sais\s+pas/i,
@@ -3135,12 +3171,13 @@
           // P1 — nudge vers mode closing quand le produit est ferme
           nudgeToClosingMode(d);
 
-          // Closing CTA (fix: aussi le cacher si pas vert)
+          // Closing CTA : la bulle "Pret a commencer ?" sous l'orbe s'affiche
+          // des que le coach passe signal_closing=vert. MAIS PAS l'overlay
+          // plein ecran : lui, on le reserve au vrai moment d'achat
+          // (detection phrase explicite cote input/output transcription).
           var signal = d.directive_prochain_tour && d.directive_prochain_tour.signal_closing;
           if (signal === "vert") {
             showClosingCta();
-            // A2 : closing cinématique
-            showClosingOverlay();
             trackEvent("cta_shown", { product: state.currentRecommendedProduct });
           } else {
             hideClosingCta();
@@ -3453,6 +3490,8 @@
         checkEndOfCall(state.pendingUserText, "user");
         // Hesitation → carte "aucun engagement"
         checkHesitation(state.pendingUserText);
+        // Intent d'achat explicite → overlay closing plein ecran
+        checkBuyIntent(state.pendingUserText, "user");
         // UI agents EN SIMULTANÉ : dès que le prospect a parlé et fait une micro-pause
         // (1.2s sans nouveau chunk de transcription), on déclenche dossier + cards
         // sans attendre qu'Argos finisse. Ils travaillent en parallèle de l'audio.
@@ -3475,6 +3514,8 @@
         scheduleCardsAgentWhileSpeaking();
         // P7 : Argos prononce la phrase de fin → auto-disconnect
         checkEndOfCall(state.pendingBotText, "alpha");
+        // Si Argos annonce "le bouton vient d'apparaitre" → overlay plein ecran
+        checkBuyIntent(state.pendingBotText, "alpha");
       }
 
       // Turn complete
@@ -3580,6 +3621,7 @@
       endCallDetected = false;
       modeClosingNudged = false;
       revealTriggered = false;
+      buyIntentTriggered = false;
       document.querySelectorAll(".heat-pip").forEach(function(p) {
         p.classList.remove("active", "cold", "warm", "hot", "ready");
       });
