@@ -2420,11 +2420,13 @@
       .concat([state.pendingBotText || "", state.pendingUserText || ""])
       .join(" ").toLowerCase();
 
-    // Cartes d'accueil / transparence / market : autorisees des le tour 0
-    // (declenchees au setupComplete pour introduire la conversation).
-    var INTRO_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "guarantee_generic", "no_commit"];
-    var isIntro = INTRO_TEMPLATES.indexOf(tpl) >= 0 || INTRO_TEMPLATES.indexOf(key) >= 0;
-    if (!isIntro && turn < 2) return false;
+    // Cartes d'accueil / transparence / market : autorisees a TOUT moment
+    // (declenchees au setupComplete pour introduire la conversation). On
+    // return true immediatement, sinon la fonction tombait sur le `return
+    // turn >= 2` final qui les bloquait au tour 0.
+    var INTRO_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "guarantee_generic", "no_commit", "did_you_know", "patrimony_chart"];
+    if (INTRO_TEMPLATES.indexOf(tpl) >= 0 || INTRO_TEMPLATES.indexOf(key) >= 0) return true;
+    if (turn < 2) return false;
 
     // Cross-produit : si la carte appartient à un produit connu et ce produit
     // n'est pas l'actif → rejet.
@@ -3412,6 +3414,17 @@
         currentAlphaMsg = null;
         $orbContainer.className = "orb-container";
         $("status").textContent = AGENT_NAME.toUpperCase() + " vous écoute…";
+        // Nudge silencieux : Argos doit comprendre qu'il a ete coupe et NE
+        // PAS reprendre sa phrase au prochain tour. Envoi en clientContent
+        // turnComplete=false pour ne pas declencher de reponse supplementaire.
+        try {
+          state.ws.send(JSON.stringify({
+            clientContent: {
+              turns: [{ role: "user", parts: [{ text: "[INTERRUPTION — tu as ete coupe. Ne reprends PAS ta phrase precedente. Reponds uniquement a ce que je viens de dire.]" }] }],
+              turnComplete: false
+            }
+          }));
+        } catch (e) {}
       }
 
       // Audio out
