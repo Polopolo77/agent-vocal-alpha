@@ -18,27 +18,82 @@
       "4 à 6 mois d'analyse par entreprise avant recommandation"
     ],
     "notable_wins": [
-      { "asset": "Posco ADR",                    "return_pct": 100 },
-      { "asset": "Blair",                        "return_pct": 111 },
-      { "asset": "Gateway",                      "return_pct": 124 },
-      { "asset": "Intel",                        "return_pct": 133 },
-      { "asset": "Encana",                       "return_pct": 138 },
-      { "asset": "Icahn Enterprises",            "return_pct": 142 },
-      { "asset": "AB InBev",                     "return_pct": 150 },
-      { "asset": "Johnson & Johnson",            "return_pct": 157 },
-      { "asset": "Altria Group",                 "return_pct": 174 },
-      { "asset": "Bitcoin",                      "return_pct": 187 },
-      { "asset": "Apple",                        "return_pct": 190 },
-      { "asset": "Alexander and Baldwin",        "return_pct": 201 },
-      { "asset": "Realty Income Corporation",    "return_pct": 212 },
-      { "asset": "International Royalty Corp",   "return_pct": 248 },
-      { "asset": "Prestige Consumer Healthcare", "return_pct": 406 },
-      { "asset": "Constellation Brands",         "return_pct": 629 }
+      {
+        "asset": "Posco ADR",
+        "return_pct": 100
+      },
+      {
+        "asset": "Blair",
+        "return_pct": 111
+      },
+      {
+        "asset": "Gateway",
+        "return_pct": 124
+      },
+      {
+        "asset": "Intel",
+        "return_pct": 133
+      },
+      {
+        "asset": "Encana",
+        "return_pct": 138
+      },
+      {
+        "asset": "Icahn Enterprises",
+        "return_pct": 142
+      },
+      {
+        "asset": "AB InBev",
+        "return_pct": 150
+      },
+      {
+        "asset": "Johnson & Johnson",
+        "return_pct": 157
+      },
+      {
+        "asset": "Altria Group",
+        "return_pct": 174
+      },
+      {
+        "asset": "Bitcoin",
+        "return_pct": 187
+      },
+      {
+        "asset": "Apple",
+        "return_pct": 190
+      },
+      {
+        "asset": "Alexander and Baldwin",
+        "return_pct": 201
+      },
+      {
+        "asset": "Realty Income Corporation",
+        "return_pct": 212
+      },
+      {
+        "asset": "International Royalty Corp",
+        "return_pct": 248
+      },
+      {
+        "asset": "Prestige Consumer Healthcare",
+        "return_pct": 406
+      },
+      {
+        "asset": "Constellation Brands",
+        "return_pct": 629
+      }
     ],
     "uranium_previous_cycle": [
-      { "gain_pct": 93000 },
-      { "gain_pct": 101900 },
-      { "asset": "Laramide Resources", "gain_pct": 161000 }
+      {
+        "gain_pct": 93000
+      },
+      {
+        "gain_pct": 101900
+      },
+      {
+        "asset": "Laramide Resources",
+        "gain_pct": 161000
+      }
     ]
   },
   "thesis": {
@@ -86,15 +141,42 @@
       "ratio": "+50% sur l'or → +300%+ sur le profit par once"
     },
     "reference_performances_mines": [
-      { "company": "Vista Gold Corp",    "return_pct": 1248,  "multiple": "x13",  "period": "1 an" },
-      { "company": "SSR Mining",          "return_pct": 5428,  "multiple": "x55",  "period": "2 ans" },
-      { "company": "Forsys Metals",      "return_pct": 10900, "multiple": "x110", "period": "10 mois" }
+      {
+        "company": "Vista Gold Corp",
+        "return_pct": 1248,
+        "multiple": "x13",
+        "period": "1 an"
+      },
+      {
+        "company": "SSR Mining",
+        "return_pct": 5428,
+        "multiple": "x55",
+        "period": "2 ans"
+      },
+      {
+        "company": "Forsys Metals",
+        "return_pct": 10900,
+        "multiple": "x110",
+        "period": "10 mois"
+      }
     ]
   },
   "billionaires_positioning": [
-    { "name": "Ray Dalio",        "role": "Fondateur Bridgewater (plus grand fonds spéculatif mondial)", "position": "Énormes positions or" },
-    { "name": "Jeffrey Gundlach", "role": "Roi des obligations",                                          "position": "Recommande 25% des actifs en or" },
-    { "name": "David Bateman",    "role": "Milliardaire crypto",                                          "position": "1 Md$ métaux précieux dont 420 M$ en or" }
+    {
+      "name": "Ray Dalio",
+      "role": "Fondateur Bridgewater (plus grand fonds spéculatif mondial)",
+      "position": "Énormes positions or"
+    },
+    {
+      "name": "Jeffrey Gundlach",
+      "role": "Roi des obligations",
+      "position": "Recommande 25% des actifs en or"
+    },
+    {
+      "name": "David Bateman",
+      "role": "Milliardaire crypto",
+      "position": "1 Md$ métaux précieux dont 420 M$ en or"
+    }
   ],
   "billionaires_subtle_game": "Achats d'or publics → faire monter le cours → faire exploser le levier opérationnel des minières (leur vraie cible).",
   "product_inclusions": {
@@ -131,27 +213,31 @@
       "period": "an",
       "label": "997€/an",
       "positioning": "Offre annuelle standard de lancement (-50% vs 2000€ public)",
-      "tacite_reconduction": true
+      "tacite_reconduction": true,
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793710001&campaignCode=shr008-an-997&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FSHR008-AN-997%2Forder-form%2Findex.html"
     },
     "B": {
       "price_eur": 1997,
       "period": "an",
       "label": "1997€/an (premium)",
       "positioning": "Tier annuel premium pour public aisé",
-      "note_visibility": "Non affiché sur la landing publique, proposition commerciale directe"
+      "note_visibility": "Non affiché sur la landing publique, proposition commerciale directe",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793720001&campaignCode=shr008-an-1997&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FSHR008-AN-1997%2Forder-form%2Findex.html"
     },
     "C": {
       "price_eur": 299,
       "period": "trimestre",
       "label": "299€/trim",
-      "positioning": "Étalement du paiement, fallback objection engagement"
+      "positioning": "Étalement du paiement, fallback objection engagement",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793730001&campaignCode=shr008-tri-299&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FSHR008-TRI-299%2Forder-form%2Findex.html"
     },
     "D": {
       "price_eur": 599,
       "period": "trimestre",
       "label": "599€/trim (premium)",
       "positioning": "Tier trimestriel premium",
-      "note_visibility": "Non affiché sur la landing publique"
+      "note_visibility": "Non affiché sur la landing publique",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793740001&campaignCode=shr008-tri-599&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FSHR008-TRI-599%2Forder-form%2Findex.html"
     }
   },
   "places_limit": 500,

@@ -20,11 +20,32 @@
       "Ami proche de Bill Ackman (rencontrés à Harvard)"
     ],
     "notable_wins": [
-      { "asset": "AAPL", "year": 2008, "entry_price_usd": 0.35, "multiple": "x700" },
-      { "asset": "AMZN", "year": 2000, "entry_price_usd": 2.41, "multiple": "x90" },
-      { "asset": "NFLX", "year": 2012, "return_pct": 8900 },
-      { "asset": "GGP",  "year": 2016, "return_pct": 1600 },
-      { "asset": "SODA", "return_pct": 1100 }
+      {
+        "asset": "AAPL",
+        "year": 2008,
+        "entry_price_usd": 0.35,
+        "multiple": "x700"
+      },
+      {
+        "asset": "AMZN",
+        "year": 2000,
+        "entry_price_usd": 2.41,
+        "multiple": "x90"
+      },
+      {
+        "asset": "NFLX",
+        "year": 2012,
+        "return_pct": 8900
+      },
+      {
+        "asset": "GGP",
+        "year": 2016,
+        "return_pct": 1600
+      },
+      {
+        "asset": "SODA",
+        "return_pct": 1100
+      }
     ]
   },
   "historical_inspiration": {
@@ -55,27 +76,61 @@
       "filter_result": "~90% du marché éliminé, ~100 actions restantes"
     },
     "step_3_ai": {
-      "inputs": ["historique de performance", "volatilité", "corrélations"],
+      "inputs": [
+        "historique de performance",
+        "volatilité",
+        "corrélations"
+      ],
       "process": "Clustering en familles statistiques, sélection des meilleures par cluster",
       "output": "Portefeuille de 20 actions, chacune exactement 5% du total"
     },
     "step_4_rebalancing": {
       "frequency": "Trimestrielle (tous les 3 mois)",
-      "actions": ["Recalcul des scores", "Re-test des corrélations", "Arbitrages si besoin"],
+      "actions": [
+        "Recalcul des scores",
+        "Re-test des corrélations",
+        "Arbitrages si besoin"
+      ],
       "risk_management": "Stop-loss automatique à un seuil estimé par l'IA"
     },
     "human_checkpoint": "Une seule intervention humaine : relecture finale du portefeuille par Whitney Tilson avant publication"
   },
   "simulated_performance": {
     "wins": [
-      { "asset": "Cadence Design Systems", "score": 77, "return_pct": 550 },
-      { "asset": "Synopsys",                "score": 78, "return_pct": 450 },
-      { "asset": "Agnico Eagle Mines",      "score": 90, "return_pct": 73, "period_months": 12 },
-      { "asset": "Nvidia (depuis 2017)",    "score": 74, "return_pct": 6400, "multiple": "x65" }
+      {
+        "asset": "Cadence Design Systems",
+        "score": 77,
+        "return_pct": 550
+      },
+      {
+        "asset": "Synopsys",
+        "score": 78,
+        "return_pct": 450
+      },
+      {
+        "asset": "Agnico Eagle Mines",
+        "score": 90,
+        "return_pct": 73,
+        "period_months": 12
+      },
+      {
+        "asset": "Nvidia (depuis 2017)",
+        "score": 74,
+        "return_pct": 6400,
+        "multiple": "x65"
+      }
     ],
     "avoided_losses": [
-      { "asset": "Rezolve AI", "score": 37, "return_pct": -70 },
-      { "asset": "Jet AI",     "score": 17, "return_pct": -93 }
+      {
+        "asset": "Rezolve AI",
+        "score": 37,
+        "return_pct": -70
+      },
+      {
+        "asset": "Jet AI",
+        "score": 17,
+        "return_pct": -93
+      }
     ],
     "global_5y": {
       "alpha_vs_sp500_pts": 50,
@@ -89,25 +144,29 @@
       "period": "an",
       "label": "496€/an",
       "positioning": "Offre annuelle standard de lancement",
-      "tacite_reconduction": true
+      "tacite_reconduction": true,
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793660001&campaignCode=aia001-an-496&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FAIA001-AN-496%2Forder-form%2Findex.html"
     },
     "B": {
       "price_eur": 997,
       "period": "an",
       "label": "997€/an (premium)",
-      "positioning": "Tier annuel premium pour public aisé"
+      "positioning": "Tier annuel premium pour public aisé",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793680001&campaignCode=aia001-an-997&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FAIA001-AN-997%2Forder-form%2Findex.html"
     },
     "C": {
       "price_eur": 149,
       "period": "trimestre",
       "label": "149€/trim",
-      "positioning": "Étalement du paiement, fallback objection engagement"
+      "positioning": "Étalement du paiement, fallback objection engagement",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793690001&campaignCode=aia001-tri-149&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FAIA001-TRI-149%2Forder-form%2Findex.html"
     },
     "D": {
       "price_eur": 299,
       "period": "trimestre",
       "label": "299€/trim (premium)",
-      "positioning": "Tier trimestriel premium"
+      "positioning": "Tier trimestriel premium",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793700001&campaignCode=aia001-tri-299&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FAIA001-TRI-299%2Forder-form%2Findex.html"
     }
   },
   "note_landing_only": "La landing publique mentionne aussi une offre 'à vie' à 1496€ (paiement unique). Cette offre n'est PAS dans le catalog V1 officiel, ne pas la proposer via le Concierge IA.",

@@ -17,9 +17,18 @@
       "Ami du milliardaire Bill Ackman"
     ],
     "notable_wins_official": [
-      { "asset": "AAPL", "return_pct": 47400 },
-      { "asset": "NFLX", "return_pct": 8900 },
-      { "asset": "AMZN", "return_pct": 7600 }
+      {
+        "asset": "AAPL",
+        "return_pct": 47400
+      },
+      {
+        "asset": "NFLX",
+        "return_pct": 8900
+      },
+      {
+        "asset": "AMZN",
+        "return_pct": 7600
+      }
     ]
   },
   "analyst_team": [
@@ -62,14 +71,16 @@
       "period": "an",
       "label": "149€/an",
       "positioning": "Offre standard — prix d'entrée pour découvrir la publication",
-      "tacite_reconduction": true
+      "tacite_reconduction": true,
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793620001&campaignCode=aga004-an-149&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FAGA004%2Forder-form%2Findex.html"
     },
     "B": {
       "price_eur": 299,
       "period": "an",
       "label": "299€/an",
       "positioning": "Offre longue / public plus aisé — valeur normale non remisée",
-      "tacite_reconduction": true
+      "tacite_reconduction": true,
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793630001&campaignCode=aga004-an-299&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FAGA004-AN-299%2Forder-form%2Findex.html"
     }
   },
   "cadence": "Mensuel (1 nouveau dossier action par mois)",
@@ -77,11 +88,31 @@
   "track_record": {
     "historical_cumulative": "+3264% depuis 1999 (6x le S&P500)",
     "notable_wins": [
-      { "ticker": "AAPL", "entry_year": 2008, "multiple": "x475" },
-      { "ticker": "AMZN", "entry_year": 2000, "multiple": "x77" },
-      { "ticker": "NFLX", "entry_year": 2012, "return_pct": 8900 },
-      { "ticker": "SODA", "entry_year": 2016, "return_pct": 1100 },
-      { "ticker": "GGP",  "entry_year": null, "return_pct": 1600 }
+      {
+        "ticker": "AAPL",
+        "entry_year": 2008,
+        "multiple": "x475"
+      },
+      {
+        "ticker": "AMZN",
+        "entry_year": 2000,
+        "multiple": "x77"
+      },
+      {
+        "ticker": "NFLX",
+        "entry_year": 2012,
+        "return_pct": 8900
+      },
+      {
+        "ticker": "SODA",
+        "entry_year": 2016,
+        "return_pct": 1100
+      },
+      {
+        "ticker": "GGP",
+        "entry_year": null,
+        "return_pct": 1600
+      }
     ]
   },
   "guarantees": [

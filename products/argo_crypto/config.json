@@ -17,10 +17,22 @@
       "24 recommandations >+1000% depuis 2017 (record exceptionnel)"
     ],
     "notable_wins": [
-      { "asset": "Polymath", "return_pct": 3180 },
-      { "asset": "Harmony",  "return_pct": 8079 },
-      { "asset": "Enjin",    "return_pct": 11127 },
-      { "asset": "Luna",     "return_pct": 34056 }
+      {
+        "asset": "Polymath",
+        "return_pct": 3180
+      },
+      {
+        "asset": "Harmony",
+        "return_pct": 8079
+      },
+      {
+        "asset": "Enjin",
+        "return_pct": 11127
+      },
+      {
+        "asset": "Luna",
+        "return_pct": 34056
+      }
     ]
   },
   "co_expert": {
@@ -29,7 +41,14 @@
     "background": "Ex-cadre dirigeant biotech. Master of Science à Johns Hopkins University. Longue carrière dans la pharma, a développé lui-même plusieurs nouvelles thérapies. Dirige depuis plusieurs années le service Innovations Report qui analyse toutes les tendances sur les marchés technologiques."
   },
   "support_team": "Dizaines d'analystes qui épaulent Wade et Engel pour identifier les bouleversements technologiques à venir et les meilleures opportunités financières.",
-  "sectors": ["5G", "Cloud", "Biotech", "IA", "Réalité Augmentée", "Blockchain / cryptos"],
+  "sectors": [
+    "5G",
+    "Cloud",
+    "Biotech",
+    "IA",
+    "Réalité Augmentée",
+    "Blockchain / cryptos"
+  ],
   "exclusivity": "Seuls à proposer ces dossiers au public francophone.",
   "lead_magnet": {
     "title": "La Fin du Travail",
@@ -43,7 +62,8 @@
       "label": "129€/an (SEPA)",
       "positioning": "Offre standard -50% — tacite reconduction au même prix",
       "tacite_reconduction": true,
-      "payment_method": "SEPA"
+      "payment_method": "SEPA",
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793640001&campaignCode=psa030-an-129&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FPSA030%2Forder-form%2Findex.html"
     },
     "A_cc": {
       "price_eur": 134,
@@ -57,7 +77,8 @@
       "period": "an",
       "label": "299€/an (premium)",
       "positioning": "Abonnement longue durée / public plus aisé",
-      "tacite_reconduction": true
+      "tacite_reconduction": true,
+      "checkout_url": "https://atlas.argo-editions.com/?trackingCode=ARO793650001&campaignCode=psa030-an-299&sfId=%%ContactPolarisId%%&walletId=%%WalletId%%&re=https%3A%2F%2Fsecure.argo-editions.com%2FPSA030-AN-299%2Forder-form%2Findex.html"
     }
   },
   "normal_price_eur": 259,

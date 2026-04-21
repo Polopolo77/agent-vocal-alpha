@@ -2672,23 +2672,49 @@
     return card;
   }
 
-  function buildOfferCard(card) {
-    // La carte offre dépend du produit actuellement recommandé par le coach.
+  // Helper : récupère l'offre (tier) recommandée par le coach + son URL de checkout.
+  // Priorité : tier_recommande du coach > tier A > premier dispo.
+  // Retourne toujours un objet { tier, offer, url, productName, expert, leadMagnet, pm }.
+  function getRecommendedTierAndUrl() {
     const pid = state.currentRecommendedProduct;
     const pm = pid ? state.catalog[pid] : null;
-    if (!pm) return null; // pas de carte offre si pas de produit choisi
+    if (!pm) return null;
     const offers = pm.offers || {};
-    const tierA = offers.A || Object.values(offers)[0];
-    const lmTitle = pm.lead_magnet || "";
-    const priceLabel = tierA ? (tierA.label || (tierA.price_eur + "€/" + (tierA.period || "an"))) : "";
+    const coachTier = state.coachDirective && state.coachDirective.produit && state.coachDirective.produit.tier_recommande;
+    // Certains tiers legacy (ex: "A_cc") peuvent être présents. On priorise A, B, C, D.
+    const preferredOrder = [coachTier, "A", "B", "C", "D"].filter(Boolean);
+    let tier = null, offer = null;
+    for (const t of preferredOrder) {
+      if (offers[t]) { tier = t; offer = offers[t]; break; }
+    }
+    if (!offer) {
+      // Fallback : premier tier normalisé
+      const normalKeys = Object.keys(offers).filter(k => /^[A-D]$/.test(k));
+      if (normalKeys.length) { tier = normalKeys[0]; offer = offers[tier]; }
+      else { tier = Object.keys(offers)[0]; offer = Object.values(offers)[0]; }
+    }
+    const url = (offer && offer.checkout_url) || "https://argo-editions.com";
+    const priceLabel = offer ? (offer.label || (offer.price_eur + "€/" + (offer.period || "an"))) : "";
+    return {
+      pid, pm, tier, offer, url, priceLabel,
+      productName: pm.name || "Publication",
+      expert: pm.expert || "",
+      leadMagnet: pm.lead_magnet || "",
+    };
+  }
+
+  function buildOfferCard(card) {
+    // La carte offre dépend du produit actuellement recommandé par le coach.
+    const ctx = getRecommendedTierAndUrl();
+    if (!ctx) return null; // pas de carte offre si pas de produit choisi
 
     card.innerHTML =
       '<span class="smart-card-badge">Offre recommandée</span>' +
-      '<h4>' + escapeHtml(pm.name || "Publication") + '</h4>' +
-      (pm.expert ? '<p>Par <strong>' + escapeHtml(pm.expert) + '</strong></p>' : '') +
-      (lmTitle ? '<p style="margin-top:8px;">Bonus offert : <strong style="color:var(--fg);">' + escapeHtml(lmTitle) + '</strong></p>' : '') +
-      (priceLabel ? '<div class="product-price">' + escapeHtml(priceLabel) + '</div>' : '') +
-      '<a class="btn-cta" href="https://argo-editions.com" target="_blank" rel="noopener">S\'inscrire</a>';
+      '<h4>' + escapeHtml(ctx.productName) + '</h4>' +
+      (ctx.expert ? '<p>Par <strong>' + escapeHtml(ctx.expert) + '</strong></p>' : '') +
+      (ctx.leadMagnet ? '<p style="margin-top:8px;">Bonus offert : <strong style="color:var(--fg);">' + escapeHtml(ctx.leadMagnet) + '</strong></p>' : '') +
+      (ctx.priceLabel ? '<div class="product-price">' + escapeHtml(ctx.priceLabel) + '</div>' : '') +
+      '<a class="btn-cta" href="' + escapeHtml(ctx.url) + '" target="_blank" rel="noopener">S\'inscrire</a>';
     return card;
   }
 
@@ -3182,6 +3208,12 @@
   // ============ CLOSING CTA ============
   const $closingCta = $("closing-cta");
   function showClosingCta() {
+    // Met à jour l'URL de la bulle avant de l'afficher (bonne URL de tier).
+    var ctx = getRecommendedTierAndUrl();
+    if (ctx) {
+      var $link = document.querySelector("#closing-cta a");
+      if ($link) $link.setAttribute("href", ctx.url);
+    }
     $closingCta.classList.add("visible");
   }
   function hideClosingCta() {
@@ -4079,15 +4111,18 @@
   var $closingOverlay = $("closing-overlay");
   var closingOverlayShown = false;
   function showClosingOverlay() {
-    var pid = state.currentRecommendedProduct;
-    var pm = pid ? state.catalog[pid] : null;
-    if (!pm) return;
-    var offers = pm.offers || {};
-    var tierA = offers.A || Object.values(offers)[0];
-    $("closing-product-name").textContent = pm.name || "Publication";
-    $("closing-expert").textContent = pm.expert ? "Par " + pm.expert : "";
-    $("closing-price").textContent = tierA ? (tierA.label || tierA.price_eur + "€/an") : "";
-    $("closing-bonus").textContent = pm.lead_magnet ? "Bonus offert : " + pm.lead_magnet : "";
+    var ctx = getRecommendedTierAndUrl();
+    if (!ctx) return;
+    $("closing-product-name").textContent = ctx.productName;
+    $("closing-expert").textContent = ctx.expert ? "Par " + ctx.expert : "";
+    $("closing-price").textContent = ctx.priceLabel;
+    $("closing-bonus").textContent = ctx.leadMagnet ? "Bonus offert : " + ctx.leadMagnet : "";
+    // URL de checkout = URL réelle du tier recommandé par le coach
+    var $btn = $("closing-cta-btn");
+    if ($btn) $btn.setAttribute("href", ctx.url);
+    // Aussi la bulle de CTA sous l'orbe
+    var $bubble = document.querySelector("#closing-cta a");
+    if ($bubble) $bubble.setAttribute("href", ctx.url);
 
     $closingOverlay.classList.add("active");
     try { $closingOverlay.focus(); } catch (e) {}
@@ -4129,17 +4164,23 @@
 
   // ============ POST-CALL SCREEN (A3) ============
   function showPostCallScreen() {
-    var pid = state.currentRecommendedProduct;
-    var pm = pid ? state.catalog[pid] : null;
+    var ctx = getRecommendedTierAndUrl();
     var d = state.lastDossier || {};
     var $pc = $("postcall-screen");
+    var $link = $("postcall-link");
 
-    if (pm) {
-      $("postcall-product").innerHTML = "Nous vous avons recommandé <strong>" + escapeHtml(pm.name) + "</strong>" + (pm.expert ? " par " + escapeHtml(pm.expert) : "");
-      $("postcall-link").textContent = "Découvrir " + (pm.name || "l'offre");
+    if (ctx) {
+      $("postcall-product").innerHTML = "Nous vous avons recommandé <strong>" + escapeHtml(ctx.productName) + "</strong>" +
+        (ctx.expert ? " par " + escapeHtml(ctx.expert) : "") +
+        (ctx.priceLabel ? " — <span style=\"color:var(--gold)\">" + escapeHtml(ctx.priceLabel) + "</span>" : "");
+      if ($link) {
+        $link.textContent = "Découvrir " + ctx.productName;
+        $link.setAttribute("href", ctx.url);
+        $link.style.display = "inline-block";
+      }
     } else {
       $("postcall-product").textContent = "Nous n'avons pas encore identifié la publication idéale pour vous.";
-      $("postcall-link").style.display = "none";
+      if ($link) $link.style.display = "none";
     }
 
     var dossierHtml = "<h4>Votre dossier</h4>";
