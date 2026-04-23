@@ -3353,13 +3353,13 @@
           tools: [{
             functionDeclarations: [{
               name: "obtenir_briefing",
-              description: "APPELLE-MOI à ces 4 moments : (1) AVANT d'entrer en phase 6a (Pourquoi Maintenant), (2) AVANT de citer un chiffre précis (track record, %, multiple), (3) AVANT de parler d'une opportunité, (4) quand le prospect objecte (prix, risque, doute). Je retourne : opportunité actuelle (pitch lettre de vente), chiffres autorisés, directive coach, tier recommandé. Pas d'invention possible sans moi.",
+              description: "APPELLE-MOI à chaque moment decisif : (1) AVANT phase 6a (opportunite du moment), (2) AVANT de citer un chiffre (%, x, millions), (3) AVANT de parler d'une thematique du produit, (4) sur toute objection du prospect (prix, risque, doute), (5) si tu doutes. Je trouve les bons extraits de la lettre de vente via recherche semantique — les formulations naturelles en francais marchent mieux que les mots-cles. Je retourne : opportunite du produit actif (pitch concret), chiffres autorises, directive coach, tier recommande, extraits lettre de vente.",
               parameters: {
                 type: "object",
                 properties: {
                   raison: {
                     type: "string",
-                    description: "Query courte (3-8 mots FR) : ex 'opportunité actuelle', 'chiffres tilson', 'objection prix', 'pourquoi maintenant argo_alpha'.",
+                    description: "Formule TA question comme si tu parlais a un humain. Ex : 'c'est quoi l'opportunite du moment pour ce produit', 'quels sont les meilleurs chiffres de Tilson pour convaincre', 'comment repondre a l'objection sur le prix 149 euros', 'pourquoi maintenant est-ce le bon moment pour l'or', 'en quoi consiste concretement le service mensuel'. Une phrase complete en francais >> mots-cles isoles.",
                   },
                 },
                 required: ["raison"],

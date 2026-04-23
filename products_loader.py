@@ -27,8 +27,10 @@ from rank_bm25 import BM25Okapi
 log = logging.getLogger(__name__)
 
 # --- Embeddings (semantic retrieval, remplace/complete BM25) ----------------
-# Le modele et la dim sont configurables via env (default: gemini-embedding-001 @ 768).
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
+# Default = gemini-embedding-2 (GA avril 2026, multimodal, 8192 tokens context,
+# +5 pts MTEB vs 001). Breaking changes : task_type inclus dans le prompt au
+# lieu d'un parametre, et batch = aggregation (donc on boucle).
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-2")
 EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))
 USE_EMBEDDINGS = os.getenv("USE_EMBEDDINGS", "1") not in ("0", "false", "False")
 
@@ -50,38 +52,108 @@ def _get_genai_client():
         return None
 
 
-def _embed_batch(texts: list[str], task_type: str) -> list[np.ndarray] | None:
-    """Embed une liste de textes. Returns list of numpy vectors (float32),
-    ou None si echec."""
-    if not texts:
-        return []
+def _is_v2_model(model: str = EMBEDDING_MODEL) -> bool:
+    """True si le model utilise l'API v2 (task_type dans le prompt)."""
+    return "embedding-2" in model
+
+
+def _format_for_embedding(text: str, task_type: str, title: str | None = None) -> str:
+    """Formate le texte selon la convention v2 (task_type dans le prompt).
+    Pour v1, retourne le texte brut (task_type sera en config).
+    """
+    if not _is_v2_model():
+        return text
+    # Gemini Embedding 2 : format prompt-based
+    if task_type == "RETRIEVAL_DOCUMENT":
+        if title:
+            return f"title: {title} | text: {text}"
+        return f"text: {text}"
+    elif task_type == "RETRIEVAL_QUERY":
+        return f"task: search result | query: {text}"
+    elif task_type == "SEMANTIC_SIMILARITY":
+        return f"task: sentence similarity | text: {text}"
+    return text
+
+
+def _embed_one(text: str, task_type: str, title: str | None = None) -> np.ndarray | None:
+    """Embed un seul texte. Returns numpy vector (float32) ou None."""
     client = _get_genai_client()
-    if not client:
+    if not client or not text:
         return None
     try:
         from google.genai import types as genai_types
+        formatted = _format_for_embedding(text, task_type, title)
+
+        # Pour v2 : pas de task_type parameter, config juste avec output_dim.
+        # Pour v1 : task_type est un parametre du config.
+        if _is_v2_model():
+            cfg = genai_types.EmbedContentConfig(output_dimensionality=EMBEDDING_DIM)
+        else:
+            cfg = genai_types.EmbedContentConfig(
+                output_dimensionality=EMBEDDING_DIM,
+                task_type=task_type,
+            )
+
+        result = client.models.embed_content(
+            model=EMBEDDING_MODEL,
+            contents=formatted,
+            config=cfg,
+        )
+        if result and result.embeddings and len(result.embeddings) > 0:
+            return np.asarray(result.embeddings[0].values, dtype=np.float32)
+        return None
+    except Exception as e:
+        log.warning("Embedding call failed (%s, %s): %s", EMBEDDING_MODEL, task_type, str(e)[:200])
+        return None
+
+
+def _embed_batch(items: list[tuple[str, str | None]], task_type: str, max_workers: int = 6) -> list[np.ndarray | None]:
+    """Embed une liste d'items (text, title_optional).
+
+    - Pour v2 (gemini-embedding-2) : embed_content avec plusieurs contents
+      retourne 1 vecteur AGREGE (pas N). On boucle donc en parallele via
+      ThreadPoolExecutor pour accelerer le boot.
+    - Pour v1 : batch natif (plus rapide).
+    """
+    if not items:
+        return []
+    if _is_v2_model():
+        # Loop parallelise pour limiter la latence boot
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            results = list(pool.map(
+                lambda it: _embed_one(it[0], task_type, it[1]),
+                items,
+            ))
+        return results
+    # v1 : batch classique
+    client = _get_genai_client()
+    if not client:
+        return [None] * len(items)
+    try:
+        from google.genai import types as genai_types
+        texts = [it[0] for it in items]
         result = client.models.embed_content(
             model=EMBEDDING_MODEL,
             contents=texts,
             config=genai_types.EmbedContentConfig(
                 output_dimensionality=EMBEDDING_DIM,
-                task_type=task_type,  # RETRIEVAL_DOCUMENT ou RETRIEVAL_QUERY
+                task_type=task_type,
             ),
         )
-        vecs = [np.asarray(e.values, dtype=np.float32) for e in result.embeddings]
-        return vecs
+        return [np.asarray(e.values, dtype=np.float32) for e in result.embeddings]
     except Exception as e:
-        log.warning("Embedding call failed (%s): %s", task_type, e)
-        return None
+        log.warning("Batch embed v1 failed: %s", e)
+        return [None] * len(items)
 
 
 # Cache LRU pour les queries repetees (gains de latence + coût)
 @lru_cache(maxsize=512)
 def _embed_query_cached(query: str) -> tuple | None:
-    vecs = _embed_batch([query], "RETRIEVAL_QUERY")
-    if vecs is None or not vecs:
+    vec = _embed_one(query, "RETRIEVAL_QUERY")
+    if vec is None:
         return None
-    return tuple(vecs[0].tolist())
+    return tuple(vec.tolist())
 
 
 def _cosine_top_k(query_vec: np.ndarray, doc_vecs: np.ndarray, k: int) -> list[tuple[int, float]]:
@@ -357,25 +429,31 @@ class ProductsRegistry:
             if non_empty:
                 bm25 = BM25Okapi(tokenized_corpus)
 
-        # Embeddings dense (RETRIEVAL_DOCUMENT). Batch unique par produit
-        # pour minimiser les appels API. Echec silencieux = fallback BM25.
+        # Embeddings dense (RETRIEVAL_DOCUMENT).
+        # gemini-embedding-2 : 8192 tokens context -> plus de troncature dure.
+        # Pour v1 : on garde max 2000 chars par securite.
         chunks_matrix = None
         if USE_EMBEDDINGS and chunks:
-            # Enrichit chaque texte avec son titre de section pour que
-            # l'embedding capture le contexte en plus du contenu brut.
-            enriched_texts = [
-                (f"[{c.section}] " + (c.title + "\n\n" if c.title else "") + c.text)[:2000]
-                for c in chunks
-            ]
-            vecs = _embed_batch(enriched_texts, "RETRIEVAL_DOCUMENT")
-            if vecs is not None and len(vecs) == len(chunks):
+            max_chars = 6000 if _is_v2_model() else 2000
+            items = []
+            for c in chunks:
+                # Title hint : pour v2, le format "title: X | text: Y" ameliore
+                # le recall. On compose le title = section + title si dispo.
+                title_hint = c.section
+                if c.title:
+                    title_hint = f"{c.section} — {c.title}"
+                items.append((c.text[:max_chars], title_hint))
+            vecs = _embed_batch(items, "RETRIEVAL_DOCUMENT")
+            valid_vecs = [v for v in vecs if v is not None]
+            if valid_vecs and len(valid_vecs) == len(chunks):
                 for chunk, vec in zip(chunks, vecs):
                     chunk.embedding = vec
-                chunks_matrix = np.vstack(vecs)
-                log.info("Embeddings OK for %s: %d chunks, dim=%d",
-                         product_id, len(chunks), chunks_matrix.shape[1])
+                chunks_matrix = np.vstack(valid_vecs)
+                log.info("Embeddings OK for %s: %d chunks, model=%s, dim=%d",
+                         product_id, len(chunks), EMBEDDING_MODEL, chunks_matrix.shape[1])
             else:
-                log.warning("Embeddings failed for %s, fallback BM25", product_id)
+                log.warning("Embeddings partial/failed for %s (got %d/%d valid), fallback BM25",
+                            product_id, len(valid_vecs), len(chunks))
 
         return Product(
             product_id=product_id,
