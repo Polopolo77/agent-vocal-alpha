@@ -3353,13 +3353,13 @@
           tools: [{
             functionDeclarations: [{
               name: "obtenir_briefing",
-              description: "Récupère (1) la directive coach (profil DISC, chaleur, objections, formulation suggérée) et (2) des extraits pertinents de la lettre de vente du produit actuel pour répondre à une question factuelle précise.",
+              description: "APPELLE-MOI à ces 4 moments : (1) AVANT d'entrer en phase 6a (Pourquoi Maintenant), (2) AVANT de citer un chiffre précis (track record, %, multiple), (3) AVANT de parler d'une opportunité, (4) quand le prospect objecte (prix, risque, doute). Je retourne : opportunité actuelle (pitch lettre de vente), chiffres autorisés, directive coach, tier recommandé. Pas d'invention possible sans moi.",
               parameters: {
                 type: "object",
                 properties: {
                   raison: {
                     type: "string",
-                    description: "Query courte (3-8 mots en français) décrivant ce que tu cherches dans la lettre de vente ET/OU brève raison tactique.",
+                    description: "Query courte (3-8 mots FR) : ex 'opportunité actuelle', 'chiffres tilson', 'objection prix', 'pourquoi maintenant argo_alpha'.",
                   },
                 },
                 required: ["raison"],
@@ -3402,19 +3402,29 @@
         const calls = data.toolCall.functionCalls || [];
         for (const fc of calls) {
           if (fc.name === "obtenir_briefing") {
+            const query = fc.args?.raison || "";
+            console.log("[Argo] obtenir_briefing called:", query);
             fetch(BRIEFING_ENDPOINT, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 session_id: state.sessionId,
-                query: fc.args?.raison || "",
+                query: query,
               }),
             })
               .then(r => r.json())
               .then(briefing => {
+                console.log("[Argo] briefing returned:",
+                  "sources:", (briefing.sources || []).length,
+                  "| allowed:", (briefing.allowed_numbers || []).length);
                 ws.send(JSON.stringify({
                   toolResponse: {
-                    functionResponses: [{ id: fc.id, name: fc.name, response: briefing }],
+                    functionResponses: [{
+                      id: fc.id, name: fc.name, response: briefing,
+                      // scheduling: "WHEN_IDLE" (par defaut) — Argos continue
+                      // son tour de parole en integrant le contenu. Pas de
+                      // vocalization verbatim attendue (tool response != user turn).
+                    }],
                   },
                 }));
               })

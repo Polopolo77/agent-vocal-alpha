@@ -1128,7 +1128,7 @@ def build_briefing_from_cache(
         briefing["sources"] = []
         briefing["allowed_numbers"] = []
 
-    # --- Rappel produit ciblé ---
+    # --- Rappel produit ciblé + current_pitch (opportunité concrète) ---
     if target_product_id:
         p = registry.get(target_product_id)
         if p:
@@ -1144,6 +1144,21 @@ def build_briefing_from_cache(
                     else cfg.get("lead_magnet")
                 ),
             }
+            # Toujours pousser current_pitch en priorité : c'est la reponse
+            # directe a "opportunite du moment", "pourquoi maintenant", etc.
+            # Argos n'a plus a matcher un chunk BM25 pour l'obtenir.
+            pitch = cfg.get("current_pitch") or {}
+            if pitch:
+                briefing["opportunity"] = {
+                    "hook": pitch.get("hook"),
+                    "thesis": pitch.get("thesis"),
+                    "concrete_angle": pitch.get("opportunity"),
+                    "instruction": (
+                        "Cite cette opportunite quand le prospect demande "
+                        "'l'opportunite du moment' ou 'pourquoi maintenant'. "
+                        "N'improvise PAS un pitch different."
+                    ),
+                }
 
     return briefing
 
