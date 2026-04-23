@@ -27,7 +27,7 @@
   const PROMPT_ENDPOINT = BACKEND_URL + "/api/prompt?agent_name=" + encodeURIComponent(AGENT_NAME);
   const PRODUCTS_ENDPOINT = BACKEND_URL + "/api/products";
   const MODEL = "gemini-3.1-flash-live-preview";
-  const VOICE = "Puck";
+  const VOICE = "Charon";
 
   // Placeholders remplis après fetch du prompt et du catalog
   let SYSTEM_INSTRUCTION = "";

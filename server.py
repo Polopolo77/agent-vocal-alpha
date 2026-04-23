@@ -383,7 +383,7 @@ async def handle_prompt(request: web.Request) -> web.Response:
     return web.json_response({
         "prompt": prompt,
         "agent_name": agent_name,
-        "voice": "Puck",
+        "voice": "Charon",
         "live_model": LIVE_MODEL,
         "products_loaded": REGISTRY.list_ready(),
     })
