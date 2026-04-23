@@ -15,13 +15,85 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
 from rank_bm25 import BM25Okapi
 
 log = logging.getLogger(__name__)
+
+# --- Embeddings (semantic retrieval, remplace/complete BM25) ----------------
+# Le modele et la dim sont configurables via env (default: gemini-embedding-001 @ 768).
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "gemini-embedding-001")
+EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "768"))
+USE_EMBEDDINGS = os.getenv("USE_EMBEDDINGS", "1") not in ("0", "false", "False")
+
+# Lazy import du client Gemini — seulement si on fait des embeddings.
+_genai_client = None
+def _get_genai_client():
+    global _genai_client
+    if _genai_client is not None:
+        return _genai_client
+    try:
+        from google import genai
+        api_key = os.getenv("GEMINI_API_KEY", "")
+        if not api_key:
+            return None
+        _genai_client = genai.Client(api_key=api_key)
+        return _genai_client
+    except Exception as e:
+        log.warning("Failed to init genai client for embeddings: %s", e)
+        return None
+
+
+def _embed_batch(texts: list[str], task_type: str) -> list[np.ndarray] | None:
+    """Embed une liste de textes. Returns list of numpy vectors (float32),
+    ou None si echec."""
+    if not texts:
+        return []
+    client = _get_genai_client()
+    if not client:
+        return None
+    try:
+        from google.genai import types as genai_types
+        result = client.models.embed_content(
+            model=EMBEDDING_MODEL,
+            contents=texts,
+            config=genai_types.EmbedContentConfig(
+                output_dimensionality=EMBEDDING_DIM,
+                task_type=task_type,  # RETRIEVAL_DOCUMENT ou RETRIEVAL_QUERY
+            ),
+        )
+        vecs = [np.asarray(e.values, dtype=np.float32) for e in result.embeddings]
+        return vecs
+    except Exception as e:
+        log.warning("Embedding call failed (%s): %s", task_type, e)
+        return None
+
+
+# Cache LRU pour les queries repetees (gains de latence + coût)
+@lru_cache(maxsize=512)
+def _embed_query_cached(query: str) -> tuple | None:
+    vecs = _embed_batch([query], "RETRIEVAL_QUERY")
+    if vecs is None or not vecs:
+        return None
+    return tuple(vecs[0].tolist())
+
+
+def _cosine_top_k(query_vec: np.ndarray, doc_vecs: np.ndarray, k: int) -> list[tuple[int, float]]:
+    """Top-k cosine similarity. doc_vecs shape: (N, D). Returns [(idx, score), ...]."""
+    if doc_vecs.size == 0:
+        return []
+    # Normalize
+    qn = np.linalg.norm(query_vec) + 1e-10
+    dn = np.linalg.norm(doc_vecs, axis=1) + 1e-10
+    sims = (doc_vecs @ query_vec) / (dn * qn)
+    top_idx = np.argsort(-sims)[:k]
+    return [(int(i), float(sims[i])) for i in top_idx]
 
 ROOT = Path(__file__).resolve().parent
 PRODUCTS_DIR = ROOT / "products"
@@ -54,6 +126,7 @@ class Chunk:
     title: str | None      # premier header du chunk si présent
     text: str              # texte du chunk
     tokens: list[str] = field(default_factory=list)
+    embedding: np.ndarray | None = None  # vecteur dense (RETRIEVAL_DOCUMENT)
 
 
 @dataclass
@@ -68,6 +141,7 @@ class Product:
     frontmatter: dict     # YAML frontmatter du MD
     chunks: list[Chunk] = field(default_factory=list)
     bm25: BM25Okapi | None = None
+    chunks_matrix: np.ndarray | None = None  # (N, D) stack des embeddings
     summary_section: str = ""  # section "summary" du MD, utile pour l'overlay prompt
     full_markdown: str = ""    # MD complet sans frontmatter
 
@@ -275,14 +349,33 @@ class ProductsRegistry:
         frontmatter, body = _parse_frontmatter(md)
         chunks, summary_text = _split_into_chunks(product_id, body)
 
-        # BM25 index
+        # BM25 index (fallback et scoring lexical)
         bm25 = None
         if chunks:
             tokenized_corpus = [c.tokens for c in chunks]
-            # guard: si tous les chunks sont vides, BM25 explose
             non_empty = [toks for toks in tokenized_corpus if toks]
             if non_empty:
                 bm25 = BM25Okapi(tokenized_corpus)
+
+        # Embeddings dense (RETRIEVAL_DOCUMENT). Batch unique par produit
+        # pour minimiser les appels API. Echec silencieux = fallback BM25.
+        chunks_matrix = None
+        if USE_EMBEDDINGS and chunks:
+            # Enrichit chaque texte avec son titre de section pour que
+            # l'embedding capture le contexte en plus du contenu brut.
+            enriched_texts = [
+                (f"[{c.section}] " + (c.title + "\n\n" if c.title else "") + c.text)[:2000]
+                for c in chunks
+            ]
+            vecs = _embed_batch(enriched_texts, "RETRIEVAL_DOCUMENT")
+            if vecs is not None and len(vecs) == len(chunks):
+                for chunk, vec in zip(chunks, vecs):
+                    chunk.embedding = vec
+                chunks_matrix = np.vstack(vecs)
+                log.info("Embeddings OK for %s: %d chunks, dim=%d",
+                         product_id, len(chunks), chunks_matrix.shape[1])
+            else:
+                log.warning("Embeddings failed for %s, fallback BM25", product_id)
 
         return Product(
             product_id=product_id,
@@ -295,6 +388,7 @@ class ProductsRegistry:
             frontmatter=frontmatter,
             chunks=chunks,
             bm25=bm25,
+            chunks_matrix=chunks_matrix,
             summary_section=summary_text,
             full_markdown=body,
         )
@@ -309,15 +403,39 @@ class ProductsRegistry:
 
     def search(self, product_id: str, query: str, k: int = 2) -> list[Chunk]:
         """
-        Retourne les k chunks les plus pertinents pour la query, dans l'ordre décroissant.
-        Filtre : score > 0. Retourne [] si produit inconnu, query vide, ou aucun match.
-
-        Re-ranking : boost des sections chiffrées (proof/numbers/track_record)
-        quand la query contient des signaux numériques, et pénalité du chunk
-        "intro" qui matche trivialement le nom du produit.
+        Retourne les k chunks les plus pertinents. Strategie hybride :
+          1. Si embeddings dispo : semantic search (cosine similarity).
+          2. Sinon : fallback BM25 (match lexical).
+        Dans les deux cas on applique le re-ranking par boost de section.
         """
         product = self.products.get(product_id)
-        if not product or not product.bm25 or not query.strip():
+        if not product or not query.strip():
+            return []
+
+        # === VOIE 1 : Semantic search (embeddings) ===
+        if USE_EMBEDDINGS and product.chunks_matrix is not None and product.chunks_matrix.size > 0:
+            query_tuple = _embed_query_cached(query)
+            if query_tuple is not None:
+                query_vec = np.asarray(query_tuple, dtype=np.float32)
+                # Top-k sur tous les chunks + extension pour laisser de la marge au re-ranking
+                raw_top = _cosine_top_k(query_vec, product.chunks_matrix, min(len(product.chunks), k * 3))
+                boosts = _section_boosts_for_query(query)
+                adjusted = []
+                for idx, score in raw_top:
+                    if score <= 0.1:  # similarité trop faible → skip
+                        continue
+                    section = product.chunks[idx].section
+                    factor = boosts.get(section, 1.0)
+                    if section in ("intro", "preamble") and factor == 1.0:
+                        factor = 0.85
+                    adjusted.append((idx, score * factor))
+                adjusted.sort(key=lambda x: x[1], reverse=True)
+                if adjusted:
+                    return [product.chunks[idx] for idx, _ in adjusted[:k]]
+            # Si embed failed, on tombe dans le fallback BM25 ci-dessous.
+
+        # === VOIE 2 : BM25 fallback ===
+        if not product.bm25:
             return []
 
         query_tokens = _tokenize(query)
