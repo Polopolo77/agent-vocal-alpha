@@ -131,5 +131,10 @@
   "files": {
     "sales_letter": "sales_letter.md",
     "images": "images.json"
+  },
+  "current_pitch": {
+    "hook": "Menace sur votre épargne — 6 400 milliards d'euros d'épargne française dans le viseur de l'État.",
+    "thesis": "L'État cumule 3 400 Md€ de dette, le FMI a émis une alerte publique. Loi Sapin 2 et BRRD permettent déjà de bloquer les retraits et de ponctionner les comptes. L'Euro Numérique ajoute une dictature monétaire.",
+    "opportunity": "La stratégie CASH EXIT vers la Suisse : sortir ses liquidités de la zone Euro SANS quitter la France. 100% légal. C'est l'angle du bonus BOUCLIER SUISSE offert avec Actions Gagnantes (méthode Whitney Tilson, +3 264% cumulé depuis 1999)."
   }
 }

@@ -216,5 +216,10 @@
     "shared_expert_with": "argo_actions (Whitney Tilson supervise les deux)",
     "positioning_vs_actions_gagnantes": "Alpha = automatisation IA. Actions Gagnantes = sélection humaine mensuelle par Tilson. Complémentaires pour prospect qui veut le meilleur des deux approches.",
     "positioning_vs_profits_asymetriques": "Alpha = sûr, systématique, gros caps US. PSA = asymétrique, small-caps et cryptos, potentiel plus extrême. Alpha = moteur principal, PSA = booster."
+  },
+  "current_pitch": {
+    "hook": "Le meilleur investisseur du monde n'est plus humain.",
+    "thesis": "Jim Simons et Renaissance Technologies ont fait +63%/an depuis 1988 via l'IA quantitative (1 000$ devenus 46 milliards$). Mais Renaissance Institutional est INACCESSIBLE (10M$ minimum + parrainage). Wall Street passe en 'Full IA' → les particuliers humains sont distancés.",
+    "opportunity": "Alpha = Agent IA d'Investissement accessible aux particuliers. Portefeuille de 20 actions du Russell 1000 scorées par Stansberry Score, rebalancing trimestriel auto, supervision finale de Whitney Tilson. Simulations : Nvidia x65 (+6 400%), Cadence Design +550%, Synopsys +450%. Évite les hype stocks (Rezolve AI -70%, Jet AI -93%)."
   }
 }

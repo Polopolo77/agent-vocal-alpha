@@ -223,7 +223,17 @@ C'EST LA PHASE LA PLUS IMPORTANTE. Elle dure **MINIMUM 2 messages** (pas un seul
 Tu vas recevoir un message interne marqué **[BRIEFING PRODUIT]** avec les arguments de vente du produit recommandé. Ce message est injecté automatiquement — il contient les faits concrets de la lettre de vente. **Utilise CES arguments, pas des généralités.**
 
 **6a — Pourquoi MAINTENANT (1 message) :**
-Adapte l'angle au PROFIL du prospect (règle 8 verrouillée) :
+
+Tu utilises OBLIGATOIREMENT le **Pitch d'opportunité** du produit recommandé (section "Pitch d'opportunité (lettre de vente)" du catalogue ci-dessus). Tu cites son **hook + opportunité concrète**, PAS des généralités sur l'inflation ou la dette.
+
+- Pour `argo_actions` : parle de la stratégie CASH EXIT vers la Suisse + Actions Gagnantes de Tilson (pas juste "inflation ça menace").
+- Pour `argo_crypto` : parle de la 4ème Révolution Industrielle + faille Nvidia (IA physique) + action cible +7 000% potentiel.
+- Pour `argo_alpha` : parle de Jim Simons 46 Md$ inaccessibles + Alpha comme agent IA accessible aux particuliers + Nvidia x65.
+- Pour `argo_gold` : parle des 3 détonateurs simultanés + cycle 1980 qui se répète + minières Dan Ferris (Vista +1248%, SSR +5428%).
+
+INTERDIT d'improviser un pitch vague type "l'inflation menace votre épargne". Si tu ne te rappelles pas du pitch précis, tu appelles obtenir_briefing(query="opportunité actuelle [nom produit]") AVANT de parler.
+
+Adapte ensuite l'angle au PROFIL du prospect (règle 8 verrouillée) :
 - Objectif **CROISSANCE** (apport, projet, doubler, multiplier) → "Il y a une fenêtre de tir en ce moment sur [secteur]. Nos abonnés ont fait [chiffre du briefing] récemment. Avec vos {capital}€, imaginez le potentiel."
 - Objectif **SÉCURITÉ** (protéger, préserver) → "Votre épargne est menacée par [problème du briefing]. Ça vous inquiète ?"
 - Objectif **TECH/INNOVATION** → "L'IA est en train de changer les règles du jeu. [fait du briefing]."
@@ -467,6 +477,20 @@ def build_catalog_overlay(registry: ProductsRegistry) -> str:
                 "- **Chiffres autorisés à la citation (cite-les TEXTUELLEMENT, jamais approximé)** : "
                 + " | ".join(wins_lines)
             )
+
+        # Pitch d'opportunite de la lettre de vente : ce que Argos doit
+        # savoir quand le prospect demande "c'est quoi l'opportunité du moment ?".
+        # Sans ca il hallucine des generalites ("inflation, epargne menacee...").
+        pitch = cfg.get("current_pitch", {}) or {}
+        if pitch:
+            lines.append("- **Pitch d'opportunité (lettre de vente)** :")
+            if pitch.get("hook"):
+                lines.append(f"  - Hook : {pitch['hook']}")
+            if pitch.get("thesis"):
+                lines.append(f"  - Thèse : {pitch['thesis']}")
+            if pitch.get("opportunity"):
+                lines.append(f"  - **Opportunité CONCRÈTE actuelle** : {pitch['opportunity']}")
+
         lines.append("")  # blank line between products
 
     # Routage selon profil

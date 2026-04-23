@@ -128,5 +128,10 @@
   "files": {
     "sales_letter": "sales_letter.md",
     "images": "images.json"
+  },
+  "current_pitch": {
+    "hook": "LA FIN DU TRAVAIL. La 4ème Révolution Industrielle a commencé.",
+    "thesis": "L'IA ne reste plus sur les écrans — elle envahit le monde physique (Waymo, robots, automatisation). 60% des emplois menacés d'ici 2035. Trois classes sociales émergent : l'Élite, la Classe moyenne éjectée, et les Rentiers de l'IA.",
+    "opportunity": "La faille Nvidia : les puces Nvidia sont le cerveau de l'IA logicielle (ChatGPT), mais elles ne seront JAMAIS le cerveau des robots physiques. Une action cible précise est positionnée sur l'IA physique avec un potentiel +7 000% (même shape que Nvidia en 2015 avant son +30 000%). Argos Wade identifie aussi cryptos asymétriques (Polymath +3 180%, Harmony +8 079%, Enjin +11 127%)."
   }
 }
