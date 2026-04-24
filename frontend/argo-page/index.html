@@ -2662,17 +2662,49 @@
     return card;
   }
 
-  // Helper : récupère l'offre (tier) recommandée par le coach + son URL de checkout.
-  // Priorité : tier_recommande du coach > tier A > premier dispo.
-  // Retourne toujours un objet { tier, offer, url, productName, expert, leadMagnet, pm }.
+  // Parse "100 000 €" / "100K" / "1,5 M€" -> number. Null si unparseable.
+  function parseCapitalAmount(str) {
+    if (str == null) return null;
+    if (typeof str === "number") return isFinite(str) ? str : null;
+    let s = String(str).toLowerCase().replace(/\s/g, "").replace(/€/g, "").replace(/euros?/g, "");
+    let multiplier = 1;
+    if (/m/.test(s)) { multiplier = 1000000; s = s.replace(/m/g, ""); }
+    else if (/k/.test(s)) { multiplier = 1000; s = s.replace(/k/g, ""); }
+    s = s.replace(",", ".");
+    const num = parseFloat(s);
+    if (!isFinite(num)) return null;
+    return num * multiplier;
+  }
+
+  // Helper : récupère l'offre (tier) recommandée + son URL de checkout.
+  // Priorité : override capital > tier_recommande du coach > tier A > premier dispo.
+  //
+  // OVERRIDE CAPITAL >50k€ : si le prospect a déclaré un capital supérieur à
+  // 50 000€, on force le tier B (cohérent avec règle 11 du prompt agent +
+  // règle 561 du prompt coach). Cela corrige les cas où le coach (Flash-lite)
+  // oublie la règle et recommande tier A à un prospect aisé — on ne veut PAS
+  // que l'overlay affiche 496€/an quand Argos annonce 997€/an à l'oral.
+  // Exception : si le coach a explicitement choisi C/D (trimestriel = "tester"),
+  // on respecte son choix (prospect a dit qu'il voulait tester sans engagement).
   function getRecommendedTierAndUrl() {
     const pid = state.currentRecommendedProduct;
     const pm = pid ? state.catalog[pid] : null;
     if (!pm) return null;
     const offers = pm.offers || {};
     const coachTier = state.coachDirective && state.coachDirective.produit && state.coachDirective.produit.tier_recommande;
+
+    // Override capital-based
+    let overrideTier = null;
+    const capitalNum = parseCapitalAmount(state.lastDossier && state.lastDossier.capital);
+    if (capitalNum && capitalNum > 50000) {
+      const coachIsTrial = coachTier === "C" || coachTier === "D";
+      if (!coachIsTrial && offers["B"]) {
+        overrideTier = "B";
+      }
+    }
+
     // Certains tiers legacy (ex: "A_cc") peuvent être présents. On priorise A, B, C, D.
-    const preferredOrder = [coachTier, "A", "B", "C", "D"].filter(Boolean);
+    const preferredOrder = [overrideTier, coachTier, "A", "B", "C", "D"].filter(Boolean);
     let tier = null, offer = null;
     for (const t of preferredOrder) {
       if (offers[t]) { tier = t; offer = offers[t]; break; }
@@ -3350,10 +3382,32 @@
           systemInstruction: { parts: [{ text: state.systemPrompt }] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          // QW-4 : VAD serveur tune pour cible 55-75 ans.
+          // Les seniors parlent plus lentement, font des pauses plus longues
+          // entre les phrases. Default Gemini = ~500-700ms -> coupe au milieu
+          // de leurs phrases, tue la confiance. 900ms laisse respirer sans
+          // rendre la conversation molle. prefixPaddingMs 200ms = capture
+          // les premiers sons sans clipping.
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              disabled: false,
+              startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+              endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+              prefixPaddingMs: 200,
+              silenceDurationMs: 900,
+            },
+          },
           tools: [{
             functionDeclarations: [{
               name: "obtenir_briefing",
-              description: "APPELLE-MOI à chaque moment decisif : (1) AVANT phase 6a (opportunite du moment), (2) AVANT de citer un chiffre (%, x, millions), (3) AVANT de parler d'une thematique du produit, (4) sur toute objection du prospect (prix, risque, doute), (5) si tu doutes. Je trouve les bons extraits de la lettre de vente via recherche semantique — les formulations naturelles en francais marchent mieux que les mots-cles. Je retourne : opportunite du produit actif (pitch concret), chiffres autorises, directive coach, tier recommande, extraits lettre de vente.",
+              // QW-1 : NON_BLOCKING autorise Gemini Live a continuer son flux audio
+              // pendant que le tool tourne (pas de blocage vocal), ET permet a la
+              // FunctionResponse de porter `scheduling: "SILENT"` -> le contenu
+              // du tool response (briefing, PHASE_LOCK, price_to_announce, etc.)
+              // est integre au contexte SANS etre vocalise. C'est le canal safe
+              // pour injecter des directives serveur sans qu'Argos les lise.
+              behavior: "NON_BLOCKING",
+              description: "APPELLE-MOI à chaque moment decisif : (1) AVANT phase 6a (opportunite du moment), (2) AVANT de citer un chiffre (%, x, millions), (3) AVANT de parler d'une thematique du produit, (4) sur toute objection du prospect (prix, risque, doute), (5) si tu doutes. Je trouve les bons extraits de la lettre de vente via recherche semantique — les formulations naturelles en francais marchent mieux que les mots-cles. Je retourne : opportunite du produit actif (pitch concret), chiffres autorises, directive coach, tier recommande, extraits lettre de vente, PHASE_LOCK, price_to_announce (prix exact a dire).",
               parameters: {
                 type: "object",
                 properties: {
@@ -3416,14 +3470,19 @@
               .then(briefing => {
                 console.log("[Argo] briefing returned:",
                   "sources:", (briefing.sources || []).length,
-                  "| allowed:", (briefing.allowed_numbers || []).length);
+                  "| allowed:", (briefing.allowed_numbers || []).length,
+                  "| price:", briefing.price_to_announce && briefing.price_to_announce.montant_euros,
+                  "| phase:", briefing.PHASE_LOCK && briefing.PHASE_LOCK.phase_agent_autorisee);
+                // QW-1 : scheduling: "SILENT" -> Gemini Live integre le briefing
+                // au contexte SANS generer de reaction audio verbatim. Argos va
+                // utiliser price_to_announce, PHASE_LOCK, etc. sans les lire a
+                // voix haute. Requires behavior: "NON_BLOCKING" sur la declaration.
                 ws.send(JSON.stringify({
                   toolResponse: {
                     functionResponses: [{
-                      id: fc.id, name: fc.name, response: briefing,
-                      // scheduling: "WHEN_IDLE" (par defaut) — Argos continue
-                      // son tour de parole en integrant le contenu. Pas de
-                      // vocalization verbatim attendue (tool response != user turn).
+                      id: fc.id,
+                      name: fc.name,
+                      response: Object.assign({}, briefing, { scheduling: "SILENT" }),
                     }],
                   },
                 }));
@@ -3432,7 +3491,11 @@
                 console.warn("Briefing failed:", err);
                 ws.send(JSON.stringify({
                   toolResponse: {
-                    functionResponses: [{ id: fc.id, name: fc.name, response: { error: "briefing_unavailable" } }],
+                    functionResponses: [{
+                      id: fc.id,
+                      name: fc.name,
+                      response: { error: "briefing_unavailable", scheduling: "SILENT" },
+                    }],
                   },
                 }));
               });

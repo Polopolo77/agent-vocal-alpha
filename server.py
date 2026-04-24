@@ -47,6 +47,22 @@ from prompts import (
     build_ui_dossier_prompt,
     build_ui_cards_prompt,
 )
+from schemas import CoachOutput, UICardsOutput
+
+
+def _extract_usage(response: object) -> tuple[int | None, int | None]:
+    """Extract (prompt_tokens, output_tokens) du google-genai response.
+    Retourne (None, None) si pas de metadata (ex: erreur ou SDK ancien)."""
+    try:
+        meta = getattr(response, "usage_metadata", None)
+        if not meta:
+            return None, None
+        return (
+            getattr(meta, "prompt_token_count", None),
+            getattr(meta, "candidates_token_count", None),
+        )
+    except Exception:
+        return None, None
 
 load_dotenv()
 
@@ -98,9 +114,11 @@ _valid_sessions: dict[str, float] = {}  # sid → created_at (float ts)
 SESSION_TTL_SECONDS = 4 * 3600  # 4h
 
 # Cache global : { session_id: { "directive": JSON, "product_id": str, "timestamp": str, "turn": int } }
-# TTL 30min pour éviter memory leak
+# TTL 4h (aligne sur SESSION_TTL_SECONDS). 30min causait la perte de contexte coach
+# sur les conversations longues (>30min) : Argos se retrouvait sans directive en
+# plein closing → tier mal choisi, pas de PHASE_LOCK, hallucinations produit.
 coach_cache: dict[str, dict] = {}
-COACH_CACHE_TTL_SECONDS = 1800
+COACH_CACHE_TTL_SECONDS = 4 * 3600
 
 # Prompt système compilé UNE FOIS (optimisation : évite de reconstruire à chaque /api/prompt)
 CACHED_PROMPT: str = ""
@@ -137,6 +155,50 @@ def _cleanup_sessions() -> None:
     orphans = [sid for sid in _cards_session_history.keys() if sid not in valid_ids and sid != "default"]
     for sid in orphans:
         _cards_session_history.pop(sid, None)
+
+
+async def _gemini_generate_with_retry(
+    model: str,
+    contents: str,
+    config: dict,
+    max_attempts: int = 2,
+) -> object:
+    """Wrapper retry pour generate_content : retry UNE fois (backoff 400ms) sur
+    erreurs reseau transient (503, 504, 429, timeout, connection reset). Ne
+    retry PAS sur erreurs de validation schema ou 4xx autres — ce sont des
+    bugs a fixer, pas du reseau.
+
+    Evite les scenarios ou Gemini renvoie un 503 upstream et l'UI perd la
+    directive coach / le dossier / les cards sans raison visible pour le user.
+    """
+    last_err: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            return await asyncio.to_thread(
+                lambda: client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config,
+                )
+            )
+        except Exception as e:
+            msg = str(e).lower()
+            is_transient = (
+                isinstance(e, (TimeoutError, ConnectionError))
+                or any(code in msg for code in ("503", "504", "429", "timeout",
+                                                 "deadline", "unavailable",
+                                                 "connection reset", "broken pipe"))
+            )
+            last_err = e
+            if is_transient and attempt + 1 < max_attempts:
+                log.warning("Gemini %s transient error (%s), retry in 400ms",
+                            model, type(e).__name__)
+                await asyncio.sleep(0.4)
+                continue
+            raise
+    if last_err:
+        raise last_err
+    raise RuntimeError("_gemini_generate_with_retry: unreachable")
 
 
 def _cleanup_rate_buckets() -> None:
@@ -434,42 +496,60 @@ async def handle_strategist(request: web.Request) -> web.Response:
 
         full_prompt = base + history_text + suffix
 
-        response = await asyncio.to_thread(
-            lambda: client.models.generate_content(
-                model=COACH_MODEL,
-                contents=full_prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.3,
-                    # 2048 pour laisser de la marge sur le post_call (JSON plus
-                    # gros avec synthese finale). 1024 causait des invalid_json
-                    # sur troncature.
-                    "max_output_tokens": 2048,
-                    "thinking_config": {"thinking_budget": 0},
-                },
-            )
+        # QW-2 : response_schema=CoachOutput force le decodeur Gemini a respecter
+        # les enums (tier A|B|C|D, chaleur froid|tiede|chaud|pret_a_acheter, etc.).
+        # Plus d'hallucination style "tier: premium" ou "certitude: high" qui
+        # causaient des fallbacks silencieux cote UI (-> asymetrie voix/UI).
+        _t0 = time.monotonic()
+        response = await _gemini_generate_with_retry(
+            model=COACH_MODEL,
+            contents=full_prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": CoachOutput,
+                "temperature": 0.3,
+                # 2048 pour laisser de la marge sur le post_call (JSON plus
+                # gros avec synthese finale). 1024 causait des invalid_json
+                # sur troncature.
+                "max_output_tokens": 2048,
+                "thinking_config": {"thinking_budget": 0},
+            },
         )
+        _latency_ms = int((time.monotonic() - _t0) * 1000)
+        _tokens_in, _tokens_out = _extract_usage(response)
 
+        # Pydantic validation en plus du schema Gemini (ceinture + bretelles :
+        # model_validator CoachOutput force aussi tier B si capital >50k€).
         try:
-            coach_output = json.loads(response.text)
+            coach_parsed = CoachOutput.model_validate_json(response.text)
+            coach_output = coach_parsed.model_dump(mode="json")
         except Exception as parse_err:
-            log.warning("Coach JSON parse error: %s", parse_err)
+            log.warning("Coach schema/parse error: %s", parse_err)
             log.warning("Raw output: %s", response.text[:500])
-            return web.json_response(
-                {"error": "invalid_json_from_coach", "raw": response.text[:500]},
-                status=500,
-            )
+            # Fallback : json.loads brut si le schema strict echoue
+            try:
+                coach_output = json.loads(response.text)
+            except Exception:
+                return web.json_response(
+                    {"error": "invalid_json_from_coach", "raw": response.text[:500]},
+                    status=500,
+                )
 
         prod = coach_output.get("produit", {}) or {}
         log.info(
-            "COACH [%s] turn=%s archetype=%s chaleur=%s produit=%s tier=%s certitude=%s",
+            "COACH [%s] turn=%s latency=%dms tokens_in=%s tokens_out=%s "
+            "archetype=%s chaleur=%s produit=%s tier=%s certitude=%s phase=%s",
             mode,
             turn_number,
+            _latency_ms,
+            _tokens_in,
+            _tokens_out,
             coach_output.get("archetype_detecte"),
             coach_output.get("etat_emotionnel", {}).get("chaleur"),
             prod.get("recommande"),
             prod.get("tier_recommande"),
             prod.get("certitude"),
+            (coach_output.get("directive_phase") or {}).get("phase_agent_autorisee"),
         )
 
         coach_cache[session_id] = {
@@ -506,27 +586,110 @@ async def handle_ui_dossier(request: web.Request) -> web.Response:
 
         prompt = build_ui_dossier_prompt(previous_dossier, history_text)
 
-        response = await asyncio.to_thread(
-            lambda: client.models.generate_content(
-                model=DOSSIER_MODEL,
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.05,  # ultra conservateur : zero invention
-                    "max_output_tokens": 1024,
-                    "thinking_config": {"thinking_budget": 128},  # raisonne avant d'extraire
-                },
-            )
+        _t0 = time.monotonic()
+        response = await _gemini_generate_with_retry(
+            model=DOSSIER_MODEL,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "temperature": 0.05,  # ultra conservateur : zero invention
+                "max_output_tokens": 1024,
+                "thinking_config": {"thinking_budget": 128},  # raisonne avant d'extraire
+            },
         )
+        _latency_ms = int((time.monotonic() - _t0) * 1000)
+        _tokens_in, _tokens_out = _extract_usage(response)
 
         try:
-            return web.json_response(json.loads(response.text))
+            dossier_raw = json.loads(response.text)
         except Exception as parse_err:
-            log.warning("UI dossier JSON parse error: %s", parse_err)
+            log.warning("UI dossier JSON parse error: %s (latency=%dms)",
+                        parse_err, _latency_ms)
             return web.json_response({})
+
+        # QW-5 : validation par citation forcee. On drop tout item dont
+        # la quote n'est pas trouvable verbatim dans un message USER de
+        # l'historique. Elimine les hallucinations stereotypees du type
+        # "salarie" / "peur de perdre" qu'on a vues en prod.
+        cleaned = _validate_dossier_quotes(dossier_raw, history)
+        log.info(
+            "DOSSIER latency=%dms tokens_in=%s tokens_out=%s fields=%d",
+            _latency_ms, _tokens_in, _tokens_out,
+            sum(1 for v in cleaned.values() if v not in (None, [], "")),
+        )
+        return web.json_response(cleaned)
     except Exception as e:
         log.exception("UI Dossier error")
         return web.json_response({})
+
+
+def _validate_dossier_quotes(dossier: dict, history: list[dict]) -> dict:
+    """Verifie chaque `_quotes.{champ}` contre les messages user de l'historique.
+    Supprime du dossier les items dont la citation n'est PAS une sous-chaine
+    exacte d'un message user. Renvoie le dossier filtre, sans le champ `_quotes`
+    (le frontend n'a pas besoin de le voir).
+    """
+    if not isinstance(dossier, dict):
+        return {}
+    quotes = dossier.pop("_quotes", None) or {}
+    if not isinstance(quotes, dict):
+        return dossier
+
+    # Assemble le texte user (minuscule, sans ponctuation excessive) pour matching tolerant
+    user_blob = " ".join(
+        str(m.get("text", "") or m.get("content", "") or "")
+        for m in history
+        if (m.get("role") == "user")
+    ).lower()
+    if not user_blob:
+        # Pas de texte user -> aucun item ne peut etre valide. Retour dossier vide.
+        return {k: ([] if isinstance(v, list) else None) for k, v in dossier.items()}
+
+    def _has_quote(q: object) -> bool:
+        if not q or not isinstance(q, str):
+            return False
+        needle = q.lower().strip()
+        if len(needle) < 3:
+            return False
+        # Match tolerant : on accepte une fraction significative (80%) de la quote
+        # presente dans le transcript user. Argos cite parfois avec une minime
+        # variation orthographique (accents manquants, apostrophes differentes).
+        if needle in user_blob:
+            return True
+        # Fallback : check si au moins 70% des mots >=3 lettres sont presents
+        words = [w for w in needle.split() if len(w) >= 3]
+        if not words:
+            return False
+        hits = sum(1 for w in words if w in user_blob)
+        return hits >= max(2, int(len(words) * 0.7))
+
+    # Scalars : prenom, horizon, capital -> drop si quote invalide
+    for field in ("prenom", "horizon", "capital"):
+        if field in dossier and dossier[field] is not None:
+            q = quotes.get(field)
+            if not _has_quote(q):
+                log.info("Dossier %s dropped (quote invalid: %r)", field, q)
+                dossier[field] = None
+
+    # Listes : situation, objectif, vigilance -> filtrer item par item
+    for field in ("situation", "objectif", "vigilance"):
+        items = dossier.get(field)
+        if not isinstance(items, list) or not items:
+            continue
+        field_quotes = quotes.get(field, [])
+        if not isinstance(field_quotes, list):
+            field_quotes = []
+        kept = []
+        for i, item in enumerate(items):
+            q = field_quotes[i] if i < len(field_quotes) else None
+            if _has_quote(q):
+                kept.append(item)
+            else:
+                log.info("Dossier %s[%d]=%r dropped (quote invalid: %r)",
+                         field, i, item, q)
+        dossier[field] = kept
+
+    return dossier
 
 
 # Historique des cartes affichées par session_id (anti-répétition cross-appels).
@@ -598,24 +761,35 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
             shown_cards=shown_summary,
         )
 
-        response = await asyncio.to_thread(
-            lambda: client.models.generate_content(
-                model=CARDS_MODEL,
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "temperature": 0.45,  # plus de créativité pour éviter les choix répétitifs
-                    "max_output_tokens": 768,
-                    "thinking_config": {"thinking_budget": 256},  # raisonne avant de répondre
-                },
-            )
+        # response_schema=UICardsOutput force le decodeur a produire les
+        # templates enum + structure card/reasoning. Elimine les {card:null}
+        # silencieux dus a un JSON invalide, et les templates hallucines.
+        _t0 = time.monotonic()
+        response = await _gemini_generate_with_retry(
+            model=CARDS_MODEL,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": UICardsOutput,
+                "temperature": 0.45,  # plus de créativité pour éviter les choix répétitifs
+                "max_output_tokens": 768,
+                "thinking_config": {"thinking_budget": 256},  # raisonne avant de répondre
+            },
         )
+        _latency_ms = int((time.monotonic() - _t0) * 1000)
+        _tokens_in, _tokens_out = _extract_usage(response)
 
         try:
-            result = json.loads(response.text)
+            parsed = UICardsOutput.model_validate_json(response.text)
+            result = parsed.model_dump(mode="json")
         except Exception as parse_err:
-            log.warning("UI cards JSON parse error: %s", parse_err)
-            return web.json_response({"card": None})
+            log.warning("UI cards schema/parse error: %s (latency=%dms)",
+                        parse_err, _latency_ms)
+            # Fallback json.loads (comme pour le coach) en cas de schema strict refuse
+            try:
+                result = json.loads(response.text)
+            except Exception:
+                return web.json_response({"card": None})
 
         card = result.get("card") if isinstance(result, dict) else None
 
@@ -648,7 +822,10 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
             _remember_card(session_id, card)
 
         log.info(
-            "UI cards decided: tpl=%s key=%s reason=%s",
+            "CARDS latency=%dms tokens_in=%s tokens_out=%s tpl=%s key=%s reason=%s",
+            _latency_ms,
+            _tokens_in,
+            _tokens_out,
             (card or {}).get("template"),
             (card or {}).get("image_key") or (card or {}).get("title"),
             (result or {}).get("reasoning", "")[:80] if isinstance(result, dict) else "",
