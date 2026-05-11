@@ -1155,7 +1155,11 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
               systemInstruction: { parts: [{ text: dynamicPrompt }] },
               contents: state.conversationHistory,
               tools: getToolsForGemini(),
-              generationConfig: { maxOutputTokens: 600, temperature: 0.85 },
+              generationConfig: {
+                maxOutputTokens: 2048,
+                temperature: 0.85,
+                thinkingConfig: { thinkingBudget: 0 },  // Désactive le "thinking" pour réponses directes
+              },
             }),
           }
         );
@@ -1540,7 +1544,11 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION + buildPageContextForPrompt() }] },
             contents: state.conversationHistory,
-            generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
+            generationConfig: {
+              maxOutputTokens: 512,
+              temperature: 0.7,
+              thinkingConfig: { thinkingBudget: 0 },
+            },
           }),
         }
       );
