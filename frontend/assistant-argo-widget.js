@@ -642,7 +642,7 @@ Tu ne coupes JAMAIS brutalement.`;
     overlay.id = "aa-overlay";
     overlay.innerHTML = `
       <div class="aa-header">
-        <div class="aa-orb-wrap"><img class="aa-avatar" id="aa-avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face" alt="Assistant"/></div>
+        <div class="aa-orb-wrap"><img class="aa-avatar" id="aa-avatar" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face" alt="Assistant"/></div>
         <div class="aa-title">
           <span class="aa-label">Assistant Argo</span>
           <span class="aa-status" id="aa-status">En ligne</span>
@@ -876,7 +876,7 @@ Tu ne coupes JAMAIS brutalement.`;
         $orb.className = "aa-avatar speaking";
         $status.textContent = "L'assistant parle...";
         ws.send(JSON.stringify({ realtimeInput: { text: "Présente-toi avec ta phrase d'accroche obligatoire." } }));
-        startMic();
+        // Mic already started in startVoice() before WebSocket connect
         startCallTimers(ws);
         return;
       }
@@ -971,6 +971,17 @@ Tu ne coupes JAMAIS brutalement.`;
 
     $orb.className = "aa-avatar connecting";
     $status.textContent = "Connexion en cours...";
+
+    // Request mic IMMEDIATELY on user click (before WebSocket)
+    // Browsers block getUserMedia if not in direct user gesture context
+    try {
+      await startMic();
+    } catch (err) {
+      console.error("Mic permission denied:", err);
+      $status.textContent = "Micro refusé — vérifiez les permissions";
+      setTimeout(endVoice, 3000);
+      return;
+    }
 
     state.audioPlayer = new AudioPlayer();
     state.audioPlayer.init();
