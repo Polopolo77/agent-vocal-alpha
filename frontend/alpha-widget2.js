@@ -597,11 +597,14 @@ STYLE DE COMMUNICATION
           model: `models/${MODEL}`,
           generationConfig: {
             responseModalities: ["AUDIO"],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } },
+              languageCode: "fr-FR",
+            },
           },
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          inputAudioTranscription: {},
-          outputAudioTranscription: {},
+          inputAudioTranscription: { languageCodes: ["fr-FR"] },
+          outputAudioTranscription: { languageCodes: ["fr-FR"] },
         },
       }));
     };
