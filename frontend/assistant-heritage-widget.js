@@ -1038,8 +1038,8 @@ Tu ne coupes JAMAIS brutalement. Tu conclus toujours avec chaleur et respect.`;
             },
           },
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          inputAudioTranscription: { languageCodes: ["fr-FR"] },
-          outputAudioTranscription: { languageCodes: ["fr-FR"] },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
       }));
     };

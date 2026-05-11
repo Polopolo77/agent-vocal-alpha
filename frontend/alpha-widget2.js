@@ -603,8 +603,8 @@ STYLE DE COMMUNICATION
             },
           },
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          inputAudioTranscription: { languageCodes: ["fr-FR"] },
-          outputAudioTranscription: { languageCodes: ["fr-FR"] },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
       }));
     };

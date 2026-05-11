@@ -1848,8 +1848,8 @@ C'est tout. Tu attends que le prospect parle. Tu ne rajoutes rien.`;
             },
           },
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          inputAudioTranscription: { languageCodes: ["fr-FR"] },
-          outputAudioTranscription: { languageCodes: ["fr-FR"] },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
           tools: [{
             functionDeclarations: [{
               name: "obtenir_briefing",

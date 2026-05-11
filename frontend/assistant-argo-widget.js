@@ -860,8 +860,8 @@ Tu ne coupes JAMAIS brutalement.`;
             },
           },
           systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-          inputAudioTranscription: { languageCodes: ["fr-FR"] },
-          outputAudioTranscription: { languageCodes: ["fr-FR"] },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
       };
       console.log("[ARGO] Setup payload size:", JSON.stringify(setupMsg).length, "chars");
