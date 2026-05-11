@@ -512,17 +512,17 @@ Tu ne coupes JAMAIS brutalement.`;
         flex-shrink: 0;
       }
       .aa-orb-wrap { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
-      .aa-orb {
+      .aa-avatar {
         width: 40px; height: 40px;
         border-radius: 50%;
-        background: radial-gradient(circle at 40% 40%, #1e1b4b, #0f172a);
+        object-fit: cover;
         border: 2px solid #334155;
         transition: all 0.4s ease;
       }
-      .aa-orb.connecting { border-color: #7c3aed; animation: aa-orb-pulse 1.5s ease-in-out infinite; }
-      .aa-orb.active { border-color: #06b6d4; box-shadow: 0 0 12px rgba(6,182,212,0.5); }
-      .aa-orb.listening { border-color: #7c3aed; box-shadow: 0 0 12px rgba(124,58,237,0.5); animation: aa-orb-breathe 2.5s ease-in-out infinite; }
-      .aa-orb.speaking { border-color: #a78bfa; box-shadow: 0 0 18px rgba(167,139,250,0.7); animation: aa-orb-speak 0.5s ease-in-out infinite; }
+      .aa-avatar.connecting { border-color: #7c3aed; animation: aa-orb-pulse 1.5s ease-in-out infinite; }
+      .aa-avatar.active { border-color: #06b6d4; box-shadow: 0 0 12px rgba(6,182,212,0.5); }
+      .aa-avatar.listening { border-color: #7c3aed; box-shadow: 0 0 12px rgba(124,58,237,0.5); animation: aa-orb-breathe 2.5s ease-in-out infinite; }
+      .aa-avatar.speaking { border-color: #a78bfa; box-shadow: 0 0 18px rgba(167,139,250,0.7); animation: aa-orb-speak 0.5s ease-in-out infinite; }
       @keyframes aa-orb-pulse { 0%,100% { opacity:0.6; transform:scale(1); } 50% { opacity:1; transform:scale(1.08); } }
       @keyframes aa-orb-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.06); } }
       @keyframes aa-orb-speak { 0%,100% { transform:scale(1); } 50% { transform:scale(1.12); } }
@@ -642,7 +642,7 @@ Tu ne coupes JAMAIS brutalement.`;
     overlay.id = "aa-overlay";
     overlay.innerHTML = `
       <div class="aa-header">
-        <div class="aa-orb-wrap"><div class="aa-orb" id="aa-orb"></div></div>
+        <div class="aa-orb-wrap"><img class="aa-avatar" id="aa-avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face" alt="Assistant"/></div>
         <div class="aa-title">
           <span class="aa-label">Assistant Argo</span>
           <span class="aa-status" id="aa-status">En ligne</span>
@@ -667,7 +667,7 @@ Tu ne coupes JAMAIS brutalement.`;
   function initRefs() {
     $btn      = document.getElementById("aa-widget-btn");
     $overlay  = document.getElementById("aa-overlay");
-    $orb      = document.getElementById("aa-orb");
+    $orb      = document.getElementById("aa-avatar");
     $status   = document.getElementById("aa-status");
     $messages = document.getElementById("aa-messages");
     $footer   = document.getElementById("aa-footer");
@@ -685,7 +685,7 @@ Tu ne coupes JAMAIS brutalement.`;
       } else {
         const msg = document.createElement("div");
         msg.className = "aa-msg bot";
-        msg.innerHTML = `<span class="aa-msg-label">Assistant</span><span class="aa-msg-text">\${escapeHTML(text)}</span>`;
+        msg.innerHTML = `<span class="aa-msg-label">Assistant</span><span class="aa-msg-text">${escapeHTML(text)}</span>`;
         $messages.appendChild(msg);
         currentBotMsg = msg;
       }
@@ -696,7 +696,7 @@ Tu ne coupes JAMAIS brutalement.`;
       } else {
         const msg = document.createElement("div");
         msg.className = "aa-msg you";
-        msg.innerHTML = `<span class="aa-msg-label">Vous</span><span class="aa-msg-text">\${escapeHTML(text)}</span>`;
+        msg.innerHTML = `<span class="aa-msg-label">Vous</span><span class="aa-msg-text">${escapeHTML(text)}</span>`;
         $messages.appendChild(msg);
         currentUserMsg = msg;
       }
@@ -741,7 +741,7 @@ Tu ne coupes JAMAIS brutalement.`;
 
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/\${TEXT_MODEL}:generateContent?key=\${state.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -842,13 +842,13 @@ Tu ne coupes JAMAIS brutalement.`;
   }
 
   function connectVoice() {
-    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=\${state.apiKey}`;
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${state.apiKey}`;
     const ws = new WebSocket(url);
 
     ws.onopen = () => {
       ws.send(JSON.stringify({
         setup: {
-          model: `models/\${LIVE_MODEL}`,
+          model: `models/${LIVE_MODEL}`,
           generationConfig: {
             responseModalities: ["AUDIO"],
             speechConfig: {
@@ -873,7 +873,7 @@ Tu ne coupes JAMAIS brutalement.`;
 
       if (data.setupComplete) {
         state.isConnected = true;
-        $orb.className = "aa-orb speaking";
+        $orb.className = "aa-avatar speaking";
         $status.textContent = "L'assistant parle...";
         ws.send(JSON.stringify({ realtimeInput: { text: "Présente-toi avec ta phrase d'accroche obligatoire." } }));
         startMic();
@@ -886,14 +886,14 @@ Tu ne coupes JAMAIS brutalement.`;
 
       if (sc.interrupted) {
         state.audioPlayer.interrupt();
-        $orb.className = "aa-orb listening";
+        $orb.className = "aa-avatar listening";
         $status.textContent = "L'assistant vous écoute...";
       }
 
       if (sc.modelTurn && sc.modelTurn.parts) {
         for (const p of sc.modelTurn.parts) {
           if (p.inlineData) {
-            $orb.className = "aa-orb speaking";
+            $orb.className = "aa-avatar speaking";
             $status.textContent = "L'assistant parle...";
             state.audioPlayer.add(p.inlineData.data);
           }
@@ -912,7 +912,7 @@ Tu ne coupes JAMAIS brutalement.`;
       }
 
       if (sc.turnComplete) {
-        $orb.className = "aa-orb listening";
+        $orb.className = "aa-avatar listening";
         $status.textContent = "L'assistant vous écoute...";
         if (state.pendingUserText) { state.conversationLog.push({ role: "user", text: state.pendingUserText.trim() }); state.pendingUserText = ""; }
         if (state.pendingBotText) { state.conversationLog.push({ role: "assistant", text: state.pendingBotText.trim() }); state.pendingBotText = ""; }
@@ -969,7 +969,7 @@ Tu ne coupes JAMAIS brutalement.`;
     `;
     document.getElementById("aa-hangup").addEventListener("click", endVoice);
 
-    $orb.className = "aa-orb connecting";
+    $orb.className = "aa-avatar connecting";
     $status.textContent = "Connexion en cours...";
 
     state.audioPlayer = new AudioPlayer();
@@ -1009,7 +1009,7 @@ Tu ne coupes JAMAIS brutalement.`;
     $callBtn = document.getElementById("aa-call");
     bindTextEvents();
 
-    $orb.className = "aa-orb active";
+    $orb.className = "aa-avatar active";
     $status.textContent = "En ligne";
   }
 
@@ -1036,7 +1036,7 @@ Tu ne coupes JAMAIS brutalement.`;
   async function openChat() {
     $overlay.classList.add("aa-active");
     $btn.classList.add("aa-hidden");
-    $orb.className = "aa-orb connecting";
+    $orb.className = "aa-avatar connecting";
     $status.textContent = "Connexion...";
 
     state.conversationHistory = [];
@@ -1050,7 +1050,7 @@ Tu ne coupes JAMAIS brutalement.`;
       if (!json.token) throw new Error("Aucun token reçu");
       state.apiKey = json.token;
 
-      $orb.className = "aa-orb active";
+      $orb.className = "aa-avatar active";
       $status.textContent = "En ligne";
 
       // Trigger greeting
@@ -1058,7 +1058,7 @@ Tu ne coupes JAMAIS brutalement.`;
       showTyping();
 
       const greetRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/\${TEXT_MODEL}:generateContent?key=\${state.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1094,7 +1094,7 @@ Tu ne coupes JAMAIS brutalement.`;
 
     $overlay.classList.remove("aa-active");
     $btn.classList.remove("aa-hidden");
-    $orb.className = "aa-orb";
+    $orb.className = "aa-avatar";
     $status.textContent = "";
     $messages.innerHTML = "";
     state.conversationHistory = [];
