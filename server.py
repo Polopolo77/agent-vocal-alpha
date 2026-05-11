@@ -73,6 +73,10 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 FRONTEND_DIR = (Path(__file__).parent / "frontend").resolve()
 DB_PATH = Path(__file__).parent / "conversations.db"
 
+# Supabase (persistent storage for conversations)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://nenpyfzsxrbjztsjbbnf.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbnB5ZnpzeHJianp0c2piYm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTM5NjQsImV4cCI6MjA5MjQyOTk2NH0.c1OQitjA9dS2tFALVxNWy1FeBSKxdpv61JTrlQW5cHM")
+
 # Modèle Gemini Live pour l'agent vocal (côté client)
 LIVE_MODEL = "gemini-3.1-flash-live-preview"
 
@@ -898,31 +902,73 @@ async def handle_save_conversation(request: web.Request) -> web.Response:
         ip = _client_ip(request)[:45]
         user_agent = request.headers.get("User-Agent", "")[:500]
 
-        conn = sqlite3.connect(DB_PATH, timeout=5.0)
+        # Save to SQLite (local fallback)
+        conversation_id = None
         try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO conversations
-                (started_at, ended_at, duration_seconds, message_count, product_id, transcript, ip_address, user_agent)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                started_at, ended_at, duration, len(messages),
-                product_id, transcript_json, ip, user_agent,
-            ))
-            conversation_id = cursor.lastrowid
-            conn.commit()
-        finally:
-            conn.close()
+            conn = sqlite3.connect(DB_PATH, timeout=5.0)
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO conversations
+                    (started_at, ended_at, duration_seconds, message_count, product_id, transcript, ip_address, user_agent)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    started_at, ended_at, duration, len(messages),
+                    product_id, transcript_json, ip, user_agent,
+                ))
+                conversation_id = cursor.lastrowid
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as e:
+            log.warning("SQLite save failed (non-fatal): %s", e)
 
+        # Save to Supabase (persistent)
+        supabase_id = None
+        try:
+            import aiohttp as _aiohttp
+            sb_payload = {
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "duration_seconds": duration,
+                "message_count": len(messages),
+                "product_id": product_id,
+                "transcript": messages,
+                "ip_address": ip,
+                "user_agent": user_agent,
+            }
+            async with _aiohttp.ClientSession() as sess:
+                async with sess.post(
+                    f"{SUPABASE_URL}/rest/v1/voice_conversations",
+                    headers={
+                        "apikey": SUPABASE_KEY,
+                        "Authorization": f"Bearer {SUPABASE_KEY}",
+                        "Content-Type": "application/json",
+                        "Prefer": "return=representation",
+                    },
+                    json=sb_payload,
+                    timeout=_aiohttp.ClientTimeout(total=10),
+                ) as resp:
+                    if resp.status in (200, 201):
+                        rows = await resp.json()
+                        if rows:
+                            supabase_id = rows[0].get("id")
+                    else:
+                        body = await resp.text()
+                        log.warning("Supabase save failed %s: %s", resp.status, body[:200])
+        except Exception as e:
+            log.warning("Supabase save error (non-fatal): %s", e)
+
+        cid = supabase_id or conversation_id or "?"
         log.info(
-            "CONV #%s saved | product=%s duration=%ss messages=%d",
-            conversation_id, product_id, duration, len(messages),
+            "CONV #%s saved | product=%s duration=%ss messages=%d (sb=%s sqlite=%s)",
+            cid, product_id, duration, len(messages), supabase_id, conversation_id,
         )
-        print(f"\n========== CONVERSATION #{conversation_id} (product={product_id}) ==========")
+        print(f"\n========== CONVERSATION #{cid} (product={product_id}) ==========")
         print(transcript_text)
         print("=" * 60)
 
-        return web.json_response({"status": "saved", "id": conversation_id})
+        return web.json_response({"status": "saved", "id": cid})
     except Exception as e:
         log.exception("Save conversation error")
         return web.json_response({"error": str(e)}, status=500)
@@ -1006,21 +1052,60 @@ async def handle_market(request: web.Request) -> web.Response:
 
 
 async def handle_list_conversations(request: web.Request) -> web.Response:
-    """List latest 100 conversations (simple admin view)."""
+    """List latest 200 conversations from Supabase (persistent)."""
+    try:
+        import aiohttp as _aiohttp
+        async with _aiohttp.ClientSession() as sess:
+            async with sess.get(
+                f"{SUPABASE_URL}/rest/v1/voice_conversations",
+                headers={
+                    "apikey": SUPABASE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_KEY}",
+                },
+                params={
+                    "select": "id,started_at,duration_seconds,message_count,product_id,transcript",
+                    "order": "id.desc",
+                    "limit": "200",
+                },
+                timeout=_aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    rows = await resp.json()
+                    conversations = []
+                    for row in rows:
+                        messages = row.get("transcript", [])
+                        if isinstance(messages, str):
+                            try:
+                                messages = json.loads(messages)
+                            except Exception:
+                                messages = []
+                        conversations.append({
+                            "id": row["id"],
+                            "started_at": row["started_at"],
+                            "duration_seconds": row.get("duration_seconds", 0),
+                            "message_count": row.get("message_count", 0),
+                            "product_id": row.get("product_id"),
+                            "messages": messages,
+                        })
+                    return web.json_response({"conversations": conversations})
+                else:
+                    body = await resp.text()
+                    log.warning("Supabase read failed %s: %s", resp.status, body[:200])
+    except Exception as e:
+        log.warning("Supabase read error, falling back to SQLite: %s", e)
+
+    # Fallback to SQLite
     conn = sqlite3.connect(DB_PATH, timeout=5.0)
     conn.row_factory = sqlite3.Row
     try:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, started_at, duration_seconds, message_count, product_id, transcript
-            FROM conversations
-            ORDER BY id DESC
-            LIMIT 100
+            FROM conversations ORDER BY id DESC LIMIT 200
         """)
         rows = cursor.fetchall()
     finally:
         conn.close()
-
     conversations = []
     for row in rows:
         try:
