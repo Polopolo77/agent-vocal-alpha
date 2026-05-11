@@ -842,11 +842,14 @@ Tu ne coupes JAMAIS brutalement.`;
   }
 
   function connectVoice() {
+    console.log("[ARGO] connectVoice() called. apiKey present:", !!state.apiKey, "len:", state.apiKey?.length);
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${state.apiKey}`;
+    console.log("[ARGO] Opening WebSocket...");
     const ws = new WebSocket(url);
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({
+      console.log("[ARGO] ✅ WebSocket OPEN. Sending setup. Model:", LIVE_MODEL);
+      const setupMsg = {
         setup: {
           model: `models/${LIVE_MODEL}`,
           generationConfig: {
@@ -860,25 +863,34 @@ Tu ne coupes JAMAIS brutalement.`;
           inputAudioTranscription: { languageCodes: ["fr-FR"] },
           outputAudioTranscription: { languageCodes: ["fr-FR"] },
         },
-      }));
+      };
+      console.log("[ARGO] Setup payload size:", JSON.stringify(setupMsg).length, "chars");
+      ws.send(JSON.stringify(setupMsg));
     };
 
     ws.onmessage = async (event) => {
       let data;
       if (event.data instanceof Blob) {
-        try { data = JSON.parse(await event.data.text()); } catch { return; }
+        try { data = JSON.parse(await event.data.text()); } catch (e) { console.error("[ARGO] Blob parse error:", e); return; }
       } else {
-        try { data = JSON.parse(event.data); } catch { return; }
+        try { data = JSON.parse(event.data); } catch (e) { console.error("[ARGO] JSON parse error:", e); return; }
       }
+      console.log("[ARGO] 📨 WS message received. Keys:", Object.keys(data));
 
       if (data.setupComplete) {
+        console.log("[ARGO] ✅ setupComplete received! Starting mic...");
         state.isConnected = true;
         $orb.className = "aa-avatar speaking";
         $status.textContent = "L'assistant parle...";
         ws.send(JSON.stringify({ realtimeInput: { text: "Présente-toi avec ta phrase d'accroche obligatoire." } }));
-        startMic();
+        startMic().catch(e => console.error("[ARGO] startMic error:", e));
         startCallTimers(ws);
         return;
+      }
+
+      if (data.error) {
+        console.error("[ARGO] ❌ Gemini error:", JSON.stringify(data.error));
+        $status.textContent = "Erreur: " + (data.error.message || "Gemini");
       }
 
       const sc = data.serverContent;
@@ -921,8 +933,14 @@ Tu ne coupes JAMAIS brutalement.`;
       }
     };
 
-    ws.onerror = (err) => { console.error("Argo WS error:", err); $status.textContent = "Erreur de connexion"; };
-    ws.onclose = () => { if (state.isConnected) endVoice(); };
+    ws.onerror = (err) => { console.error("[ARGO] ❌ WS error event:", err); $status.textContent = "Erreur WebSocket"; };
+    ws.onclose = (ev) => {
+      console.warn("[ARGO] 🔌 WS CLOSED. code:", ev.code, "reason:", ev.reason, "wasClean:", ev.wasClean);
+      if (ev.code !== 1000) {
+        $status.textContent = `WS fermé (${ev.code}): ${ev.reason || 'sans raison'}`;
+      }
+      if (state.isConnected) endVoice();
+    };
 
     return ws;
   }
@@ -958,6 +976,7 @@ Tu ne coupes JAMAIS brutalement.`;
 
   // ============ VOICE MODE TRANSITIONS ============
   async function startVoice() {
+    console.log("[ARGO] 📞 startVoice() called");
     state.mode = "voice";
     $callBtn.classList.add("active");
 
@@ -973,14 +992,16 @@ Tu ne coupes JAMAIS brutalement.`;
     $status.textContent = "Connexion en cours...";
 
     // Fetch a FRESH token — the previous one was consumed by text mode
+    console.log("[ARGO] Fetching fresh token from", TOKEN_ENDPOINT);
     try {
       const res = await fetch(TOKEN_ENDPOINT, { method: "POST" });
       const json = await res.json();
+      console.log("[ARGO] Token response status:", res.status, "has token:", !!json.token);
       if (json.error || !json.token) throw new Error(json.error || "Pas de token");
       state.apiKey = json.token;
     } catch (err) {
-      console.error("Argo voice token error:", err);
-      $status.textContent = "Erreur de connexion";
+      console.error("[ARGO] ❌ Token fetch error:", err);
+      $status.textContent = "Erreur token: " + err.message;
       setTimeout(endVoice, 3000);
       return;
     }
