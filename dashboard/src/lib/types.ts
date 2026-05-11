@@ -18,23 +18,41 @@ export interface ConversationsResponse {
 
 export type AgentType = "heritage" | "argo";
 
-export function getAgentType(conversation: Conversation): AgentType {
+export interface AgentInfo {
+  type: AgentType;
+  label: string;
+  campaign: string;
+}
+
+export function getAgentInfo(conversation: Conversation): AgentInfo {
   if (
     conversation.product_id === "fortune_strategique" ||
     conversation.product_id === "assistant-heritage"
   ) {
-    return "heritage";
+    return { type: "heritage", label: "Héritage Éditions", campaign: "Trinity Sphères" };
   }
-  if (
-    conversation.product_id === "assistant-argo"
-  ) {
-    return "argo";
+  if (conversation.product_id === "assistant-argo") {
+    return { type: "argo", label: "Argo Éditions", campaign: "Monnaie de l'IA" };
   }
-  return "argo";
+  // Argo multi-produits
+  const productLabels: Record<string, string> = {
+    actions_gagnantes: "Actions Gagnantes",
+    profits_asymetriques: "Profits Asymétriques",
+    agent_alpha: "Agent Alpha",
+    strategie_haut_rendement: "Stratégie Haut Rendement",
+  };
+  const campaign = conversation.product_id && productLabels[conversation.product_id]
+    ? productLabels[conversation.product_id]
+    : "Général";
+  return { type: "argo", label: "Argo Éditions", campaign };
+}
+
+export function getAgentType(conversation: Conversation): AgentType {
+  return getAgentInfo(conversation).type;
 }
 
 export function getAgentLabel(type: AgentType): string {
-  return type === "heritage" ? "Heritage Editions" : "Argo Editions";
+  return type === "heritage" ? "Héritage Éditions" : "Argo Éditions";
 }
 
 export function formatDuration(seconds: number): string {
