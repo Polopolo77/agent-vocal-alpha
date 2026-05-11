@@ -13,7 +13,7 @@
   // ============ CONFIG ============
   const BACKEND_URL = "https://web-production-572b6.up.railway.app";
   const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
-  const TEXT_MODEL = "gemini-3.1-pro-preview";  // Modèle haut de gamme (Pro 3.1) pour le chat texte — plus intelligent, raisonne mieux
+  const TEXT_MODEL = "gemini-2.5-flash";        // Rapide ET intelligent (Pro était trop lent)
   const LIVE_MODEL = "gemini-3.1-flash-live-preview";  // Modèle Live pour la voix
   const VOICE = "Charon";                        // Voix grave et chaleureuse
 
@@ -622,6 +622,27 @@ Tu ne coupes JAMAIS brutalement.`;
       }
       .aa-close-btn:hover { color: #ef4444; }
 
+      /* Page control effects */
+      .aa-highlight-glow {
+        animation: aa-glow 3.5s ease-out !important;
+        position: relative;
+        z-index: 9998;
+      }
+      @keyframes aa-glow {
+        0%   { box-shadow: 0 0 0 0 rgba(124,58,237,0); outline: 2px solid rgba(124,58,237,0); outline-offset: 4px; }
+        15%  { box-shadow: 0 0 40px 8px rgba(124,58,237,0.5); outline: 2px solid rgba(124,58,237,0.9); }
+        100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); outline: 2px solid rgba(124,58,237,0); outline-offset: 4px; }
+      }
+      .aa-cta-pulse {
+        animation: aa-cta-pulse-kf 1.2s ease-in-out infinite !important;
+        position: relative;
+        z-index: 9998;
+      }
+      @keyframes aa-cta-pulse-kf {
+        0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124,58,237,0.6); }
+        50%     { transform: scale(1.06); box-shadow: 0 0 0 20px rgba(124,58,237,0); }
+      }
+
       .aa-messages {
         padding: 14px 16px;
         flex: 1;
@@ -807,7 +828,133 @@ Tu ne coupes JAMAIS brutalement.`;
     return div.innerHTML;
   }
 
-  // ============ TEXT MODE (Gemini REST API) ============
+  // ============ PAGE CONTROL — l'agent peut piloter la page hôte ============
+  let PAGE_SECTIONS = []; // [{name, keywords, el}, ...]
+
+  function scanPageSections() {
+    PAGE_SECTIONS = [];
+    // Heuristique : trouver les sections via h1/h2/h3 et leur texte
+    const headings = document.querySelectorAll("h1, h2, h3");
+    headings.forEach((h, idx) => {
+      const txt = (h.textContent || "").trim().toLowerCase();
+      if (!txt || txt.length > 200) return;
+      // Trouver le conteneur "section" parent
+      let container = h;
+      for (let i = 0; i < 5; i++) {
+        if (container.parentElement && container.parentElement.tagName !== "BODY") {
+          container = container.parentElement;
+        } else break;
+      }
+      PAGE_SECTIONS.push({
+        id: "argo-sec-" + idx,
+        name: txt.slice(0, 80),
+        el: h,
+        container,
+      });
+    });
+    // Aussi capturer les boutons d'achat / liens externes vers le checkout
+    const buttons = document.querySelectorAll("a, button");
+    buttons.forEach((b, idx) => {
+      const txt = (b.textContent || "").trim().toLowerCase();
+      const href = (b.href || "").toLowerCase();
+      if (
+        txt.includes("rejoindre") || txt.includes("inscri") ||
+        txt.includes("accéder") || txt.includes("commander") ||
+        href.includes("checkout") || href.includes("offre") ||
+        txt.includes("99 €") || txt.includes("997 €")
+      ) {
+        PAGE_SECTIONS.push({
+          id: "argo-cta-" + idx,
+          name: "[CTA] " + txt.slice(0, 60),
+          el: b,
+          container: b,
+          isCTA: true,
+        });
+      }
+    });
+    console.log("[ARGO] Page scan: %d sections found", PAGE_SECTIONS.length);
+  }
+
+  function findSection(query) {
+    const q = (query || "").toLowerCase().trim();
+    if (!q) return null;
+    // Match exact d'abord
+    let m = PAGE_SECTIONS.find(s => s.name.toLowerCase() === q);
+    if (m) return m;
+    // Match par mots-clés (chaque mot du query doit être dans le nom)
+    const words = q.split(/\s+/).filter(w => w.length > 2);
+    m = PAGE_SECTIONS.find(s => words.every(w => s.name.toLowerCase().includes(w)));
+    if (m) return m;
+    // Match partiel
+    return PAGE_SECTIONS.find(s => s.name.toLowerCase().includes(q));
+  }
+
+  function scrollToTarget(el, highlight = true) {
+    if (!el) return false;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (highlight) {
+      el.classList.add("aa-highlight-glow");
+      setTimeout(() => el.classList.remove("aa-highlight-glow"), 3500);
+    }
+    return true;
+  }
+
+  function pulseCTA() {
+    const cta = PAGE_SECTIONS.find(s => s.isCTA);
+    if (cta) {
+      scrollToTarget(cta.el);
+      cta.el.classList.add("aa-cta-pulse");
+      setTimeout(() => cta.el.classList.remove("aa-cta-pulse"), 6000);
+      return true;
+    }
+    return false;
+  }
+
+  // Définition des tools envoyés à Gemini
+  function getToolsForGemini() {
+    return [{
+      functionDeclarations: [
+        {
+          name: "scroll_vers_section",
+          description: "Scroll smoothly la page du visiteur vers une section pertinente et la met en surbrillance. Utilise CET outil dès que tu mentionnes une partie spécifique de la page (prix, garantie, témoignage, expert, etc.). Le but : guider visuellement le prospect comme un vrai conseiller qui pointe quelque chose sur l'écran.",
+          parameters: {
+            type: "object",
+            properties: {
+              section: {
+                type: "string",
+                description: "Mots-clés pour trouver la section. Exemples : 'prix', 'garantie 90 jours', 'damien martin', 'monnaie ia', 'témoignage', 'bouton achat'."
+              }
+            },
+            required: ["section"]
+          }
+        },
+        {
+          name: "montrer_bouton_inscription",
+          description: "Scroll vers le bouton d'inscription/achat principal et le fait pulser pour attirer l'attention. À utiliser UNIQUEMENT quand le prospect est CHAUD ou PRÊT à acheter (jamais avant).",
+          parameters: { type: "object", properties: {} }
+        }
+      ]
+    }];
+  }
+
+  function executeToolCall(name, args) {
+    console.log("[ARGO] Tool call:", name, args);
+    if (name === "scroll_vers_section") {
+      const sec = findSection(args.section);
+      if (sec) {
+        scrollToTarget(sec.el);
+        return { success: true, scrolled_to: sec.name };
+      }
+      return { success: false, error: "Section non trouvée", available_sections: PAGE_SECTIONS.slice(0, 10).map(s => s.name) };
+    }
+    if (name === "montrer_bouton_inscription") {
+      const ok = pulseCTA();
+      return { success: ok, message: ok ? "Bouton mis en avant" : "Pas de bouton trouvé" };
+    }
+    return { success: false, error: "Tool inconnu: " + name };
+  }
+
+  // ============ TEXT MODE (Gemini REST API + Tool Calls) ============
   async function sendTextMessage(userText) {
     if (state.isSending || !userText.trim()) return;
     state.isSending = true;
@@ -822,28 +969,69 @@ Tu ne coupes JAMAIS brutalement.`;
 
     showTyping();
 
+    // Construire le system prompt avec la liste des sections disponibles
+    const sectionsList = PAGE_SECTIONS.slice(0, 25).map(s => "- " + s.name).join("\n");
+    const dynamicPrompt = SYSTEM_INSTRUCTION +
+      "\n\n═══════════════════════════════════════════════════════════\n" +
+      "SECTIONS DISPONIBLES SUR LA PAGE DU VISITEUR :\n" +
+      "═══════════════════════════════════════════════════════════\n" +
+      (sectionsList || "(aucune section détectée)") +
+      "\n\nQuand tu parles d'un de ces sujets, utilise l'outil `scroll_vers_section` pour amener visuellement le prospect au bon endroit. C'est puissant pour la conversion.";
+
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-            contents: state.conversationHistory,
-            generationConfig: { maxOutputTokens: 600, temperature: 0.9 },
-          }),
+      // Boucle pour gérer les tool calls (max 3 tours)
+      let response = null;
+      for (let i = 0; i < 3; i++) {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: dynamicPrompt }] },
+              contents: state.conversationHistory,
+              tools: getToolsForGemini(),
+              generationConfig: { maxOutputTokens: 600, temperature: 0.85 },
+            }),
+          }
+        );
+        const data = await res.json();
+        if (!data.candidates || !data.candidates[0]) break;
+        const parts = data.candidates[0].content.parts || [];
+        const functionCalls = parts.filter(p => p.functionCall);
+        const textParts = parts.filter(p => p.text);
+
+        // Push la réponse de l'assistant dans l'historique
+        state.conversationHistory.push({ role: "model", parts: parts });
+
+        // Si des tool calls, on les exécute et on relance
+        if (functionCalls.length > 0) {
+          const toolResults = functionCalls.map(fc => ({
+            functionResponse: {
+              name: fc.functionCall.name,
+              response: executeToolCall(fc.functionCall.name, fc.functionCall.args || {}),
+            }
+          }));
+          state.conversationHistory.push({ role: "user", parts: toolResults });
+          // Si il y a aussi du texte, on l'affiche déjà
+          if (textParts.length > 0) {
+            response = textParts.map(p => p.text).join("");
+            break;
+          }
+          // Sinon on continue la boucle pour avoir le texte de l'agent
+          continue;
         }
-      );
+        if (textParts.length > 0) {
+          response = textParts.map(p => p.text).join("");
+          break;
+        }
+        break;
+      }
 
-      const data = await res.json();
       hideTyping();
-
-      if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-        const botText = data.candidates[0].content.parts[0].text;
-        state.conversationHistory.push({ role: "model", parts: [{ text: botText }] });
-        state.conversationLog.push({ role: "assistant", text: botText });
-        addMessage("bot", botText);
+      if (response) {
+        state.conversationLog.push({ role: "assistant", text: response });
+        addMessage("bot", response);
       } else {
         addMessage("bot", "Excusez-moi, je n'ai pas pu traiter votre message. Pouvez-vous reformuler ?");
       }
@@ -1159,6 +1347,9 @@ Tu ne coupes JAMAIS brutalement.`;
     state.conversationHistory = [];
     state.conversationLog = [];
     state.conversationStartedAt = new Date().toISOString();
+
+    // Scan la page hôte pour permettre à l'agent de naviguer
+    scanPageSections();
 
     try {
       const res = await fetch(TOKEN_ENDPOINT, { method: "POST" });
