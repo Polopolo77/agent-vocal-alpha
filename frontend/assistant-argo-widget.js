@@ -828,6 +828,169 @@ Tu ne coupes JAMAIS brutalement.`;
     return div.innerHTML;
   }
 
+  // ============ PAGE ANALYZER — l'agent comprend la page où il opère ============
+  let PAGE_BRIEF = null; // Brief structuré de la page (généré par IA)
+
+  function extractPageContent() {
+    // Récupère le contenu textuel utile de la page (sans nav, ads, scripts)
+    const exclude = "script, style, nav, header[role=banner], footer, .ad, [class*=advert], [id*=advert], [class*=cookie], [class*=banner-cookie], iframe, .aa-overlay, #aa-overlay, #aa-widget-btn";
+    const root = document.body.cloneNode(true);
+    root.querySelectorAll(exclude).forEach(el => el.remove());
+
+    const title = document.title || "";
+    const url = window.location.href;
+
+    // Texte structuré : titres + premiers paragraphes
+    const lines = [];
+    const headings = root.querySelectorAll("h1, h2, h3");
+    headings.forEach(h => {
+      const t = (h.textContent || "").trim().replace(/\s+/g, " ");
+      if (t && t.length < 300) {
+        const level = h.tagName === "H1" ? "#" : h.tagName === "H2" ? "##" : "###";
+        lines.push(`${level} ${t}`);
+      }
+    });
+
+    // Paragraphes les plus longs (= les plus informatifs)
+    const paras = Array.from(root.querySelectorAll("p"))
+      .map(p => (p.textContent || "").trim().replace(/\s+/g, " "))
+      .filter(t => t.length > 80 && t.length < 800)
+      .slice(0, 30);
+
+    // Prix / boutons / mentions monétaires
+    const allText = root.textContent.replace(/\s+/g, " ");
+    const prices = Array.from(allText.matchAll(/[\d\s]{1,5}\s*(?:€|euros?|EUR|\$|USD)\b/gi))
+      .map(m => m[0].trim())
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .slice(0, 10);
+
+    const ctas = Array.from(document.querySelectorAll("a, button"))
+      .map(b => (b.textContent || "").trim().replace(/\s+/g, " "))
+      .filter(t => t.length > 4 && t.length < 80)
+      .filter(t => /commander|rejoindre|inscri|accéder|achat|s'abonner|je veux|sécuris/i.test(t))
+      .slice(0, 8);
+
+    return {
+      title,
+      url,
+      headings: lines.slice(0, 40).join("\n"),
+      paragraphs: paras.join("\n\n").slice(0, 8000),
+      prices,
+      ctas,
+    };
+  }
+
+  async function generatePageBrief() {
+    // Cache : si on a déjà analysé cette page (par hash du titre+url), réutiliser
+    const cacheKey = "aa-brief-" + (window.location.pathname || "/");
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        PAGE_BRIEF = JSON.parse(cached);
+        console.log("[ARGO] Page brief loaded from cache:", PAGE_BRIEF.product_name);
+        return;
+      }
+    } catch {}
+
+    if (!state.apiKey) {
+      console.warn("[ARGO] Cannot analyze page: no apiKey yet");
+      return;
+    }
+
+    console.log("[ARGO] 🔍 Analyzing host page with AI...");
+    const content = extractPageContent();
+    const prompt = `Tu analyses une page de vente. Voici son contenu :
+
+TITRE PAGE : ${content.title}
+URL : ${content.url}
+
+STRUCTURE (titres) :
+${content.headings}
+
+EXTRAITS DU CONTENU :
+${content.paragraphs}
+
+PRIX DÉTECTÉS : ${content.prices.join(", ") || "aucun"}
+CTAs : ${content.ctas.join(" / ") || "aucun"}
+
+Génère un brief JSON STRICT avec ces clés (et seulement celles-ci) :
+{
+  "product_name": "nom du produit/service vendu (court)",
+  "publisher": "éditeur/société qui vend",
+  "expert": "nom de l'expert/auteur mis en avant",
+  "main_promise": "promesse principale en 1 phrase",
+  "price": "prix principal affiché",
+  "guarantee": "garantie si mentionnée (durée, conditions)",
+  "key_arguments": ["3 à 5 arguments clés"],
+  "target_audience": "profil du visiteur cible",
+  "topic": "thème global (crypto, nucléaire, IA, etc.)",
+  "is_match_for_argo": false,
+  "is_match_reason": "explique pourquoi cette page colle ou pas avec le produit 'Swiss Crypto Club' d'Argo Éditions (lettre Monnaie de l'IA)"
+}
+
+Réponse en JSON pur, sans markdown.`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 800, temperature: 0.2, responseMimeType: "application/json" },
+          }),
+        }
+      );
+      const data = await res.json();
+      const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      PAGE_BRIEF = JSON.parse(txt);
+      sessionStorage.setItem(cacheKey, txt);
+      console.log("[ARGO] ✅ Page brief generated:", PAGE_BRIEF);
+    } catch (e) {
+      console.warn("[ARGO] Page brief generation failed:", e);
+      PAGE_BRIEF = null;
+    }
+  }
+
+  function buildPageContextForPrompt() {
+    if (!PAGE_BRIEF) return "";
+    const b = PAGE_BRIEF;
+    return `
+
+═══════════════════════════════════════════════════════════
+CONTEXTE DE LA PAGE OÙ TU OPÈRES (analyse automatique)
+═══════════════════════════════════════════════════════════
+
+Tu es affiché en tant qu'assistant sur cette page de vente :
+- **Produit vendu sur la page** : ${b.product_name || "?"}
+- **Éditeur** : ${b.publisher || "?"}
+- **Expert mis en avant** : ${b.expert || "?"}
+- **Promesse principale** : ${b.main_promise || "?"}
+- **Prix affiché** : ${b.price || "?"}
+- **Garantie** : ${b.guarantee || "?"}
+- **Thème** : ${b.topic || "?"}
+- **Arguments clés** : ${(b.key_arguments || []).join(" / ")}
+
+**Match avec le Swiss Crypto Club (Argo Éditions / Monnaie de l'IA)** : ${b.is_match_for_argo ? "OUI" : "NON"}
+${b.is_match_reason ? "Raison : " + b.is_match_reason : ""}
+
+═══════════════════════════════════════════════════════════
+RÈGLE DE COHÉRENCE PAGE
+═══════════════════════════════════════════════════════════
+
+Si la page parle d'un AUTRE produit que le Swiss Crypto Club (Monnaie de l'IA) :
+- N'essaye PAS de vendre le Swiss Crypto Club de force
+- Reconnais que le visiteur est sur "${b.product_name || "cette page"}"
+- Réponds AUX QUESTIONS DU VISITEUR sur le contenu de la page qu'il a sous les yeux
+- Sois honnête : "Je suis l'Assistant Argo, dédié à la Monnaie de l'IA. Vous êtes sur la page ${b.product_name || "actuelle"}. Si vous avez des questions sur ce contenu, je peux vous aider avec ce que je vois sur la page."
+- Tu peux utiliser les arguments et le prix RÉELS de la page (vus dans ce brief)
+- Ne mentionne pas Damien/Martin ni le Swiss Crypto Club si la page n'en parle pas
+
+Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
+- Comporte-toi normalement comme dans le reste de ce prompt`;
+  }
+
   // ============ PAGE CONTROL — l'agent peut piloter la page hôte ============
   let PAGE_SECTIONS = []; // [{name, keywords, el}, ...]
 
@@ -969,9 +1132,10 @@ Tu ne coupes JAMAIS brutalement.`;
 
     showTyping();
 
-    // Construire le system prompt avec la liste des sections disponibles
+    // Construire le system prompt avec : brief IA de la page + sections
     const sectionsList = PAGE_SECTIONS.slice(0, 25).map(s => "- " + s.name).join("\n");
     const dynamicPrompt = SYSTEM_INSTRUCTION +
+      buildPageContextForPrompt() +
       "\n\n═══════════════════════════════════════════════════════════\n" +
       "SECTIONS DISPONIBLES SUR LA PAGE DU VISITEUR :\n" +
       "═══════════════════════════════════════════════════════════\n" +
@@ -1361,7 +1525,10 @@ Tu ne coupes JAMAIS brutalement.`;
       $orb.className = "aa-avatar active";
       $status.textContent = "En ligne";
 
-      // Trigger greeting
+      // Génère un brief IA de la page en parallèle (ne bloque pas le greeting)
+      generatePageBrief().catch(e => console.warn("[ARGO] Brief failed:", e));
+
+      // Trigger greeting (utilise déjà le brief s'il est prêt, sinon le prochain message l'aura)
       state.conversationHistory.push({ role: "user", parts: [{ text: "[Le visiteur vient d'ouvrir le chat. Présente-toi avec ta phrase d'ouverture obligatoire.]" }] });
       showTyping();
 
@@ -1371,7 +1538,7 @@ Tu ne coupes JAMAIS brutalement.`;
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+            systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION + buildPageContextForPrompt() }] },
             contents: state.conversationHistory,
             generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
           }),
