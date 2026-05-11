@@ -17,8 +17,9 @@
   const LIVE_MODEL = "gemini-3.1-flash-live-preview";
   const VOICE = "Puck";
 
-  // Google Apps Script pour sauvegarder les conversations (à configurer)
-  const SAVE_ENDPOINT = "";
+  // Sauvegarde des conversations sur le backend Railway (SQLite)
+  const SAVE_ENDPOINT = BACKEND_URL + "/api/save-conversation";
+  const AGENT_PRODUCT_ID = "assistant-argo";
 
   // ============ SYSTEM INSTRUCTION ============
   const SYSTEM_INSTRUCTION = `# MASTER PROMPT — Assistant Argo (Closer Swiss Crypto Club)
@@ -1019,7 +1020,7 @@ Tu ne coupes JAMAIS brutalement.`;
     if (state.conversationLog.length < 2) return;
     if (!SAVE_ENDPOINT) { console.log("[Assistant Argo] SAVE_ENDPOINT non configuré:", state.conversationLog); return; }
 
-    const payload = { started_at: state.conversationStartedAt, ended_at: new Date().toISOString(), messages: state.conversationLog, agent: "assistant-argo" };
+    const payload = { started_at: state.conversationStartedAt, ended_at: new Date().toISOString(), messages: state.conversationLog, product_id: AGENT_PRODUCT_ID };
     const body = JSON.stringify(payload);
     try {
       if (navigator.sendBeacon) {

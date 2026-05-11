@@ -15,8 +15,9 @@
   const MODEL = "gemini-3.1-flash-live-preview";
   const VOICE = "Puck";
 
-  // URL Google Apps Script pour enregistrer les conversations dans le Google Sheet dédié
-  const SAVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbyudWJOSG99GUENzIbwSMIvjszetPwLAE6h-Qov_H8AE3e8YF1jtWJZOaYi3UFYRiP9/exec";
+  // Sauvegarde des conversations sur le backend Railway (SQLite)
+  const SAVE_ENDPOINT = BACKEND_URL + "/api/save-conversation";
+  const AGENT_PRODUCT_ID = "assistant-heritage";
 
   // ============ SYSTEM INSTRUCTION ============
   const SYSTEM_INSTRUCTION = `# MASTER PROMPT — Assistant Héritage (Closer Trinity Sphères)
@@ -1165,20 +1166,19 @@ Tu ne coupes JAMAIS brutalement. Tu conclus toujours avec chaleur et respect.`;
       started_at: state.conversationStartedAt,
       ended_at: new Date().toISOString(),
       messages: state.conversationLog,
-      agent: "assistant-heritage",
+      product_id: AGENT_PRODUCT_ID,
     };
 
     const body = JSON.stringify(payload);
     try {
       if (navigator.sendBeacon) {
-        const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
+        const blob = new Blob([body], { type: "application/json" });
         const ok = navigator.sendBeacon(SAVE_ENDPOINT, blob);
         if (!ok) throw new Error("sendBeacon returned false");
       } else {
         fetch(SAVE_ENDPOINT, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          headers: { "Content-Type": "application/json" },
           body: body,
           keepalive: true,
         }).catch((e) => console.error("Save failed:", e));
@@ -1188,8 +1188,7 @@ Tu ne coupes JAMAIS brutalement. Tu conclus toujours avec chaleur et respect.`;
       try {
         fetch(SAVE_ENDPOINT, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain;charset=UTF-8" },
+          headers: { "Content-Type": "application/json" },
           body: body,
           keepalive: true,
         }).catch(() => {});
