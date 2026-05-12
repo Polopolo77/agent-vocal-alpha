@@ -700,6 +700,43 @@ def _validate_dossier_quotes(dossier: dict, history: list[dict]) -> dict:
 # TTL = 30 min (comme coach_cache), purge pilotée par le cleanup périodique.
 _cards_session_history: dict[str, list[dict]] = {}
 
+# Marqueurs uniques par produit pour identifier le owner d'une carte qui n'a
+# pas d'image_key precis (cas frequent pour proof_number). Le matching se fait
+# sur le subtitle/title de la carte. Permet de rejeter les cartes cross-product
+# meme quand le verrou image_key ne s'applique pas.
+_PRODUCT_MARKERS: dict[str, tuple[str, ...]] = {
+    "argo_actions": ("tilson", "buffett", "actions gagnantes", "bouclier suisse",
+                      "netflix", "sodastream", "ggp", "general growth"),
+    "argo_crypto": ("eric wade", "wade", "fin du travail", "polymath", "harmony",
+                     "enjin", "luna", "ia physique", "profits asymétriques"),
+    "argo_alpha": ("stansberry", "agent alpha", "alpha ia", "russell 1000",
+                    "renaissance", "simons", "cadence design", "synopsys",
+                    "lumentum", "score alpha"),
+    "argo_gold": ("dan ferris", "ferris", "crocodile", "vista gold", "ssr mining",
+                   "forsys", "laramide", "uranium", "minière", "hyper climax",
+                   "détonateur", "haut rendement", "extreme value"),
+}
+
+
+def _guess_card_owner(card: dict) -> str | None:
+    """Devine le produit d'origine d'une carte a partir de son contenu textuel
+    (title + subtitle). Utilise pour le verrou cross-product quand image_key
+    est manquant ou generique. Retourne None si aucun marqueur unique trouve.
+    """
+    if not card:
+        return None
+    blob = " ".join(
+        str(card.get(k, "") or "") for k in ("title", "subtitle", "image_key")
+    ).lower()
+    if not blob.strip():
+        return None
+    for pid, markers in _PRODUCT_MARKERS.items():
+        for m in markers:
+            if m in blob:
+                return pid
+    return None
+
+
 def _remember_card(session_id: str, card: dict) -> None:
     if not session_id or not card:
         return
@@ -739,15 +776,19 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
         recent = history[-12:] if len(history) > 12 else history
         history_text = _format_history(recent)
 
-        # Signaux coach (archétype, chaleur, certitude, produit)
+        # Signaux coach (archétype, chaleur, certitude, produit, PHASE_LOCK)
         cached = coach_cache.get(session_id) or {}
         directive = cached.get("directive", {}) if isinstance(cached, dict) else {}
+        phase_autorisee = (directive.get("directive_phase", {}) or {}).get(
+            "phase_agent_autorisee"
+        )
         coach_signals = {
             "archetype": directive.get("archetype_detecte"),
             "chaleur": (directive.get("etat_emotionnel", {}) or {}).get("chaleur"),
             "confiance_agent": (directive.get("etat_emotionnel", {}) or {}).get("confiance_agent"),
             "produit_certitude": (directive.get("produit", {}) or {}).get("certitude"),
             "signal_closing": (directive.get("directive_prochain_tour", {}) or {}).get("signal_closing"),
+            "phase_agent_autorisee": phase_autorisee,
         }
 
         # Cartes déjà affichées dans cette session (anti-répétition)
@@ -797,7 +838,7 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
 
         card = result.get("card") if isinstance(result, dict) else None
 
-        # VERROU SERVEUR : cross-produit
+        # VERROU SERVEUR #1 : cross-produit par image_key (cas image_key precis)
         if card and active_product:
             img_key = card.get("image_key") or ""
             generic_keys = {"guarantee_generic", "offer_card"}
@@ -810,10 +851,41 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
                         break
                 if owner and owner != active_product:
                     log.info(
-                        "UI cards cross-product rejected: key=%s owner=%s active=%s",
+                        "UI cards cross-product rejected (image_key): key=%s owner=%s active=%s",
                         img_key, owner, active_product,
                     )
                     return web.json_response({"card": None})
+
+        # VERROU SERVEUR #2 : cross-produit par contenu textuel (cas proof_number
+        # sans image_key precis — le LLM met juste title="+47 400%" subtitle="Apple Tilson")
+        if card and active_product:
+            tpl = card.get("template") or ""
+            # Templates "generiques" qui peuvent legitimement n'avoir aucun owner
+            if tpl not in ("guarantee_generic", "offer_card", "welcome_steps",
+                           "rgpd_notice", "live_market", "did_you_know",
+                           "patrimony_chart", "glossary", "no_commit", "analysis_cross"):
+                guessed_owner = _guess_card_owner(card)
+                if guessed_owner and guessed_owner != active_product:
+                    log.info(
+                        "UI cards cross-product rejected (content): tpl=%s title=%r owner_guess=%s active=%s",
+                        tpl, card.get("title"), guessed_owner, active_product,
+                    )
+                    return web.json_response({"card": None})
+
+        # VERROU SERVEUR #3 : phase-lock — certaines cartes "closing" sont
+        # interdites en phase diagnostic/recap/reveal. Evite l'overlay achat
+        # qui apparait avant que le prospect ait valide l'expert.
+        EARLY_PHASES = {"diagnostic", "recap_croise", "reveal_expert"}
+        CLOSING_TEMPLATES = {"offer_card", "guarantee_generic", "testimonial",
+                              "track_record"}
+        if card and phase_autorisee in EARLY_PHASES:
+            tpl = card.get("template") or ""
+            if tpl in CLOSING_TEMPLATES:
+                log.info(
+                    "UI cards phase-lock rejected: tpl=%s phase=%s (too early)",
+                    tpl, phase_autorisee,
+                )
+                return web.json_response({"card": None, "reason": "phase_lock"})
 
         # VERROU ANTI-RÉPÉTITION côté serveur : si la carte a déjà été affichée
         # dans cette session récemment, on la rejette.
@@ -826,13 +898,14 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
             _remember_card(session_id, card)
 
         log.info(
-            "CARDS latency=%dms tokens_in=%s tokens_out=%s tpl=%s key=%s reason=%s",
+            "CARDS latency=%dms tokens_in=%s tokens_out=%s tpl=%s key=%s phase=%s reason=%s",
             _latency_ms,
             _tokens_in,
             _tokens_out,
             (card or {}).get("template"),
             (card or {}).get("image_key") or (card or {}).get("title"),
-            (result or {}).get("reasoning", "")[:80] if isinstance(result, dict) else "",
+            phase_autorisee,
+            (result or {}).get("reasoning", "")[:200] if isinstance(result, dict) else "",
         )
 
         return web.json_response(result)

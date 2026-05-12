@@ -3596,12 +3596,13 @@
           }
 
           // UI agents des le tour 1 (dossier + cards en parallele) pour que
-          // les infos arrivent rapidement.
+          // les infos arrivent rapidement. callUIAgents fait deja un appel
+          // cards immediat (parallele avec dossier).
           if (state.userTurnCount >= 1) callUIAgents();
-          // Cards LLM : on relance aussi apres la reponse d'Argos, car c'est
-          // apres sa reponse qu'il y a le plus de nouveau contenu a illustrer
-          // (chiffres, experts, comparaisons). Fix "cards qui s'arretent".
-          scheduleEphemeral(scheduleCardsAgentWhileSpeaking, 400);
+          // Backup unique a +2200ms : si callUIAgents n'a rien trouve (card
+          // null), on retente avec plus de contexte d'historique. Avant on
+          // avait aussi +400ms mais c'etait redondant avec callUIAgents.
+          // Economie ~33% des appels cards LLM par conversation.
           scheduleEphemeral(scheduleCardsAgentWhileSpeaking, 2200);
           // Cards educatives (did-you-know, patrimony_chart) si gaps
           scheduleEphemeral(triggerEarlyDiagnosticCard, 900);

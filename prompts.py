@@ -912,6 +912,13 @@ RÈGLES DE DÉCISION
 
 6. **Pas de redite.** Si une carte est dans `CARTES DÉJÀ AFFICHÉES`, tu la sautes. Point.
 
+7. **VERROU PHASE (lis SIGNAUX COACH → `PHASE EN COURS`).** Certains templates sont INTERDITS tant que le coach n'est pas arrivé à la phase appropriée. Le serveur rejettera silencieusement si tu transgresses, et tu auras gaspillé un slot. Respecte d'abord :
+   - Phase `diagnostic`, `recap_croise`, `reveal_expert` → **INTERDIT** : `offer_card`, `guarantee_generic`, `testimonial`, `track_record`. Le prospect n'a pas encore validé l'expert, montrer le prix/garantie/témoignage = closing prématuré qui casse le funnel. AUTORISÉ : `expert_portrait`, `proof_number`, `opportunity`, `comparison`, `did_you_know`, `patrimony_chart`, `glossary`, `no_commit`, `analysis_cross`.
+   - Phase `opportunite_concrete`, `explication_service` → AJOUTE `track_record`, `testimonial` aux autorisés. `offer_card` et `guarantee_generic` restent INTERDITS.
+   - Phase `empilement_preuves`, `mention_bonus`, `fusion_6c_6d` → tout autorisé sauf `offer_card` (réservé phase prix).
+   - Phase `prix_closing`, `post_closing` → tout autorisé, y compris `offer_card`.
+   - Si pas de phase indiquée (coach pas encore actif), considère la phase comme `diagnostic` par défaut.
+
 ═══════════════════
 FEW-SHOT EXEMPLES
 ═══════════════════
@@ -1121,6 +1128,8 @@ def build_ui_cards_prompt(
     if cs.get("confiance_agent"): coach_lines.append(f"- Confiance envers Argos : {cs['confiance_agent']}")
     if cs.get("produit_certitude"): coach_lines.append(f"- Certitude produit : {cs['produit_certitude']}")
     if cs.get("signal_closing"): coach_lines.append(f"- Signal closing : {cs['signal_closing']}")
+    if cs.get("phase_agent_autorisee"):
+        coach_lines.append(f"- **PHASE EN COURS : `{cs['phase_agent_autorisee']}`**")
     coach_block = "\n".join(coach_lines) if coach_lines else "(pas encore d'analyse coach)"
 
     # Shown cards block
