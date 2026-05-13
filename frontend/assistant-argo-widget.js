@@ -628,25 +628,89 @@ Tu ne coupes JAMAIS brutalement.`;
       }
       .aa-close-btn:hover { color: #ef4444; }
 
-      /* Page control effects */
+      /* ==== Effets de mise en avant — animations sympas pour étayer le propos ==== */
+
+      /* Highlight principal : marker pen + ripple + pop */
       .aa-highlight-glow {
-        animation: aa-glow 3.5s ease-out !important;
-        position: relative;
-        z-index: 9998;
+        position: relative !important;
+        z-index: 9998 !important;
+        border-radius: 10px !important;
+        animation:
+          aa-marker-bg 4.5s ease-out forwards,
+          aa-ripple-border 1.4s ease-out 0s 3,
+          aa-scale-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
       }
-      @keyframes aa-glow {
-        0%   { box-shadow: 0 0 0 0 rgba(124,58,237,0); outline: 2px solid rgba(124,58,237,0); outline-offset: 4px; }
-        15%  { box-shadow: 0 0 40px 8px rgba(124,58,237,0.5); outline: 2px solid rgba(124,58,237,0.9); }
-        100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); outline: 2px solid rgba(124,58,237,0); outline-offset: 4px; }
+      @keyframes aa-marker-bg {
+        0%   { background: linear-gradient(120deg, transparent 0%, transparent 50%, transparent 100%); box-shadow: 0 0 0 0 rgba(124,58,237,0); }
+        8%   { background: linear-gradient(120deg, rgba(252,211,77,0.55) 0%, rgba(252,211,77,0.55) 30%, transparent 80%); }
+        25%  { background: linear-gradient(120deg, rgba(252,211,77,0.5) 0%, rgba(252,211,77,0.5) 100%); box-shadow: 0 8px 30px -8px rgba(124,58,237,0.4); }
+        55%  { background: linear-gradient(120deg, rgba(167,139,250,0.35) 0%, rgba(167,139,250,0.35) 100%); }
+        100% { background: transparent; box-shadow: 0 0 0 0 rgba(124,58,237,0); }
       }
+      @keyframes aa-ripple-border {
+        0%   { outline: 3px solid rgba(124,58,237,0.95); outline-offset: 2px; }
+        50%  { outline: 3px solid rgba(124,58,237,0); outline-offset: 16px; }
+        100% { outline: 3px solid rgba(124,58,237,0); outline-offset: 2px; }
+      }
+      @keyframes aa-scale-pop {
+        0%   { transform: scale(0.96); }
+        60%  { transform: scale(1.02); }
+        100% { transform: scale(1); }
+      }
+
+      /* Badge flottant "👇 ici" qui pointe vers l'élément */
+      .aa-pointer-badge {
+        position: absolute;
+        top: -18px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #fcd34d, #f59e0b);
+        color: #1e1b4b;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 11px;
+        font-weight: 800;
+        padding: 4px 12px;
+        border-radius: 999px;
+        box-shadow: 0 4px 12px rgba(245,158,11,0.45);
+        z-index: 9999;
+        pointer-events: none;
+        white-space: nowrap;
+        letter-spacing: 0.5px;
+        animation: aa-badge-bounce 1.2s ease-in-out infinite, aa-badge-fade 4.5s ease-out forwards;
+      }
+      .aa-pointer-badge::after {
+        content: "";
+        position: absolute;
+        bottom: -5px; left: 50%;
+        transform: translateX(-50%) rotate(45deg);
+        width: 8px; height: 8px;
+        background: #f59e0b;
+      }
+      @keyframes aa-badge-bounce {
+        0%,100% { transform: translateX(-50%) translateY(0); }
+        50%     { transform: translateX(-50%) translateY(-4px); }
+      }
+      @keyframes aa-badge-fade {
+        0%,85% { opacity: 1; }
+        100%   { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(0.9); }
+      }
+
+      /* CTA Pulse — plus dramatique avec double ring + gradient aura */
       .aa-cta-pulse {
-        animation: aa-cta-pulse-kf 1.2s ease-in-out infinite !important;
-        position: relative;
-        z-index: 9998;
+        position: relative !important;
+        z-index: 9998 !important;
+        animation:
+          aa-cta-bounce 0.7s ease-in-out infinite alternate,
+          aa-cta-ring 1.4s ease-out infinite !important;
       }
-      @keyframes aa-cta-pulse-kf {
-        0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(124,58,237,0.6); }
-        50%     { transform: scale(1.06); box-shadow: 0 0 0 20px rgba(124,58,237,0); }
+      @keyframes aa-cta-bounce {
+        0%   { transform: translateY(0) scale(1); }
+        100% { transform: translateY(-3px) scale(1.04); }
+      }
+      @keyframes aa-cta-ring {
+        0%   { box-shadow: 0 0 0 0 rgba(124,58,237,0.75), 0 0 0 0 rgba(6,182,212,0.55); }
+        50%  { box-shadow: 0 0 0 14px rgba(124,58,237,0), 0 0 0 26px rgba(6,182,212,0); }
+        100% { box-shadow: 0 0 0 0 rgba(124,58,237,0), 0 0 0 0 rgba(6,182,212,0); }
       }
 
       .aa-messages {
@@ -1105,12 +1169,29 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
     return PAGE_SECTIONS.find(s => s.id === id);
   }
 
-  function scrollToTarget(el, highlight = true) {
+  function scrollToTarget(el, highlight = true, badgeText = "👇 ICI") {
     if (!el) return false;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     if (highlight) {
+      // Sauvegarder le position style original pour pouvoir attacher le badge
+      const computed = window.getComputedStyle(el);
+      const needsRel = computed.position === "static";
+      const prevPosition = el.style.position;
+      if (needsRel) el.style.position = "relative";
+
       el.classList.add("aa-highlight-glow");
-      setTimeout(() => el.classList.remove("aa-highlight-glow"), 3500);
+
+      // Ajouter un badge flottant "👇 ICI" qui pointe vers l'élément
+      const badge = document.createElement("div");
+      badge.className = "aa-pointer-badge";
+      badge.textContent = badgeText;
+      el.appendChild(badge);
+
+      setTimeout(() => {
+        el.classList.remove("aa-highlight-glow");
+        if (badge.parentNode === el) el.removeChild(badge);
+        if (needsRel) el.style.position = prevPosition;
+      }, 4500);
     }
     return true;
   }
