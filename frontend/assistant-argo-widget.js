@@ -535,6 +535,20 @@ Tu ne coupes JAMAIS brutalement.`;
         animation: aa-pulse 2.5s infinite;
       }
       #aa-widget-btn strong { font-weight: 800; }
+      #aa-widget-btn .aa-mascot {
+        width: 44px !important;
+        height: 44px !important;
+        object-fit: contain !important;
+        flex-shrink: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        animation: aa-mascot-float 2.5s ease-in-out infinite;
+        filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
+      }
+      @keyframes aa-mascot-float {
+        0%,100% { transform: translateY(0) rotate(-3deg); }
+        50%     { transform: translateY(-3px) rotate(3deg); }
+      }
       .aa-badge {
         position: absolute;
         top: -8px;
@@ -808,7 +822,7 @@ Tu ne coupes JAMAIS brutalement.`;
   function injectHTML() {
     const btn = document.createElement("button");
     btn.id = "aa-widget-btn";
-    btn.innerHTML = `<span style="font-size:1.3rem">💬</span> <span>Une question sur la Monnaie de l'IA&nbsp;?<br><strong>Discutez avec notre assistant</strong></span><span class="aa-badge">GRATUIT</span>`;
+    btn.innerHTML = `<img class="aa-mascot" src="${BACKEND_URL}/argo-mascot.gif" alt="Assistant Argo" /><span>Une question sur la Monnaie de l'IA&nbsp;?<br><strong>Discutez avec notre assistant</strong></span><span class="aa-badge">GRATUIT</span>`;
     btn.style.display = "none";
     document.body.appendChild(btn);
 
