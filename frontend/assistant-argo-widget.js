@@ -1000,45 +1000,105 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
   // ============ PAGE CONTROL — l'agent peut piloter la page hôte ============
   let PAGE_SECTIONS = []; // [{name, keywords, el}, ...]
 
+  function _isVisible(el) {
+    if (!el) return false;
+    if (el.offsetParent === null && el.tagName !== "BODY") return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return false;
+    return true;
+  }
+
+  function _shorten(txt, maxLen) {
+    txt = (txt || "").trim().replace(/\s+/g, " ");
+    if (txt.length <= maxLen) return txt;
+    return txt.slice(0, maxLen - 1) + "…";
+  }
+
+  // Détecte si un paragraphe contient une info importante (chiffres, %, €, $, highlights, bold)
+  function _isImportantParagraph(p) {
+    const txt = (p.textContent || "").trim();
+    if (txt.length < 30 || txt.length > 600) return false;
+    // Contient un montant ou un pourcentage marquant
+    if (/[\d\s]{1,8}\s*(?:€|euros?|\$|USD|EUR)\b/i.test(txt)) return true;
+    if (/\+\s*\d{2,5}\s*%/.test(txt)) return true;             // +1500%, +9300%
+    if (/x\s*\d{2,4}\b/i.test(txt)) return true;               // X10, X16, X201
+    if (/\d{1,4}[''\s]?\d{3}/.test(txt)) return true;          // 1000, 1'500, 9 072
+    // Contient du surlignage jaune
+    if (p.querySelector('[style*="background-color: #ffff00"], [style*="background-color:#ffff00"]')) return true;
+    // Citation marquante
+    if (/^["«""]/.test(txt) || /["»""]\s*\.?\s*$/.test(txt)) return true;
+    return false;
+  }
+
   function scanPageSections() {
     PAGE_SECTIONS = [];
     let counter = 1;
+    const seenTexts = new Set();
 
-    // 1) Sections : tous les h1/h2/h3 visibles
-    const headings = document.querySelectorAll("h1, h2, h3");
-    headings.forEach((h) => {
-      const txt = (h.textContent || "").trim().replace(/\s+/g, " ");
-      if (!txt || txt.length > 200) return;
-      if (h.offsetParent === null) return; // invisible
-      const rect = h.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) return;
+    function _push(prefix, el, displayText) {
+      if (!_isVisible(el)) return;
+      const key = (displayText || "").trim().toLowerCase().slice(0, 80);
+      if (!key || seenTexts.has(key)) return;
+      seenTexts.add(key);
       PAGE_SECTIONS.push({
-        id: "sec_" + counter++,
-        name: txt,
-        el: h,
+        id: prefix + "_" + counter++,
+        name: displayText,
+        el,
+        kind: prefix,
       });
+    }
+
+    // 1) TITRES : h1, h2, h3, h4 (les ancres principales)
+    document.querySelectorAll("h1, h2, h3, h4").forEach((h) => {
+      const txt = _shorten(h.textContent, 150);
+      if (txt && txt.length > 3) _push("sec", h, txt);
     });
 
-    // 2) CTAs : boutons et liens d'achat
-    const buttons = document.querySelectorAll("a, button");
-    const seen = new Set();
-    buttons.forEach((b) => {
+    // 2) PASSAGES CLÉS : paragraphes contenant chiffres, %, €, $, ou highlights
+    document.querySelectorAll("p").forEach((p) => {
+      if (!_isImportantParagraph(p)) return;
+      const txt = _shorten(p.textContent, 140);
+      if (txt) _push("para", p, txt);
+    });
+
+    // 3) ÉLÉMENTS SURLIGNÉS (jaune) — souvent les phrases-punch
+    document.querySelectorAll('[style*="background-color: #ffff00"], [style*="background-color:#ffff00"]').forEach((el) => {
+      // Remonter au parent visible si l'élément lui-même est inline
+      let target = el;
+      let cur = el;
+      while (cur && cur.parentElement && cur.tagName !== "P" && cur.tagName !== "DIV" && cur.tagName !== "LI") {
+        cur = cur.parentElement;
+      }
+      if (cur && cur.tagName === "P") target = cur;
+      const txt = _shorten(el.textContent, 140);
+      if (txt && txt.length > 15) _push("highlight", target, "★ " + txt);
+    });
+
+    // 4) IMAGES IMPORTANTES (graphiques, tablettes, schémas) — par alt ou src
+    document.querySelectorAll("img").forEach((img) => {
+      const src = (img.src || "").toLowerCase();
+      const alt = (img.alt || "").trim();
+      // Inclure les visuels avec mots-clés évocateurs
+      const isKey = /tablette|perf|cours|tweet|garantie|recap|conference|prix/i.test(src) ||
+                    (alt && alt.length > 5 && alt.length < 100);
+      if (!isKey) return;
+      const filename = src.split("/").pop().replace(/[-_.]/g, " ").replace(/png|jpg|jpeg|gif|webp/gi, "").trim();
+      const label = alt || filename || "Image";
+      _push("img", img, "🖼 " + _shorten(label, 80));
+    });
+
+    // 5) CTAs : boutons et liens d'achat
+    document.querySelectorAll("a, button").forEach((b) => {
       const txt = (b.textContent || "").trim().replace(/\s+/g, " ");
       const href = (b.href || "").toLowerCase();
       if (!txt || txt.length < 4 || txt.length > 120) return;
-      if (seen.has(txt)) return;
-      const isCTA = /rejoindre|inscri|accéder|commander|abonne|sécuris|achat|je veux|partie du club/i.test(txt) ||
-                    /checkout|offre|order-form|abonnement/i.test(href);
+      const isCTA = /rejoindre|inscri|accéder|commander|abonne|sécuris|achat|je veux|partie du club|garantie|club|offre/i.test(txt) ||
+                    /checkout|offre|order-form|abonnement|bdc/i.test(href);
       if (!isCTA) return;
-      seen.add(txt);
-      PAGE_SECTIONS.push({
-        id: "cta_" + counter++,
-        name: "[BOUTON] " + txt,
-        el: b,
-        isCTA: true,
-      });
+      _push("cta", b, "🔘 " + _shorten(txt, 100));
     });
-    console.log("[ARGO] Page scan: %d sections", PAGE_SECTIONS.length);
+
+    console.log("[ARGO] Page scan: %d éléments (titres + passages clés + highlights + images + boutons)", PAGE_SECTIONS.length);
   }
 
   function findSectionById(id) {
@@ -1056,7 +1116,7 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
   }
 
   function pulseCTA() {
-    const cta = PAGE_SECTIONS.find(s => s.isCTA);
+    const cta = PAGE_SECTIONS.find(s => s.kind === "cta");
     if (cta) {
       scrollToTarget(cta.el);
       cta.el.classList.add("aa-cta-pulse");
@@ -1130,17 +1190,36 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
     showTyping();
 
-    // Construire le system prompt avec : brief IA de la page + sections numérotées
+    // Construire le system prompt avec : brief IA de la page + table des matières complète
     const sectionsList = PAGE_SECTIONS
       .map(s => `  ${s.id} → "${s.name}"`)
       .join("\n");
     const dynamicPrompt = SYSTEM_INSTRUCTION +
       buildPageContextForPrompt() +
       "\n\n═══════════════════════════════════════════════════════════\n" +
-      "SECTIONS DISPONIBLES SUR LA PAGE (utilise l'ID EXACT)\n" +
-      "═══════════════════════════════════════════════════════════\n" +
-      (sectionsList || "(aucune section détectée)") +
-      "\n\nQuand tu mentionnes un sujet présent sur la page, appelle scroll_vers_section avec l'ID EXACT (ex: section_id='sec_5'). Ne devine PAS, prends l'ID de la liste ci-dessus. Si aucune section ne correspond à ce dont tu parles, n'appelle PAS l'outil — réponds simplement en texte.";
+      "TABLE DES MATIÈRES COMPLÈTE DE LA PAGE (avec IDs précis)\n" +
+      "═══════════════════════════════════════════════════════════\n\n" +
+      "PRÉFIXES :\n" +
+      "  sec_X  = titre de section (h1/h2/h3/h4)\n" +
+      "  para_X = paragraphe contenant un chiffre / pourcentage / prix important\n" +
+      "  highlight_X = passage surligné en jaune (★ phrase punch)\n" +
+      "  img_X  = image clé (graphique, schéma, photo)\n" +
+      "  cta_X  = bouton d'inscription/achat\n\n" +
+      "LISTE :\n" +
+      (sectionsList || "(aucun élément détecté)") +
+      "\n\n═══════════════════════════════════════════════════════════\n" +
+      "COMMENT UTILISER scroll_vers_section\n" +
+      "═══════════════════════════════════════════════════════════\n\n" +
+      "RÈGLES STRICTES :\n" +
+      "1. Tu DOIS prendre l'ID EXACT de la liste ci-dessus (ex: 'para_12', 'highlight_5', 'cta_28').\n" +
+      "2. Tu peux scroller vers le passage le PLUS PRÉCIS, pas seulement un titre. Ex : si on te demande le potentiel de gain, scroll sur le passage 'para_X' qui contient '+1500%' ou 'X16', pas juste le titre général.\n" +
+      "3. Si aucun ID ne correspond précisément à ce dont tu parles, n'appelle PAS l'outil — réponds juste en texte.\n" +
+      "4. Tu peux appeler l'outil 1 fois par réponse, après avoir donné ta réponse texte (ou avant).\n" +
+      "5. Privilégie les `para_X` ou `highlight_X` plus précis aux `sec_X` génériques quand c'est pertinent.\n\n" +
+      "EXEMPLES :\n" +
+      "- Visiteur : 'C'est combien ?' → tu réponds + scroll sur le `para_X` qui contient '997 €' ou le `cta_X` de prix.\n" +
+      "- Visiteur : 'Damien a fait combien sur Ethereum ?' → tu réponds '+20 000 %' + scroll sur le `para_X` qui le mentionne.\n" +
+      "- Visiteur : 'Comment marche la garantie ?' → scroll sur `sec_X` 'GARANTIE SATISFACTION #1' ou le `para_X` qui détaille les 90 jours.";
 
     try {
       // Boucle pour gérer les tool calls (max 3 tours)
