@@ -1639,19 +1639,22 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
       // 🎯 TOOL CALLS pendant l'appel vocal — l'agent contrôle la page en live
       if (data.toolCall && data.toolCall.functionCalls) {
-        console.log("[ARGO] 🎙️🎯 Tool call(s) reçus en vocal:", data.toolCall.functionCalls.length);
+        console.log("[ARGO] 🎙️🎯 Tool call(s) reçus en vocal:", JSON.stringify(data.toolCall.functionCalls));
         const responses = [];
         for (const fc of data.toolCall.functionCalls) {
           const result = executeToolCall(fc.name, fc.args || {});
-          responses.push({
-            id: fc.id,
-            name: fc.name,
-            response: { output: result },
-          });
+          const respObj = { id: fc.id, name: fc.name, response: { result: "ok", ...result } };
+          // id est obligatoire selon la doc Live — on log si manquant
+          if (!fc.id) console.warn("[ARGO] ⚠️ Function call sans id, Gemini risque d'attendre indéfiniment:", fc);
+          responses.push(respObj);
         }
-        ws.send(JSON.stringify({
-          toolResponse: { functionResponses: responses },
-        }));
+        const payload = { toolResponse: { functionResponses: responses } };
+        console.log("[ARGO] 📤 Envoi toolResponse:", JSON.stringify(payload));
+        ws.send(JSON.stringify(payload));
+      }
+      // Aussi : tool cancel — l'agent a annulé sa requête
+      if (data.toolCallCancellation) {
+        console.log("[ARGO] 🚫 Tool call annulé par Gemini:", data.toolCallCancellation);
       }
 
       const sc = data.serverContent;
