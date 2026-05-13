@@ -350,13 +350,13 @@
       .aa-send-btn:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(124,58,237,0.4); }
       .aa-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
       .aa-call-btn {
-        background: rgba(124,58,237,0.1); border: 1px solid #7c3aed; border-radius: 50%; width: 36px; height: 36px;
+        background: rgba(34,197,94,0.15); border: 1px solid #22c55e; border-radius: 50%; width: 36px; height: 36px;
         cursor: pointer; display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; transition: all 0.2s; color: #a78bfa; padding: 0;
+        flex-shrink: 0; transition: all 0.2s; color: #4ade80; padding: 0;
       }
       .aa-call-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
-      .aa-call-btn:hover { background: rgba(124,58,237,0.2); border-color: #a78bfa; color: #c4b5fd; transform: scale(1.05); }
-      .aa-call-btn.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+      .aa-call-btn:hover { background: rgba(34,197,94,0.25); border-color: #4ade80; color: #86efac; transform: scale(1.05); }
+      .aa-call-btn.active { background: #22c55e; border-color: #22c55e; color: #fff; }
       .aa-hangup-btn {
         background: #ef4444; color: #fff; border: none; border-radius: 50px;
         padding: 8px 18px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
@@ -397,7 +397,7 @@
     overlay.id = "aa-overlay";
     overlay.innerHTML = `
       <div class="aa-header">
-        <div class="aa-orb-wrap"><img class="aa-avatar" id="aa-avatar" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&h=80&fit=crop&crop=face" alt="Assistant"/></div>
+        <div class="aa-orb-wrap"><img class="aa-avatar" id="aa-avatar" src="${BACKEND_URL}/argo-mascot.gif" alt="Assistant"/></div>
         <div class="aa-title">
           <span class="aa-label">Assistant Argo</span>
           <span class="aa-status" id="aa-status">En ligne</span>
