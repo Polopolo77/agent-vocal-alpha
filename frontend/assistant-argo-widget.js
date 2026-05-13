@@ -1731,6 +1731,16 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           tools: getToolsForGemini(),
+          // VAD configuré pour éviter les coupures intempestives :
+          // sensibilité LOW au début de parole + 500ms de silence requis avant de considérer la fin
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+              endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+              prefixPaddingMs: 200,
+              silenceDurationMs: 700,
+            },
+          },
         },
       };
       console.log("[ARGO] Setup payload size:", JSON.stringify(setupMsg).length, "chars, tools:", getToolsForGemini()[0].functionDeclarations.length);
@@ -1788,9 +1798,16 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       if (!sc) return;
 
       if (sc.interrupted) {
+        console.warn("[ARGO] 🛑 INTERRUPTED par Gemini (VAD a détecté un son côté micro)");
         state.audioPlayer.interrupt();
         $orb.className = "aa-avatar listening";
         $status.textContent = "L'assistant vous écoute...";
+      }
+      if (sc.turnComplete) {
+        console.log("[ARGO] ✅ turnComplete (fin de tour de l'agent)");
+      }
+      if (sc.generationComplete) {
+        console.log("[ARGO] 🎬 generationComplete (l'agent a fini de générer)");
       }
 
       if (sc.modelTurn && sc.modelTurn.parts) {
