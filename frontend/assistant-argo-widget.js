@@ -963,11 +963,12 @@ Tu ne coupes JAMAIS brutalement.`;
       .aa-send-btn:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(124,58,237,0.4); }
       .aa-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
       .aa-call-btn {
-        background: none; border: 1px solid #334155; border-radius: 50%; width: 36px; height: 36px;
+        background: rgba(124,58,237,0.1); border: 1px solid #7c3aed; border-radius: 50%; width: 36px; height: 36px;
         cursor: pointer; display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; transition: all 0.2s; font-size: 1rem; color: #64748b;
+        flex-shrink: 0; transition: all 0.2s; color: #a78bfa; padding: 0;
       }
-      .aa-call-btn:hover { border-color: #7c3aed; color: #a78bfa; }
+      .aa-call-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
+      .aa-call-btn:hover { background: rgba(124,58,237,0.2); border-color: #a78bfa; color: #c4b5fd; transform: scale(1.05); }
       .aa-call-btn.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
       .aa-hangup-btn {
         background: #ef4444; color: #fff; border: none; border-radius: 50px;
@@ -1020,7 +1021,7 @@ Tu ne coupes JAMAIS brutalement.`;
       <div class="aa-footer" id="aa-footer">
         <textarea class="aa-input" id="aa-input" placeholder="Posez votre question..." rows="1"></textarea>
         <button class="aa-send-btn" id="aa-send" title="Envoyer">➤</button>
-        <button class="aa-call-btn" id="aa-call" title="Passer en mode vocal">📞</button>
+        <button class="aa-call-btn" id="aa-call" title="Passer en mode vocal" aria-label="Appel"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -1351,25 +1352,35 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
       // Enrichir avec un préfixe sémantique selon le type
       let prefix = "🖼 Visuel";
-      // 1) Photos d'experts/personnes — PRIORITÉ HAUTE (très ciblable)
       const hasDamien = /damien/i.test(filename) || /damien/i.test(alt);
       const hasMartin = /martin/i.test(filename) || /martin/i.test(alt);
       const hasIanKing = /ian.?king/i.test(filename) || /ian.?king/i.test(alt);
       const hasMarcSchneider = /marc.?schneider/i.test(filename) || /marc.?schneider/i.test(alt);
-      if (hasDamien && hasMartin) prefix = "👥 Photo de Damien et Martin";
-      else if (hasDamien) prefix = "👤 Photo / Visuel de Damien";
-      else if (hasMartin) prefix = "👤 Photo / Visuel de Martin";
-      else if (hasIanKing) prefix = "👤 Photo de Ian King";
-      else if (hasMarcSchneider) prefix = "👤 Photo de Marc Schneider";
-      // 2) Autres catégories
+      const isPerfChart = /perf|graph|chart|cours/i.test(filename);
+      const isConference = /conference|portrait/i.test(filename);
+
+      // 1) Vraies PHOTOS de personnes (jamais "perf-...") — PRIORITÉ HAUTE
+      if (isConference && hasDamien && hasMartin) prefix = "👥 Photo de Damien et Martin (en conférence)";
+      else if (isConference && hasDamien) prefix = "👤 Photo de Damien";
+      else if (isConference && hasMartin) prefix = "👤 Photo de Martin";
+      else if (!isPerfChart && hasDamien && hasMartin) prefix = "👥 Photo de Damien et Martin";
+      else if (!isPerfChart && hasDamien) prefix = "👤 Photo de Damien";
+      else if (!isPerfChart && hasMartin) prefix = "👤 Photo de Martin";
+      else if (!isPerfChart && hasIanKing) prefix = "👤 Photo de Ian King";
+      else if (!isPerfChart && hasMarcSchneider) prefix = "👤 Photo de Marc Schneider";
+      // 2) GRAPHIQUES de performance (pas des photos)
+      else if (isPerfChart && hasDamien) prefix = "📈 Graphique de performance de Damien";
+      else if (isPerfChart && hasMartin) prefix = "📈 Graphique de performance de Martin";
+      else if (isPerfChart) prefix = "📈 Graphique de performance";
+      // 3) Autres catégories
       else if (/tablette|pad|cover|dossier/i.test(filename)) prefix = "📔 Couverture du dossier";
-      else if (/perf|graph|chart|cours/i.test(filename)) prefix = "📈 Graphique de performance";
       else if (/tweet|twitter|x-post/i.test(filename)) prefix = "🐦 Tweet";
       else if (/garantie/i.test(filename)) prefix = "🛡 Garantie";
       else if (/prix/i.test(filename)) prefix = "💰 Visuel prix";
-      else if (/conference|youtube|video|portrait/i.test(filename)) prefix = "🎥 Photo / Vidéo";
+      else if (/youtube|video/i.test(filename)) prefix = "🎥 Photo / Vidéo";
       else if (/recap/i.test(filename)) prefix = "🎁 Récap offre";
       else if (/club|logo/i.test(filename)) prefix = "🏷 Logo / Visuel club";
+      else if (/cern/i.test(filename)) prefix = "🏛 Photo / Lieu (CERN)";
 
       // Préfixe + descriptif
       _push("img", img, `${prefix} (${_shorten(descriptor, 60)})`);
@@ -1527,7 +1538,11 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       "\n\nRÈGLES STRICTES :\n" +
       "1. ID EXACT de la liste ci-dessus, jamais inventé.\n" +
       "2. 🖼 RÈGLE DU VISUEL (importante) : si le visiteur dit 'voir', 'montre-moi', 'image', 'visuel', 'à quoi ressemble', 'dossier', 'couverture', 'photo', 'tablette' → tu PRIVILÉGIES IMPÉRATIVEMENT un `img_X`, JAMAIS un sec_X / para_X.\n" +
-      "3. 👤 RÈGLE DE L'EXPERT : si le visiteur prononce un PRÉNOM (Damien, Martin, Ian King, Marc Schneider) ou demande à voir un expert/quelqu'un → privilégie un `img_X` 👤 / 👥 (photo de cette personne). S'il n'y a pas de photo, alors `para_X` qui en parle.\n" +
+      "3. 👤 RÈGLE DE L'EXPERT : si le visiteur prononce un PRÉNOM (Damien, Martin) ou demande à voir un expert :\n" +
+      "    a) Cherche d'abord un `img_X` 👤 Photo de [Nom]\n" +
+      "    b) Si absent, prends `img_X` 👥 Photo de Damien et Martin (photo conjointe)\n" +
+      "    c) NE PRENDS JAMAIS un `img_X` 📈 Graphique de performance — c'est un graphique, pas une photo de la personne. Sauf si le visiteur demande explicitement la performance/le gain de cette personne.\n" +
+      "    d) Si vraiment aucune photo n'existe : reste sur `para_X` qui parle de la personne.\n" +
       "4. 💰 RÈGLE DU CHIFFRE : montant / pourcentage précis → `para_X` ou `highlight_X` contenant le chiffre.\n" +
       "5. 🔘 RÈGLE DU BOUTON : inscription / achat → `cta_X`.\n" +
       "6. Si aucun ID ne colle, ne scroll pas, réponds juste en texte.\n" +
@@ -1712,7 +1727,7 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
         (sectionsList || "(aucun)") +
         "\n\nRÈGLES DE CHOIX D'ID :\n" +
         "🖼 'voir', 'montre-moi', 'image', 'dossier', 'couverture', 'tablette' → IMPÉRATIVEMENT `img_X` (et pas sec_X / para_X)\n" +
-        "👤 Prénom prononcé (Damien, Martin, Ian King, Marc Schneider) ou 'qui est l'expert' → privilégie son `img_X` 👤 / 👥 (photo)\n" +
+        "👤 Prénom prononcé (Damien, Martin) ou 'qui est l'expert' → cherche `img_X` 👤 Photo de [Nom], sinon `img_X` 👥 Photo conjointe. JAMAIS un 📈 Graphique sauf si on demande explicitement les performances de cette personne.\n" +
         "💰 Demande de chiffre / prix / pourcentage → `para_X` ou `highlight_X`\n" +
         "🔘 Demande d'inscription / achat → `cta_X`\n\n" +
         "N'invente JAMAIS un ID. Si rien ne correspond, ne scroll pas, contente-toi du texte.";
