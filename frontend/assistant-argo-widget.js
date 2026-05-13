@@ -1287,13 +1287,25 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
       // Enrichir avec un préfixe sémantique selon le type
       let prefix = "🖼 Visuel";
-      if (/tablette|pad|cover|dossier/i.test(filename)) prefix = "📔 Couverture du dossier";
-      else if (/perf|graph|chart|cours/i.test(filename)) prefix = "📈 Graphique";
+      // 1) Photos d'experts/personnes — PRIORITÉ HAUTE (très ciblable)
+      const hasDamien = /damien/i.test(filename) || /damien/i.test(alt);
+      const hasMartin = /martin/i.test(filename) || /martin/i.test(alt);
+      const hasIanKing = /ian.?king/i.test(filename) || /ian.?king/i.test(alt);
+      const hasMarcSchneider = /marc.?schneider/i.test(filename) || /marc.?schneider/i.test(alt);
+      if (hasDamien && hasMartin) prefix = "👥 Photo de Damien et Martin";
+      else if (hasDamien) prefix = "👤 Photo / Visuel de Damien";
+      else if (hasMartin) prefix = "👤 Photo / Visuel de Martin";
+      else if (hasIanKing) prefix = "👤 Photo de Ian King";
+      else if (hasMarcSchneider) prefix = "👤 Photo de Marc Schneider";
+      // 2) Autres catégories
+      else if (/tablette|pad|cover|dossier/i.test(filename)) prefix = "📔 Couverture du dossier";
+      else if (/perf|graph|chart|cours/i.test(filename)) prefix = "📈 Graphique de performance";
       else if (/tweet|twitter|x-post/i.test(filename)) prefix = "🐦 Tweet";
       else if (/garantie/i.test(filename)) prefix = "🛡 Garantie";
       else if (/prix/i.test(filename)) prefix = "💰 Visuel prix";
       else if (/conference|youtube|video|portrait/i.test(filename)) prefix = "🎥 Photo / Vidéo";
       else if (/recap/i.test(filename)) prefix = "🎁 Récap offre";
+      else if (/club|logo/i.test(filename)) prefix = "🏷 Logo / Visuel club";
 
       // Préfixe + descriptif
       _push("img", img, `${prefix} (${_shorten(descriptor, 60)})`);
@@ -1450,18 +1462,20 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       (sectionsList || "(aucun élément détecté)") +
       "\n\nRÈGLES STRICTES :\n" +
       "1. ID EXACT de la liste ci-dessus, jamais inventé.\n" +
-      "2. 🖼 RÈGLE DU VISUEL (importante) : si le visiteur dit 'voir', 'montre-moi', 'image', 'visuel', 'à quoi ressemble', 'dossier', 'couverture', 'photo', 'tablette' → tu PRIVILÉGIES IMPÉRATIVEMENT un `img_X`, JAMAIS un sec_X / para_X. Il veut voir une image, pas lire un titre.\n" +
-      "3. 💰 RÈGLE DU CHIFFRE : si le visiteur demande un montant / pourcentage précis → tu privilégies `para_X` ou `highlight_X` contenant le chiffre.\n" +
-      "4. 🔘 RÈGLE DU BOUTON : si le visiteur veut s'inscrire / acheter → `cta_X`.\n" +
-      "5. Si aucun ID ne colle, ne scroll pas, réponds juste en texte.\n" +
-      "6. Maximum 1 appel par réponse.\n\n" +
+      "2. 🖼 RÈGLE DU VISUEL (importante) : si le visiteur dit 'voir', 'montre-moi', 'image', 'visuel', 'à quoi ressemble', 'dossier', 'couverture', 'photo', 'tablette' → tu PRIVILÉGIES IMPÉRATIVEMENT un `img_X`, JAMAIS un sec_X / para_X.\n" +
+      "3. 👤 RÈGLE DE L'EXPERT : si le visiteur prononce un PRÉNOM (Damien, Martin, Ian King, Marc Schneider) ou demande à voir un expert/quelqu'un → privilégie un `img_X` 👤 / 👥 (photo de cette personne). S'il n'y a pas de photo, alors `para_X` qui en parle.\n" +
+      "4. 💰 RÈGLE DU CHIFFRE : montant / pourcentage précis → `para_X` ou `highlight_X` contenant le chiffre.\n" +
+      "5. 🔘 RÈGLE DU BOUTON : inscription / achat → `cta_X`.\n" +
+      "6. Si aucun ID ne colle, ne scroll pas, réponds juste en texte.\n" +
+      "7. Maximum 1 appel par réponse.\n\n" +
       "EXEMPLES :\n" +
       "- 'C'est combien ?' → 'Le prix anniversaire est à 997 € par an, regardez là 👇' + scroll sur cta_X / para_X du prix\n" +
-      "- 'Montre-moi les dossiers offerts' → 'Voici la couverture du premier dossier' + scroll sur un `img_X` 📔 Couverture du dossier\n" +
-      "- 'À quoi ressemble la tablette ?' → scroll sur l'`img_X` correspondant\n" +
-      "- 'Qui est Damien ?' → scroll sur `para_X` de Damien (ou `img_X` si photo)\n" +
-      "- 'Je veux voir le portefeuille' → scroll sur l'`img_X` du portefeuille / site\n" +
-      "- 'Comment marche la garantie ?' → scroll sur `sec_X` GARANTIE ou `img_X` Garantie si visuel disponible";
+      "- 'Montre-moi les dossiers offerts' → scroll sur un `img_X` 📔 Couverture du dossier\n" +
+      "- 'Qui est Damien ?' → 'Damien est l'expert qui a fait +20 000 % sur Ethereum, je vous le montre' + scroll sur `img_X` 👤 Photo de Damien\n" +
+      "- 'Damien et Martin ils ressemblent à quoi ?' → scroll sur `img_X` 👥 Photo de Damien et Martin\n" +
+      "- 'C'est qui les experts ?' → scroll sur la photo des deux experts (`img_X` 👥)\n" +
+      "- 'À quoi ressemble la tablette ?' → scroll sur l'`img_X` 📔 correspondant\n" +
+      "- 'Comment marche la garantie ?' → scroll sur `sec_X` GARANTIE ou `img_X` 🛡 Garantie si visuel disponible";
 
     try {
       // Boucle pour gérer les tool calls (max 3 tours)
@@ -1634,6 +1648,7 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
         (sectionsList || "(aucun)") +
         "\n\nRÈGLES DE CHOIX D'ID :\n" +
         "🖼 'voir', 'montre-moi', 'image', 'dossier', 'couverture', 'tablette' → IMPÉRATIVEMENT `img_X` (et pas sec_X / para_X)\n" +
+        "👤 Prénom prononcé (Damien, Martin, Ian King, Marc Schneider) ou 'qui est l'expert' → privilégie son `img_X` 👤 / 👥 (photo)\n" +
         "💰 Demande de chiffre / prix / pourcentage → `para_X` ou `highlight_X`\n" +
         "🔘 Demande d'inscription / achat → `cta_X`\n\n" +
         "N'invente JAMAIS un ID. Si rien ne correspond, ne scroll pas, contente-toi du texte.";
