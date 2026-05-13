@@ -1251,6 +1251,27 @@ app.router.add_post("/api/briefing", handle_briefing)
 app.router.add_post("/api/save-conversation", handle_save_conversation)
 app.router.add_get("/api/conversations", handle_list_conversations)
 app.router.add_get("/api/market", handle_market)
+
+
+# ===== Prompt confidentiel pour assistant-argo (caché du JS frontend) =====
+_ASSISTANT_ARGO_PROMPT_CACHE = None
+
+async def handle_assistant_argo_prompt(request: web.Request) -> web.Response:
+    """Serve the master prompt for assistant-argo widget.
+    Stored server-side so it's not visible in the bundled JS."""
+    global _ASSISTANT_ARGO_PROMPT_CACHE
+    if _ASSISTANT_ARGO_PROMPT_CACHE is None:
+        try:
+            path = Path(__file__).parent / "prompts_files" / "assistant_argo_prompt.txt"
+            _ASSISTANT_ARGO_PROMPT_CACHE = path.read_text(encoding="utf-8")
+        except Exception as e:
+            log.exception("Failed to load assistant-argo prompt")
+            return web.json_response({"error": str(e)}, status=500)
+    return web.json_response({"prompt": _ASSISTANT_ARGO_PROMPT_CACHE})
+
+
+app.router.add_get("/api/assistant-argo-prompt", handle_assistant_argo_prompt)
+
 app.router.add_get("/", handle_static)
 app.router.add_get("/{path:.*}", handle_static)
 
