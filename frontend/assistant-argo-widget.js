@@ -1267,17 +1267,36 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       if (txt && txt.length > 15) _push("highlight", target, "★ " + txt);
     });
 
-    // 4) IMAGES IMPORTANTES (graphiques, tablettes, schémas) — par alt ou src
+    // 4) IMAGES IMPORTANTES — toutes les images de contenu (pas les icônes)
     document.querySelectorAll("img").forEach((img) => {
       const src = (img.src || "").toLowerCase();
       const alt = (img.alt || "").trim();
-      // Inclure les visuels avec mots-clés évocateurs
-      const isKey = /tablette|perf|cours|tweet|garantie|recap|conference|prix/i.test(src) ||
-                    (alt && alt.length > 5 && alt.length < 100);
-      if (!isKey) return;
-      const filename = src.split("/").pop().replace(/[-_.]/g, " ").replace(/png|jpg|jpeg|gif|webp/gi, "").trim();
-      const label = alt || filename || "Image";
-      _push("img", img, "🖼 " + _shorten(label, 80));
+      // Filtre : skip très petites images (icônes/logos répétitifs) et le widget lui-même
+      if (src.includes("argo-mascot")) return;
+      if (src.includes("favicon")) return;
+      const rect = img.getBoundingClientRect();
+      const widthHint = rect.width || img.naturalWidth || 0;
+      if (widthHint > 0 && widthHint < 80) return;  // Skip icônes < 80px
+
+      // Inférer un label descriptif à partir du nom de fichier (très expressif)
+      const filename = src.split("/").pop()
+        .replace(/[-_]/g, " ")
+        .replace(/\.(png|jpg|jpeg|gif|webp|svg)$/i, "")
+        .trim();
+      let descriptor = alt || filename || "Image";
+
+      // Enrichir avec un préfixe sémantique selon le type
+      let prefix = "🖼 Visuel";
+      if (/tablette|pad|cover|dossier/i.test(filename)) prefix = "📔 Couverture du dossier";
+      else if (/perf|graph|chart|cours/i.test(filename)) prefix = "📈 Graphique";
+      else if (/tweet|twitter|x-post/i.test(filename)) prefix = "🐦 Tweet";
+      else if (/garantie/i.test(filename)) prefix = "🛡 Garantie";
+      else if (/prix/i.test(filename)) prefix = "💰 Visuel prix";
+      else if (/conference|youtube|video|portrait/i.test(filename)) prefix = "🎥 Photo / Vidéo";
+      else if (/recap/i.test(filename)) prefix = "🎁 Récap offre";
+
+      // Préfixe + descriptif
+      _push("img", img, `${prefix} (${_shorten(descriptor, 60)})`);
     });
 
     // 5) CTAs : boutons et liens d'achat
@@ -1431,13 +1450,18 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       (sectionsList || "(aucun élément détecté)") +
       "\n\nRÈGLES STRICTES :\n" +
       "1. ID EXACT de la liste ci-dessus, jamais inventé.\n" +
-      "2. Privilégie le passage le PLUS PRÉCIS (para_X / highlight_X) plutôt que le titre général.\n" +
-      "3. Si aucun ID ne colle, ne scroll pas, réponds juste en texte.\n" +
-      "4. Maximum 1 appel par réponse.\n\n" +
+      "2. 🖼 RÈGLE DU VISUEL (importante) : si le visiteur dit 'voir', 'montre-moi', 'image', 'visuel', 'à quoi ressemble', 'dossier', 'couverture', 'photo', 'tablette' → tu PRIVILÉGIES IMPÉRATIVEMENT un `img_X`, JAMAIS un sec_X / para_X. Il veut voir une image, pas lire un titre.\n" +
+      "3. 💰 RÈGLE DU CHIFFRE : si le visiteur demande un montant / pourcentage précis → tu privilégies `para_X` ou `highlight_X` contenant le chiffre.\n" +
+      "4. 🔘 RÈGLE DU BOUTON : si le visiteur veut s'inscrire / acheter → `cta_X`.\n" +
+      "5. Si aucun ID ne colle, ne scroll pas, réponds juste en texte.\n" +
+      "6. Maximum 1 appel par réponse.\n\n" +
       "EXEMPLES :\n" +
-      "- 'C'est combien ?' → 'Le prix anniversaire est à 997 € par an, regardez juste là 👇' + scroll sur cta_X du prix\n" +
-      "- 'Qui est Damien ?' → 'Damien est l'expert qui a fait +20 000 % sur Ethereum, je vous montre son parcours' + scroll sur para_X de Damien\n" +
-      "- 'Comment marche la garantie ?' → 'La garantie 90 jours est expliquée juste ici à l'écran' + scroll sur sec_X 'GARANTIE'";
+      "- 'C'est combien ?' → 'Le prix anniversaire est à 997 € par an, regardez là 👇' + scroll sur cta_X / para_X du prix\n" +
+      "- 'Montre-moi les dossiers offerts' → 'Voici la couverture du premier dossier' + scroll sur un `img_X` 📔 Couverture du dossier\n" +
+      "- 'À quoi ressemble la tablette ?' → scroll sur l'`img_X` correspondant\n" +
+      "- 'Qui est Damien ?' → scroll sur `para_X` de Damien (ou `img_X` si photo)\n" +
+      "- 'Je veux voir le portefeuille' → scroll sur l'`img_X` du portefeuille / site\n" +
+      "- 'Comment marche la garantie ?' → scroll sur `sec_X` GARANTIE ou `img_X` Garantie si visuel disponible";
 
     try {
       // Boucle pour gérer les tool calls (max 3 tours)
@@ -1608,7 +1632,11 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
         "3. Le visiteur voit la page scroller + surbrillance violette + badge '👇 ICI'\n\n" +
         "TABLE DES MATIÈRES DE LA PAGE (IDs précis à utiliser) :\n" +
         (sectionsList || "(aucun)") +
-        "\n\nN'invente JAMAIS un ID. Si rien ne correspond, ne scroll pas, contente-toi du texte.";
+        "\n\nRÈGLES DE CHOIX D'ID :\n" +
+        "🖼 'voir', 'montre-moi', 'image', 'dossier', 'couverture', 'tablette' → IMPÉRATIVEMENT `img_X` (et pas sec_X / para_X)\n" +
+        "💰 Demande de chiffre / prix / pourcentage → `para_X` ou `highlight_X`\n" +
+        "🔘 Demande d'inscription / achat → `cta_X`\n\n" +
+        "N'invente JAMAIS un ID. Si rien ne correspond, ne scroll pas, contente-toi du texte.";
 
       const setupMsg = {
         setup: {
