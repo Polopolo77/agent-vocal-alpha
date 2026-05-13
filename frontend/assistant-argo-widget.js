@@ -594,13 +594,19 @@ Tu ne coupes JAMAIS brutalement.`;
         border-bottom: 1px solid rgba(124,58,237,0.15);
         flex-shrink: 0;
       }
-      .aa-orb-wrap { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
-      .aa-avatar {
-        width: 40px; height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 2px solid #334155;
-        transition: all 0.4s ease;
+      .aa-orb-wrap { position: relative !important; width: 40px !important; height: 40px !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important; }
+      #aa-overlay .aa-avatar {
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        border: 2px solid #334155 !important;
+        transition: all 0.4s ease !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+        max-width: 40px !important;
+        min-width: 40px !important;
       }
       .aa-avatar.connecting { border-color: #7c3aed; animation: aa-orb-pulse 1.5s ease-in-out infinite; }
       .aa-avatar.active { border-color: #06b6d4; box-shadow: 0 0 12px rgba(6,182,212,0.5); }
@@ -996,60 +1002,47 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
   function scanPageSections() {
     PAGE_SECTIONS = [];
-    // Heuristique : trouver les sections via h1/h2/h3 et leur texte
+    let counter = 1;
+
+    // 1) Sections : tous les h1/h2/h3 visibles
     const headings = document.querySelectorAll("h1, h2, h3");
-    headings.forEach((h, idx) => {
-      const txt = (h.textContent || "").trim().toLowerCase();
+    headings.forEach((h) => {
+      const txt = (h.textContent || "").trim().replace(/\s+/g, " ");
       if (!txt || txt.length > 200) return;
-      // Trouver le conteneur "section" parent
-      let container = h;
-      for (let i = 0; i < 5; i++) {
-        if (container.parentElement && container.parentElement.tagName !== "BODY") {
-          container = container.parentElement;
-        } else break;
-      }
+      if (h.offsetParent === null) return; // invisible
+      const rect = h.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
       PAGE_SECTIONS.push({
-        id: "argo-sec-" + idx,
-        name: txt.slice(0, 80),
+        id: "sec_" + counter++,
+        name: txt,
         el: h,
-        container,
       });
     });
-    // Aussi capturer les boutons d'achat / liens externes vers le checkout
+
+    // 2) CTAs : boutons et liens d'achat
     const buttons = document.querySelectorAll("a, button");
-    buttons.forEach((b, idx) => {
-      const txt = (b.textContent || "").trim().toLowerCase();
+    const seen = new Set();
+    buttons.forEach((b) => {
+      const txt = (b.textContent || "").trim().replace(/\s+/g, " ");
       const href = (b.href || "").toLowerCase();
-      if (
-        txt.includes("rejoindre") || txt.includes("inscri") ||
-        txt.includes("accéder") || txt.includes("commander") ||
-        href.includes("checkout") || href.includes("offre") ||
-        txt.includes("99 €") || txt.includes("997 €")
-      ) {
-        PAGE_SECTIONS.push({
-          id: "argo-cta-" + idx,
-          name: "[CTA] " + txt.slice(0, 60),
-          el: b,
-          container: b,
-          isCTA: true,
-        });
-      }
+      if (!txt || txt.length < 4 || txt.length > 120) return;
+      if (seen.has(txt)) return;
+      const isCTA = /rejoindre|inscri|accéder|commander|abonne|sécuris|achat|je veux|partie du club/i.test(txt) ||
+                    /checkout|offre|order-form|abonnement/i.test(href);
+      if (!isCTA) return;
+      seen.add(txt);
+      PAGE_SECTIONS.push({
+        id: "cta_" + counter++,
+        name: "[BOUTON] " + txt,
+        el: b,
+        isCTA: true,
+      });
     });
-    console.log("[ARGO] Page scan: %d sections found", PAGE_SECTIONS.length);
+    console.log("[ARGO] Page scan: %d sections", PAGE_SECTIONS.length);
   }
 
-  function findSection(query) {
-    const q = (query || "").toLowerCase().trim();
-    if (!q) return null;
-    // Match exact d'abord
-    let m = PAGE_SECTIONS.find(s => s.name.toLowerCase() === q);
-    if (m) return m;
-    // Match par mots-clés (chaque mot du query doit être dans le nom)
-    const words = q.split(/\s+/).filter(w => w.length > 2);
-    m = PAGE_SECTIONS.find(s => words.every(w => s.name.toLowerCase().includes(w)));
-    if (m) return m;
-    // Match partiel
-    return PAGE_SECTIONS.find(s => s.name.toLowerCase().includes(q));
+  function findSectionById(id) {
+    return PAGE_SECTIONS.find(s => s.id === id);
   }
 
   function scrollToTarget(el, highlight = true) {
@@ -1079,21 +1072,21 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       functionDeclarations: [
         {
           name: "scroll_vers_section",
-          description: "Scroll smoothly la page du visiteur vers une section pertinente et la met en surbrillance. Utilise CET outil dès que tu mentionnes une partie spécifique de la page (prix, garantie, témoignage, expert, etc.). Le but : guider visuellement le prospect comme un vrai conseiller qui pointe quelque chose sur l'écran.",
+          description: "Scroll la page du visiteur vers une section EXACTE par son ID, et la met en surbrillance violette pendant 3 secondes. Utilise cet outil quand tu mentionnes une partie spécifique de la page pour guider visuellement le prospect. Tu DOIS utiliser un section_id qui existe dans la liste 'SECTIONS DISPONIBLES' fournie dans le contexte. N'invente JAMAIS un ID.",
           parameters: {
             type: "object",
             properties: {
-              section: {
+              section_id: {
                 type: "string",
-                description: "Mots-clés pour trouver la section. Exemples : 'prix', 'garantie 90 jours', 'damien martin', 'monnaie ia', 'témoignage', 'bouton achat'."
+                description: "ID exact d'une section de la liste fournie (ex: 'sec_3' ou 'cta_12'). Doit correspondre EXACTEMENT à un ID de la liste 'SECTIONS DISPONIBLES'."
               }
             },
-            required: ["section"]
+            required: ["section_id"]
           }
         },
         {
           name: "montrer_bouton_inscription",
-          description: "Scroll vers le bouton d'inscription/achat principal et le fait pulser pour attirer l'attention. À utiliser UNIQUEMENT quand le prospect est CHAUD ou PRÊT à acheter (jamais avant).",
+          description: "Scroll vers le premier bouton d'inscription/achat et le fait pulser en violet pendant 6 secondes pour attirer l'attention. À utiliser UNIQUEMENT quand le prospect est CHAUD ou dit qu'il veut acheter.",
           parameters: { type: "object", properties: {} }
         }
       ]
@@ -1101,14 +1094,19 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
   }
 
   function executeToolCall(name, args) {
-    console.log("[ARGO] Tool call:", name, args);
+    console.log("[ARGO] 🎯 Tool call:", name, args);
     if (name === "scroll_vers_section") {
-      const sec = findSection(args.section);
+      const sec = findSectionById(args.section_id);
       if (sec) {
         scrollToTarget(sec.el);
         return { success: true, scrolled_to: sec.name };
       }
-      return { success: false, error: "Section non trouvée", available_sections: PAGE_SECTIONS.slice(0, 10).map(s => s.name) };
+      console.warn("[ARGO] Section ID not found:", args.section_id);
+      return {
+        success: false,
+        error: "ID '" + args.section_id + "' inexistant",
+        valid_ids: PAGE_SECTIONS.map(s => s.id).slice(0, 20),
+      };
     }
     if (name === "montrer_bouton_inscription") {
       const ok = pulseCTA();
@@ -1132,15 +1130,17 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
     showTyping();
 
-    // Construire le system prompt avec : brief IA de la page + sections
-    const sectionsList = PAGE_SECTIONS.slice(0, 25).map(s => "- " + s.name).join("\n");
+    // Construire le system prompt avec : brief IA de la page + sections numérotées
+    const sectionsList = PAGE_SECTIONS
+      .map(s => `  ${s.id} → "${s.name}"`)
+      .join("\n");
     const dynamicPrompt = SYSTEM_INSTRUCTION +
       buildPageContextForPrompt() +
       "\n\n═══════════════════════════════════════════════════════════\n" +
-      "SECTIONS DISPONIBLES SUR LA PAGE DU VISITEUR :\n" +
+      "SECTIONS DISPONIBLES SUR LA PAGE (utilise l'ID EXACT)\n" +
       "═══════════════════════════════════════════════════════════\n" +
       (sectionsList || "(aucune section détectée)") +
-      "\n\nQuand tu parles d'un de ces sujets, utilise l'outil `scroll_vers_section` pour amener visuellement le prospect au bon endroit. C'est puissant pour la conversion.";
+      "\n\nQuand tu mentionnes un sujet présent sur la page, appelle scroll_vers_section avec l'ID EXACT (ex: section_id='sec_5'). Ne devine PAS, prends l'ID de la liste ci-dessus. Si aucune section ne correspond à ce dont tu parles, n'appelle PAS l'outil — réponds simplement en texte.";
 
     try {
       // Boucle pour gérer les tool calls (max 3 tours)
