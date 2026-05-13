@@ -1407,29 +1407,37 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
     const dynamicPrompt = SYSTEM_INSTRUCTION +
       buildPageContextForPrompt() +
       "\n\n═══════════════════════════════════════════════════════════\n" +
-      "TABLE DES MATIÈRES COMPLÈTE DE LA PAGE (avec IDs précis)\n" +
+      "🖼 TU PILOTES L'ÉCRAN DU VISITEUR (CAPACITÉ TRÈS PUISSANTE)\n" +
+      "═══════════════════════════════════════════════════════════\n\n" +
+      "Tu as la capacité de scroller la page du visiteur et de surligner visuellement la section pertinente. " +
+      "Comme un vrai conseiller qui pointe du doigt. ANNONCE-LE pour que le visiteur regarde son écran.\n\n" +
+      "Phrases d'annonce naturelles :\n" +
+      "- 'Comme je peux vous le montrer à l'écran...'\n" +
+      "- 'Regardez juste là, vous voyez ?'\n" +
+      "- 'Si vous voulez, je vous montre où ça se situe sur la page'\n" +
+      "- 'Tenez, regardez ce passage 👇'\n" +
+      "- 'Là, sous vos yeux...'\n\n" +
+      "PROCÉDURE : annonce verbale → tu appelles scroll_vers_section avec l'ID EXACT → le visiteur voit le scroll + surbrillance violette + badge '👇 ICI'.\n\n" +
+      "═══════════════════════════════════════════════════════════\n" +
+      "TABLE DES MATIÈRES COMPLÈTE DE LA PAGE\n" +
       "═══════════════════════════════════════════════════════════\n\n" +
       "PRÉFIXES :\n" +
-      "  sec_X  = titre de section (h1/h2/h3/h4)\n" +
-      "  para_X = paragraphe contenant un chiffre / pourcentage / prix important\n" +
+      "  sec_X       = titre de section\n" +
+      "  para_X      = paragraphe avec chiffre / % / €\n" +
       "  highlight_X = passage surligné en jaune (★ phrase punch)\n" +
-      "  img_X  = image clé (graphique, schéma, photo)\n" +
-      "  cta_X  = bouton d'inscription/achat\n\n" +
-      "LISTE :\n" +
+      "  img_X       = image clé\n" +
+      "  cta_X       = bouton d'inscription/achat\n\n" +
+      "LISTE (IDs à utiliser tels quels) :\n" +
       (sectionsList || "(aucun élément détecté)") +
-      "\n\n═══════════════════════════════════════════════════════════\n" +
-      "COMMENT UTILISER scroll_vers_section\n" +
-      "═══════════════════════════════════════════════════════════\n\n" +
-      "RÈGLES STRICTES :\n" +
-      "1. Tu DOIS prendre l'ID EXACT de la liste ci-dessus (ex: 'para_12', 'highlight_5', 'cta_28').\n" +
-      "2. Tu peux scroller vers le passage le PLUS PRÉCIS, pas seulement un titre. Ex : si on te demande le potentiel de gain, scroll sur le passage 'para_X' qui contient '+1500%' ou 'X16', pas juste le titre général.\n" +
-      "3. Si aucun ID ne correspond précisément à ce dont tu parles, n'appelle PAS l'outil — réponds juste en texte.\n" +
-      "4. Tu peux appeler l'outil 1 fois par réponse, après avoir donné ta réponse texte (ou avant).\n" +
-      "5. Privilégie les `para_X` ou `highlight_X` plus précis aux `sec_X` génériques quand c'est pertinent.\n\n" +
+      "\n\nRÈGLES STRICTES :\n" +
+      "1. ID EXACT de la liste ci-dessus, jamais inventé.\n" +
+      "2. Privilégie le passage le PLUS PRÉCIS (para_X / highlight_X) plutôt que le titre général.\n" +
+      "3. Si aucun ID ne colle, ne scroll pas, réponds juste en texte.\n" +
+      "4. Maximum 1 appel par réponse.\n\n" +
       "EXEMPLES :\n" +
-      "- Visiteur : 'C'est combien ?' → tu réponds + scroll sur le `para_X` qui contient '997 €' ou le `cta_X` de prix.\n" +
-      "- Visiteur : 'Damien a fait combien sur Ethereum ?' → tu réponds '+20 000 %' + scroll sur le `para_X` qui le mentionne.\n" +
-      "- Visiteur : 'Comment marche la garantie ?' → scroll sur `sec_X` 'GARANTIE SATISFACTION #1' ou le `para_X` qui détaille les 90 jours.";
+      "- 'C'est combien ?' → 'Le prix anniversaire est à 997 € par an, regardez juste là 👇' + scroll sur cta_X du prix\n" +
+      "- 'Qui est Damien ?' → 'Damien est l'expert qui a fait +20 000 % sur Ethereum, je vous montre son parcours' + scroll sur para_X de Damien\n" +
+      "- 'Comment marche la garantie ?' → 'La garantie 90 jours est expliquée juste ici à l'écran' + scroll sur sec_X 'GARANTIE'";
 
     try {
       // Boucle pour gérer les tool calls (max 3 tours)
@@ -1577,20 +1585,30 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
     ws.onopen = () => {
       console.log("[ARGO] ✅ WebSocket OPEN. Sending setup. Model:", LIVE_MODEL);
-      // Construire le prompt enrichi avec la table des matières
+      // Prompt vocal enrichi : table des matières + capacité visuelle annoncée
       const sectionsList = PAGE_SECTIONS
         .map(s => `  ${s.id} → "${s.name}"`)
         .join("\n");
       const fullPrompt = SYSTEM_INSTRUCTION +
         buildPageContextForPrompt() +
         "\n\n═══════════════════════════════════════════════════════════\n" +
-        "TABLE DES MATIÈRES DE LA PAGE (utilise les IDs avec scroll_vers_section)\n" +
+        "🖼 TU PILOTES L'ÉCRAN DU VISITEUR (CAPACITÉ TRÈS PUISSANTE)\n" +
         "═══════════════════════════════════════════════════════════\n\n" +
-        "PRÉFIXES :\n" +
-        "  sec_X / para_X / highlight_X / img_X / cta_X\n\n" +
-        "LISTE :\n" +
-        (sectionsList || "(aucun élément détecté)") +
-        "\n\nIMPORTANT EN MODE VOCAL : utilise scroll_vers_section EN PARALLÈLE de ta parole pour guider visuellement le visiteur. Annonce-le : 'Regardez juste là...' puis appelle l'outil. Cela rend l'expérience vivante.";
+        "Tu as la capacité unique de scroller la page du visiteur et de surligner visuellement la section pertinente. " +
+        "Comme un vrai conseiller qui pointe du doigt. Utilise cet outil systématiquement quand tu parles d'une partie précise de la page.\n\n" +
+        "ANNONCE-LE EXPLICITEMENT pour que le visiteur regarde son écran. Phrases types :\n" +
+        "- 'Comme je vous le montre à l'écran...'\n" +
+        "- 'Regardez juste là, vous voyez ?'\n" +
+        "- 'Tenez, je vous le pointe sur la page'\n" +
+        "- 'Si vous regardez votre écran, vous verrez...'\n" +
+        "- 'Là, juste sous vos yeux...'\n\n" +
+        "PROCÉDURE :\n" +
+        "1. Annonce verbale ('Regardez juste là, le prix anniversaire...')\n" +
+        "2. Tu appelles scroll_vers_section avec l'ID EXACT (ex: 'cta_28')\n" +
+        "3. Le visiteur voit la page scroller + surbrillance violette + badge '👇 ICI'\n\n" +
+        "TABLE DES MATIÈRES DE LA PAGE (IDs précis à utiliser) :\n" +
+        (sectionsList || "(aucun)") +
+        "\n\nN'invente JAMAIS un ID. Si rien ne correspond, ne scroll pas, contente-toi du texte.";
 
       const setupMsg = {
         setup: {
@@ -1637,24 +1655,26 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
         $status.textContent = "Erreur: " + (data.error.message || "Gemini");
       }
 
-      // 🎯 TOOL CALLS pendant l'appel vocal — l'agent contrôle la page en live
+      // 🎯 TOOL CALLS pendant l'appel vocal — réponse IMMÉDIATE (model 3.1 sync)
       if (data.toolCall && data.toolCall.functionCalls) {
-        console.log("[ARGO] 🎙️🎯 Tool call(s) reçus en vocal:", JSON.stringify(data.toolCall.functionCalls));
-        const responses = [];
-        for (const fc of data.toolCall.functionCalls) {
+        console.log("[ARGO] 🎙️🎯 Tool call(s):", JSON.stringify(data.toolCall.functionCalls));
+        const functionResponses = data.toolCall.functionCalls.map(fc => {
+          if (!fc.id) console.warn("[ARGO] ⚠️ Tool call sans id, hang possible:", fc);
           const result = executeToolCall(fc.name, fc.args || {});
-          const respObj = { id: fc.id, name: fc.name, response: { result: "ok", ...result } };
-          // id est obligatoire selon la doc Live — on log si manquant
-          if (!fc.id) console.warn("[ARGO] ⚠️ Function call sans id, Gemini risque d'attendre indéfiniment:", fc);
-          responses.push(respObj);
-        }
-        const payload = { toolResponse: { functionResponses: responses } };
-        console.log("[ARGO] 📤 Envoi toolResponse:", JSON.stringify(payload));
+          // Format strict de la doc Gemini Live :
+          // {id, name, response: {result: ...}} — response DOIT être un object plat
+          return {
+            id: fc.id,
+            name: fc.name,
+            response: { result: result.success ? (result.scrolled_to || "ok") : (result.error || "fail") },
+          };
+        });
+        const payload = { toolResponse: { functionResponses } };
+        console.log("[ARGO] 📤 toolResponse:", JSON.stringify(payload));
         ws.send(JSON.stringify(payload));
       }
-      // Aussi : tool cancel — l'agent a annulé sa requête
       if (data.toolCallCancellation) {
-        console.log("[ARGO] 🚫 Tool call annulé par Gemini:", data.toolCallCancellation);
+        console.log("[ARGO] 🚫 toolCallCancellation:", data.toolCallCancellation);
       }
 
       const sc = data.serverContent;
