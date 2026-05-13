@@ -1474,6 +1474,21 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
     ws.onopen = () => {
       console.log("[ARGO] ✅ WebSocket OPEN. Sending setup. Model:", LIVE_MODEL);
+      // Construire le prompt enrichi avec la table des matières
+      const sectionsList = PAGE_SECTIONS
+        .map(s => `  ${s.id} → "${s.name}"`)
+        .join("\n");
+      const fullPrompt = SYSTEM_INSTRUCTION +
+        buildPageContextForPrompt() +
+        "\n\n═══════════════════════════════════════════════════════════\n" +
+        "TABLE DES MATIÈRES DE LA PAGE (utilise les IDs avec scroll_vers_section)\n" +
+        "═══════════════════════════════════════════════════════════\n\n" +
+        "PRÉFIXES :\n" +
+        "  sec_X / para_X / highlight_X / img_X / cta_X\n\n" +
+        "LISTE :\n" +
+        (sectionsList || "(aucun élément détecté)") +
+        "\n\nIMPORTANT EN MODE VOCAL : utilise scroll_vers_section EN PARALLÈLE de ta parole pour guider visuellement le visiteur. Annonce-le : 'Regardez juste là...' puis appelle l'outil. Cela rend l'expérience vivante.";
+
       const setupMsg = {
         setup: {
           model: `models/${LIVE_MODEL}`,
@@ -1484,12 +1499,13 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
               languageCode: "fr-FR",
             },
           },
-          systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+          systemInstruction: { parts: [{ text: fullPrompt }] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          tools: getToolsForGemini(),
         },
       };
-      console.log("[ARGO] Setup payload size:", JSON.stringify(setupMsg).length, "chars");
+      console.log("[ARGO] Setup payload size:", JSON.stringify(setupMsg).length, "chars, tools:", getToolsForGemini()[0].functionDeclarations.length);
       ws.send(JSON.stringify(setupMsg));
     };
 
@@ -1516,6 +1532,23 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
       if (data.error) {
         console.error("[ARGO] ❌ Gemini error:", JSON.stringify(data.error));
         $status.textContent = "Erreur: " + (data.error.message || "Gemini");
+      }
+
+      // 🎯 TOOL CALLS pendant l'appel vocal — l'agent contrôle la page en live
+      if (data.toolCall && data.toolCall.functionCalls) {
+        console.log("[ARGO] 🎙️🎯 Tool call(s) reçus en vocal:", data.toolCall.functionCalls.length);
+        const responses = [];
+        for (const fc of data.toolCall.functionCalls) {
+          const result = executeToolCall(fc.name, fc.args || {});
+          responses.push({
+            id: fc.id,
+            name: fc.name,
+            response: { output: result },
+          });
+        }
+        ws.send(JSON.stringify({
+          toolResponse: { functionResponses: responses },
+        }));
       }
 
       const sc = data.serverContent;
@@ -1615,6 +1648,12 @@ Si la page parle bien de la Monnaie de l'IA / Swiss Crypto Club :
 
     $orb.className = "aa-avatar connecting";
     $status.textContent = "Connexion en cours...";
+
+    // S'assurer que les sections sont scannées (utiles pour les tool calls vocaux)
+    if (PAGE_SECTIONS.length === 0) {
+      console.log("[ARGO] Scanning page sections for voice tools...");
+      scanPageSections();
+    }
 
     // Fetch a FRESH token — the previous one was consumed by text mode
     console.log("[ARGO] Fetching fresh token from", TOKEN_ENDPOINT);
