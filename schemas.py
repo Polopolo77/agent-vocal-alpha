@@ -197,6 +197,14 @@ class CoachOutput(BaseModel):
 def _parse_capital_for_validator(raw: object) -> float | None:
     """Parse robuste du capital dans le model_validator (duplique simple du
     helper prompts._parse_capital_amount pour eviter import circulaire)."""
+    # Delegue a prompts._parse_capital_amount (SOURCE UNIQUE de verite) pour
+    # eviter la divergence avec le serveur/frontend sur la decision de tier.
+    # Import paresseux : pas de cycle (prompts n'importe pas schemas).
+    try:
+        from prompts import _parse_capital_amount as _pca
+        return _pca(raw)
+    except Exception:
+        pass
     if raw is None:
         return None
     if isinstance(raw, (int, float)):

@@ -24,7 +24,7 @@ DEFAULT_AGENT_NAME = "Argos"
 # BASE AGENT PROMPT — Universel multi-produits
 # =============================================================================
 
-BASE_AGENT_PROMPT = """# LES 13 RÈGLES QUE TU NE VIOLES JAMAIS (lis ça en premier)
+BASE_AGENT_PROMPT = """# LES 15 RÈGLES QUE TU NE VIOLES JAMAIS (lis ça en premier)
 
 1. **JAMAIS de prix avant d'avoir raconté l'OPPORTUNITÉ concrète.** Tu dois avoir fait les étapes 6a + 6b + 6c (voir plus bas) AVANT de mentionner un montant en euros. Si tu n'as pas encore expliqué le CONTEXTE MACRO + la SOLUTION CONCRÈTE + le BONUS → tu n'as PAS le droit de parler du prix.
 
@@ -51,7 +51,7 @@ BASE_AGENT_PROMPT = """# LES 13 RÈGLES QUE TU NE VIOLES JAMAIS (lis ça en prem
    - Tu repars du DERNIER message audio du prospect, point.
 
 8. **COHÉRENCE PROFIL → ANGLE (verrou absolu).** Tu déduis l'angle de vente UNIQUEMENT du besoin exprimé par le prospect, JAMAIS du lead magnet par défaut :
-   - Le prospect a dit "projet", "apport", "appartement", "acheter", "doubler", "multiplier", "faire grossir", "passer de X à Y€" → **ANGLE = CROISSANCE/PERFORMANCE.** INTERDIT de parler de : Bouclier Suisse, sécurisation, protection d'épargne, inflation, dette française, banques centrales. Tu parles UNIQUEMENT de : opportunités concrètes, actions qui ont fait +X%, experts qui ont trouvé les pépites, multiplier le capital, croissance.
+   - Le prospect a dit "projet", "apport", "appartement", "acheter", "doubler", "multiplier", "faire grossir" → **ANGLE = CROISSANCE/PERFORMANCE.** INTERDIT de parler de : Bouclier Suisse, sécurisation, protection d'épargne, inflation, dette française, banques centrales. Tu parles UNIQUEMENT de : opportunités concrètes, actions qui ont réalisé de fortes performances (chiffres réels via le briefing, jamais inventés ni approximés), experts qui ont trouvé les pépites, multiplier le capital, croissance.
    - Le prospect a dit "protéger", "sécuriser", "inflation", "j'ai peur de perdre", "livret A", "préserver" → **ANGLE = SÉCURITÉ.** Là tu peux parler du Bouclier Suisse, de l'inflation, de la dette.
    - Le prospect a dit "IA", "automatisation", "algorithme", "robot", "tech" → **ANGLE = DISRUPTION TECH.**
    - Le prospect a dit "crypto", "Bitcoin", "gains rapides" → **ANGLE = ASYMÉTRIE.**
@@ -76,6 +76,10 @@ BASE_AGENT_PROMPT = """# LES 13 RÈGLES QUE TU NE VIOLES JAMAIS (lis ça en prem
    - Si le prospect répond de façon ambiguë ("hmm", silence, objection), le coach va te renvoyer la **même phase** au prochain briefing — ce qui veut dire "reste là, insiste, rassure, n'avance pas". Tu respectes.
 
    **Ce verrou existe parce que Gemini Live a tendance à empiler opportunité + service + preuves + bonus + prix en un seul méga-message → le prospect perd le fil et ne ressent aucune bascule émotionnelle.** Le PHASE_LOCK garantit une cadence humaine : une idée, une pause, le prospect répond, tu avances.
+
+14. **ZÉRO PLACEHOLDER À VOIX HAUTE.** Tu ne prononces JAMAIS un trou de script : « X% », « X pour cent », « Y euros », « tel pourcentage », « un certain rendement ». Si tu n'as pas de chiffre réel autorisé (via `obtenir_briefing`), tu restes QUALITATIF : « des performances remarquables », « bien au-dessus d'un livret », « plusieurs positions multipliées par plus de dix » — sans inventer de nombre. Entendre « X pour cent » dans ta bouche détruit instantanément ta crédibilité.
+
+15. **NE TOURNE JAMAIS EN ROND.** Chaque message apporte du NOUVEAU et du CONCRET (un fait, un chiffre réel, un exemple précis, un nom) — JAMAIS une reformulation de ce que tu as déjà dit (« dividendes attractifs et réguliers », « approche concrète », « fort potentiel »…). Tu ne demandes la permission de continuer qu'UNE seule fois : si le prospect a déjà dit « oui » / « dis-moi » / « vas-y », tu LIVRES immédiatement le contenu concret de la phase en cours — tu ne re-demandes PAS « voulez-vous que je vous en dise plus ? ». Une phase = une vraie information délivrée, pas une nouvelle promesse de la délivrer.
 
 # IDENTITÉ
 
@@ -491,6 +495,8 @@ def build_catalog_overlay(registry: ProductsRegistry) -> str:
             year = w.get("year") or w.get("entry_year")
             multi = w.get("multiple")
             pct = w.get("return_pct")
+            if pct is None:
+                pct = w.get("gain_pct")  # certains configs (or/uranium) utilisent gain_pct
             parts = []
             if multi and pct:
                 parts.append(f"{multi} = +{pct}%")
@@ -1186,19 +1192,23 @@ def build_briefing_from_cache(
     target_product_id: str | None = None
     if coach_cache_entry and coach_cache_entry.get("directive"):
         d = coach_cache_entry["directive"]
-        disc = d.get("profil_disc", {})
-        emot = d.get("etat_emotionnel", {})
-        prod = d.get("produit", {})
-        obj = d.get("objections", {})
-        mem = d.get("memoire", {})
-        dir_ = d.get("directive_prochain_tour", {})
-        dp = d.get("directive_phase", {}) or {}
+        # `or {}` : le coach met ces sous-objets à null aux tours 1-4 (confiance
+        # < 30). `.get(k, {})` renverrait None (la clé EXISTE) -> .get() crashe.
+        disc = d.get("profil_disc") or {}
+        emot = d.get("etat_emotionnel") or {}
+        prod = d.get("produit") or {}
+        obj = d.get("objections") or {}
+        mem = d.get("memoire") or {}
+        dir_ = d.get("directive_prochain_tour") or {}
+        dp = d.get("directive_phase") or {}
 
+        # `or 0` : axes DISC nullables (Optional[int]=None) -> max() sur None crashe
+        # (cassait obtenir_briefing en 500 sur tout le début d'appel).
         scores = {
-            "Dominant": disc.get("dominant", 0),
-            "Influent": disc.get("influent", 0),
-            "Stable": disc.get("stable", 0),
-            "Consciencieux": disc.get("consciencieux", 0),
+            "Dominant": disc.get("dominant") or 0,
+            "Influent": disc.get("influent") or 0,
+            "Stable": disc.get("stable") or 0,
+            "Consciencieux": disc.get("consciencieux") or 0,
         }
         dom = max(scores, key=scores.get) if max(scores.values()) > 0 else "inconnu"
 
@@ -1365,59 +1375,80 @@ def build_briefing_from_cache(
 
 
 def _parse_capital_amount(raw: object) -> float | None:
-    """Parse '100 000 €' / '100K' / '1,5 M€' -> float. Returns None si non parseable.
-
-    Aligne sur le helper JS frontend (getRecommendedTierAndUrl) pour qu'UI et
-    serveur prennent la meme decision de tier sur le meme prospect.
-    """
+    """Parse le capital tel que le LLM l'emet vraiment : '200 000 EUR', '2 millions',
+    '1,5 million', '100k', 'environ 200000', '15 000 a 20 000' (borne basse),
+    int/float bruts. None si aucun nombre. Aligne sur le helper JS frontend et
+    schemas._parse_capital_for_validator (le verrou tier B >50k doit voir le meme
+    montant aux 3 endroits)."""
+    import re as _re
     if raw is None:
         return None
     if isinstance(raw, (int, float)):
-        return float(raw) if raw == raw and raw != float("inf") else None
-    s = str(raw).lower().replace(" ", "").replace("\u00a0", "")
-    s = s.replace("€", "").replace("euros", "").replace("euro", "")
-    multiplier = 1.0
-    if "m" in s:
-        multiplier = 1_000_000.0
-        s = s.replace("m", "")
-    elif "k" in s:
-        multiplier = 1_000.0
-        s = s.replace("k", "")
-    s = s.replace(",", ".").strip()
-    try:
-        return float(s) * multiplier
-    except (ValueError, TypeError):
+        f = float(raw)
+        return f if (f == f and f not in (float("inf"), float("-inf"))) else None
+    s = str(raw).lower()
+    # Multiplicateur — UNIQUEMENT colle a un nombre (evite 'montant moyen' -> 1e6).
+    mult = 1.0
+    if _re.search(r"\bmilliards?\b", s):
+        mult = 1_000_000_000.0
+    elif _re.search(r"\bmillions?\b", s) or _re.search(r"\d\s*m\b", s):
+        mult = 1_000_000.0
+    elif _re.search(r"\d\s*k\b", s):
+        mult = 1_000.0
+    m = _re.search(r"\d[\d\s.,]*\d|\d", s)
+    if not m:
         return None
+    tok = m.group(0)
+    if mult > 1.0:
+        # petit nombre : virgule = decimale (1,5 million / 100k)
+        try:
+            val = float(_re.sub(r"\s", "", tok).replace(",", "."))
+        except ValueError:
+            digits = _re.sub(r"\D", "", tok)
+            if not digits:
+                return None
+            val = float(digits)
+    else:
+        # pas de multiplicateur -> espaces/points = separateurs de milliers
+        digits = _re.sub(r"\D", "", tok)
+        if not digits:
+            return None
+        val = float(digits)
+    return val * mult
 
 
 def _extract_numbers_from_sources(sources: list[dict]) -> list[str]:
     """
-    Récupère les chiffres/multiples/pourcentages présents dans les excerpts.
+    Recupere les chiffres/multiples/pourcentages presents dans les excerpts.
     Sert de whitelist pour Argos — il ne peut citer QUE ces chiffres.
 
-    Matche : "+548%", "x475", "+8 900%", "1 000$", "47 400%", "1999", "2024".
-    Dé-dup, max 25 éléments, ordre de première apparition.
+    UNE seule regex a alternatives ordonnees (du plus specifique au plus court) +
+    finditer non-recouvrant -> plus de bout partiel ('900%' depuis '8 900%') ni de
+    faux multiple ('x149' depuis 'Prix 149 EUR'). \\s couvre l'espace insecable des
+    lettres. De-dup, max 25, ordre d'apparition.
     """
     import re as _re
     if not sources:
         return []
     big_text = " ".join(s.get("excerpt", "") for s in sources)
-    patterns = [
-        r"[+\-]?\d{1,3}(?:[\s\u00a0]\d{3})+(?:[,\.]\d+)?\s*%?",  # "+47 400%", "1 000"
-        r"[+\-]?\d+[,\.]\d+\s*%",                                  # "12.5%"
-        r"[+\-]?\d+\s*%",                                          # "+548%"
-        r"x\s*\d+",                                                # "x475"
-        r"\b\d{4}\b",                                              # années
-        r"\b\d+\s*(?:€|euros?|\$|dollars?)",                       # "149€"
-    ]
-    seen = []
-    for pat in patterns:
-        for m in _re.finditer(pat, big_text, flags=_re.IGNORECASE):
-            val = m.group(0).strip()
-            if val not in seen:
-                seen.append(val)
-            if len(seen) >= 25:
-                return seen
+    pattern = _re.compile(
+        r"[+\-]?\d{1,3}(?:\s\d{3})+(?:[.,]\d+)?\s*%"
+        r"|[+\-]?\d{1,3}(?:\s\d{3})+\s*(?:€|\$|euros?|dollars?)"
+        r"|[+\-]?\d+[.,]\d+\s*%"
+        r"|[+\-]?\d+\s*%"
+        r"|\bx\s?\d+"
+        r"|\b\d+\s*(?:€|\$|euros?|dollars?)"
+        r"|[+\-]?\d{1,3}(?:\s\d{3})+"
+        r"|\b\d{4}\b",
+        _re.IGNORECASE,
+    )
+    seen: list[str] = []
+    for m in pattern.finditer(big_text):
+        val = m.group(0).strip()
+        if val and val not in seen:
+            seen.append(val)
+        if len(seen) >= 25:
+            break
     return seen
 
 
@@ -1472,7 +1503,7 @@ def _guess_product_from_query(query: str) -> str | None:
     # Ordre : spécifique → générique
     if any(k in q for k in ["tilson", "actions gagnantes", "bouclier suisse", "aga", "actions value"]):
         return "argo_actions"
-    if any(k in q for k in ["wade", "engel", "profits asymétriques", "psa", "fin du travail", "asymétrie", "asymetrie"]):
+    if any(k in q for k in ["wade", "engel", "profits asymétriques", "psa", "fin du travail", "asymétrie", "asymetrie", "crypto", "bitcoin", "btc", "altcoin", "blockchain", "token"]):
         return "argo_crypto"
     if any(k in q for k in ["stansberry score", "agent alpha", "projet alpha", "simons", "renaissance technologies", "russell 1000"]):
         return "argo_alpha"

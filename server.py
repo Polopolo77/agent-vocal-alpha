@@ -142,7 +142,9 @@ def _cleanup_coach_cache() -> None:
             if (now - ts).total_seconds() > COACH_CACHE_TTL_SECONDS:
                 stale.append(sid)
         except Exception:
-            stale.append(sid)
+            # Timestamp illisible -> on GARDE l'entree (ne pas evincer le
+            # PHASE_LOCK/coach en plein closing pour une erreur de parsing).
+            continue
     for sid in stale:
         coach_cache.pop(sid, None)
     if stale:
@@ -364,7 +366,10 @@ def _require_valid_session(request: web.Request, session_id: str) -> bool:
     En mode legacy (session non enregistrée), on accepte silencieusement
     pour ne pas casser les clients qui génèrent leur propre ID.
     """
-    if not session_id:
+    # "default" = client qui n'a pas demande de session (legacy/widget). On le
+    # traite comme "pas de session", sinon il se fait 403 des qu'UNE vraie session
+    # existe sur le process (coach/briefing cassaient pour ces clients).
+    if not session_id or session_id == "default":
         return True
     # Si aucune session enregistrée sur ce process, mode dégradé
     if not _valid_sessions:
@@ -530,15 +535,17 @@ async def handle_strategist(request: web.Request) -> web.Response:
             coach_output = coach_parsed.model_dump(mode="json")
         except Exception as parse_err:
             log.warning("Coach schema/parse error: %s", parse_err)
-            log.warning("Raw output: %s", response.text[:500])
-            # Fallback : json.loads brut si le schema strict echoue
+            log.warning("Raw output: %s", (response.text or "")[:500])
+            # Fallback : json.loads brut si le schema strict echoue. response.text
+            # peut etre None (candidat bloque/vide) -> on garde-fou.
             try:
-                coach_output = json.loads(response.text)
+                coach_output = json.loads(response.text or "")
             except Exception:
-                return web.json_response(
-                    {"error": "invalid_json_from_coach", "raw": response.text[:500]},
-                    status=500,
-                )
+                return web.json_response({"error": "invalid_json_from_coach"}, status=500)
+            # Le fallback peut produire une liste/str (JSON valide mais pas un objet)
+            # -> les .get() plus bas crasheraient. On exige un dict.
+            if not isinstance(coach_output, dict):
+                return web.json_response({"error": "invalid_json_from_coach"}, status=500)
 
         prod = coach_output.get("produit", {}) or {}
         log.info(
@@ -550,7 +557,7 @@ async def handle_strategist(request: web.Request) -> web.Response:
             _tokens_in,
             _tokens_out,
             coach_output.get("archetype_detecte"),
-            coach_output.get("etat_emotionnel", {}).get("chaleur"),
+            (coach_output.get("etat_emotionnel") or {}).get("chaleur"),
             prod.get("recommande"),
             prod.get("tier_recommande"),
             prod.get("certitude"),
@@ -564,9 +571,9 @@ async def handle_strategist(request: web.Request) -> web.Response:
         }
 
         return web.json_response(coach_output)
-    except Exception as e:
+    except Exception:
         log.exception("Coach error")
-        return web.json_response({"error": str(e)}, status=500)
+        return web.json_response({"error": "internal_error"}, status=500)
 
 
 async def handle_ui_dossier(request: web.Request) -> web.Response:
@@ -829,6 +836,10 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
                 return web.json_response({"card": None})
 
         card = result.get("card") if isinstance(result, dict) else None
+        # Carte non-dict (LLM a mis une string/liste) -> on annule, sinon les
+        # verrous (.get) crasheraient et la carte contournerait les garde-fous.
+        if card is not None and not isinstance(card, dict):
+            card = None
 
         # VERROU SERVEUR #1 : cross-produit par image_key. Une meme usage_card
         # peut appartenir a PLUSIEURS produits (ex: authority_tilson sur actions
@@ -945,7 +956,7 @@ async def handle_briefing(request: web.Request) -> web.Response:
         return web.json_response(briefing)
     except Exception as e:
         log.exception("Briefing error")
-        return web.json_response({"error": str(e)}, status=500)
+        return web.json_response({"error": "internal_error"}, status=500)
 
 
 async def handle_save_conversation(request: web.Request) -> web.Response:
@@ -1053,7 +1064,7 @@ async def handle_save_conversation(request: web.Request) -> web.Response:
         return web.json_response({"status": "saved", "id": cid})
     except Exception as e:
         log.exception("Save conversation error")
-        return web.json_response({"error": str(e)}, status=500)
+        return web.json_response({"error": "internal_error"}, status=500)
 
 
 # =============================================================================
@@ -1129,8 +1140,8 @@ async def handle_market(request: web.Request) -> web.Response:
     except Exception as e:
         log.exception("Market fetch error")
         if cached:
-            return web.json_response({"data": cached, "cached": True, "stale": True, "error": str(e)})
-        return web.json_response({"data": {}, "error": str(e)}, status=500)
+            return web.json_response({"data": cached, "cached": True, "stale": True, "error": "market_fetch_failed"})
+        return web.json_response({"data": {}, "error": "internal_error"}, status=500)
 
 
 async def handle_list_conversations(request: web.Request) -> web.Response:
@@ -1275,7 +1286,7 @@ async def handle_assistant_argo_prompt(request: web.Request) -> web.Response:
             _ASSISTANT_ARGO_PROMPT_CACHE = path.read_text(encoding="utf-8")
         except Exception as e:
             log.exception("Failed to load assistant-argo prompt")
-            return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"error": "internal_error"}, status=500)
     return web.json_response({"prompt": _ASSISTANT_ARGO_PROMPT_CACHE})
 
 
