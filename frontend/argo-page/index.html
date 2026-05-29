@@ -2131,7 +2131,7 @@
   function checkEndOfCall(text, fromRole) {
     if (endCallDetected) return;
     if (!text) return;
-    const t = text.toLowerCase();
+    const t = text.replace(/’/g, "'").toLowerCase();  // apostrophe courbe -> droite
     for (let i = 0; i < END_CALL_PATTERNS.length; i++) {
       if (END_CALL_PATTERNS[i].test(t)) {
         endCallDetected = true;
@@ -2473,6 +2473,7 @@
   function showSmartCard(cardData, opts) {
     opts = opts || {};
     if (!cardData) return;
+    if (!state.isConnected) return;  // pas de carte hors appel (timer/fetch en vol après raccrochage)
 
     // Clé unique de la carte (respecte cardData.key si fourni → glossaire, etc.)
     let key;
@@ -2731,14 +2732,28 @@
   function parseCapitalAmount(str) {
     if (str == null) return null;
     if (typeof str === "number") return isFinite(str) ? str : null;
-    let s = String(str).toLowerCase().replace(/\s/g, "").replace(/€/g, "").replace(/euros?/g, "");
-    let multiplier = 1;
-    if (/m/.test(s)) { multiplier = 1000000; s = s.replace(/m/g, ""); }
-    else if (/k/.test(s)) { multiplier = 1000; s = s.replace(/k/g, ""); }
-    s = s.replace(",", ".");
-    const num = parseFloat(s);
-    if (!isFinite(num)) return null;
-    return num * multiplier;
+    var s = String(str).toLowerCase();
+    // Multiplicateur UNIQUEMENT collé à un nombre (évite "montant moyen" -> 1e6).
+    // Gère "2 millions", "1,5 million", "100k", "environ 200000", "15 000 à 20 000".
+    // \s couvre l'espace insécable. Aligné sur prompts._parse_capital_amount.
+    var mult = 1;
+    if (/\bmilliards?\b/.test(s)) mult = 1000000000;
+    else if (/\bmillions?\b/.test(s) || /\d\s*m\b/.test(s)) mult = 1000000;
+    else if (/\d\s*k\b/.test(s)) mult = 1000;
+    var m = s.match(/\d[\d\s.,]*\d|\d/);
+    if (!m) return null;
+    var tok = m[0];
+    var val;
+    if (mult > 1) {
+      val = parseFloat(tok.replace(/\s/g, "").replace(",", "."));
+      if (!isFinite(val)) { var d = tok.replace(/\D/g, ""); if (!d) return null; val = parseFloat(d); }
+    } else {
+      var digits = tok.replace(/\D/g, "");
+      if (!digits) return null;
+      val = parseFloat(digits);
+    }
+    if (!isFinite(val)) return null;
+    return val * mult;
   }
 
   // Helper : récupère l'offre (tier) recommandée + son URL de checkout.
@@ -3019,6 +3034,7 @@
   function checkBuyIntent(text, fromRole) {
     if (buyIntentTriggered) return;
     if (!text) return;
+    text = text.replace(/’/g, "'");  // apostrophe courbe -> droite (sinon "je m'inscris" rate)
     if (!state.currentRecommendedProduct) return; // pas d'overlay sans produit
     var patterns = fromRole === "alpha" ? BUY_INTENT_ALPHA_RES : BUY_INTENT_USER_RES;
     for (var i = 0; i < patterns.length; i++) {
@@ -3043,8 +3059,10 @@
   function checkHesitation(text) {
     if (!text) return;
     if (localCardShown.has("no_commit")) return;
+    text = text.replace(/’/g, "'");  // apostrophe courbe -> droite
     for (var i = 0; i < HESITATION_RES.length; i++) {
       if (HESITATION_RES[i].test(text)) {
+        localCardShown.add("no_commit");  // marque comme montré (sinon re-déclenché à chaque chunk)
         showSmartCard({ template: "no_commit" });
         return;
       }
@@ -3255,7 +3273,7 @@
             if (signalClosing === "vert" || phaseNow === "prix_closing" || phaseNow === "post_closing") {
               showSmartCard("offer_card");
             }
-            trackEvent("product_revealed", { product: recommande, tier: d.produit.tier_recommande });
+            trackEvent("product_revealed", { product: recommande, tier: (getRecommendedTierAndUrl() || {}).tier || (d.produit && d.produit.tier_recommande) });
           }
         }
       })
@@ -3465,19 +3483,24 @@
 
       if (data.setupComplete) {
         state.isConnected = true;
+        wsRetryCount = 0;  // session confirmée OK -> reset le backoff (sinon il ne plafonne jamais)
         $orbContainer.className = "orb-container speaking";
         $("status").textContent = AGENT_NAME.toUpperCase() + " parle…";
         startParticles(); // V2 — émission continue tant qu'il parle
-        // Phase diagnostic : cartes d'accueil + RGPD + market
-        scheduleEphemeral(function() { showSmartCard({ template: "welcome_steps" }); localCardShown.add("welcome_steps"); }, 600);
-        scheduleEphemeral(function() { showSmartCard({ template: "rgpd_notice" }); localCardShown.add("rgpd_notice"); }, 4000);
-        scheduleEphemeral(showMarketCardOnce, 9000);
-        // Message d'ouverture : générique (on ne sait pas encore quel produit recommander).
-        ws.send(JSON.stringify({
-          realtimeInput: {
-            text: 'Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : "Bonjour, ici ' + AGENT_NAME + ', le concierge IA d\'Argo Éditions. Avant d\'aller plus loin, puis-je vous demander votre prénom ?". Rien d\'autre. Tu attends sa réponse.'
-          }
-        }));
+        if (!openerSent) {
+          openerSent = true;
+          // Cartes d'accueil + RGPD + market + message d'ouverture : UNIQUEMENT au
+          // 1er setupComplete. Sur une RECONNEXION mid-call on ne rejoue PAS le
+          // "Bonjour... votre prénom ?" (sinon Argos repart de zéro en plein appel).
+          scheduleEphemeral(function() { showSmartCard({ template: "welcome_steps" }); localCardShown.add("welcome_steps"); }, 600);
+          scheduleEphemeral(function() { showSmartCard({ template: "rgpd_notice" }); localCardShown.add("rgpd_notice"); }, 4000);
+          scheduleEphemeral(showMarketCardOnce, 9000);
+          ws.send(JSON.stringify({
+            realtimeInput: {
+              text: 'Le prospect vient de décrocher. Tu dis EXACTEMENT cette phrase, mot pour mot, en français standard de France : "Bonjour, ici ' + AGENT_NAME + ', le concierge IA d\'Argo Éditions. Avant d\'aller plus loin, puis-je vous demander votre prénom ?". Rien d\'autre. Tu attends sa réponse.'
+            }
+          }));
+        }
         startMic();
         return;
       }
@@ -3664,6 +3687,9 @@
 
   // ============ MIC ============
   async function startMic() {
+    // Évite un double streamer micro après reconnexion (sinon 2 flux PCM en
+    // parallèle vers Gemini + MediaStream/worklet fuités à chaque reconnexion).
+    if (state.audioStreamer) { try { state.audioStreamer.stop(); } catch (e) {} state.audioStreamer = null; }
     state.audioStreamer = new AudioStreamer(
       (b64) => {
         if (state.ws && state.ws.readyState === 1) {
@@ -3733,6 +3759,8 @@
       $("turn-num").textContent = "0";
 
       state.conversationLog = [];
+      openerSent = false;  // nouvel appel -> on (re)joue le message d'ouverture
+      _glossaryShownAt = 0; lastCardsAgentSpokenCall = 0;  // pas de timestamp périmé d'un appel précédent
       state.conversationStartedAt = new Date().toISOString();
       state.sessionId = null;
       state.pendingUserText = "";
@@ -3790,7 +3818,8 @@
     } catch (err) {
       console.error("connect error:", err);
       $("status").textContent = "Erreur : " + err.message;
-      setTimeout(disconnect, 3000);
+      // Ne tue l'appel que s'il n'a pas été relancé entre-temps (clic "Reprendre").
+      setTimeout(function() { if (!state.isConnected) disconnect(); }, 3000);
     }
   }
 
@@ -4244,7 +4273,10 @@
       try { sharedAudioCtx.close(); } catch (e) {}
       sharedAudioCtx = null;
     }
-    // C4 — Clear tous les timers pendants
+    // C4 — Clear tous les timers pendants (y compris reconnexion + UI agents,
+    // sinon ils ressuscitent l'appel ou mutent l'UI après le raccrochage).
+    if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+    if (uiAgentsPauseTimer) { clearTimeout(uiAgentsPauseTimer); uiAgentsPauseTimer = null; }
     clearAllEphemeralTimers();
     clearConfettiTimers();
     stopHeartbeat();
@@ -4285,13 +4317,13 @@
     scheduleEphemeral(function() {
       var chk = $("remember-check");
       if (!chk) return;
-      chk.addEventListener("change", function() {
+      chk.onchange = function() {  // assignation (pas addEventListener) -> pas d'empilement de handlers à chaque appel
         if (chk.checked) {
           saveRememberedDossier(state.lastDossier || {}, state.currentRecommendedProduct);
         } else {
           clearRememberedDossier();
         }
-      });
+      };
       // Pré-check si déjà mémorisé
       if (loadRememberedDossier()) chk.checked = true;
     }, 200);
@@ -4358,6 +4390,8 @@
   // ============ WS RECONNEXION (D2) ============
   var wsRetryCount = 0;
   var maxRetries = 3;
+  var wsReconnectTimer = null;  // timer de reconnexion (annulé au disconnect)
+  var openerSent = false;       // message d'ouverture envoyé une seule fois par appel
   function handleWSClose() {
     if (!state.isConnected) return;
     wsRetryCount++;
@@ -4365,16 +4399,18 @@
       var delay = Math.pow(2, wsRetryCount) * 1000; // 2s, 4s, 8s
       console.log("[Argo] WS closed, retry " + wsRetryCount + "/" + maxRetries + " in " + delay + "ms");
       $("status").textContent = "Reconnexion...";
-      setTimeout(function() {
+      wsReconnectTimer = setTimeout(function() {
+        wsReconnectTimer = null;
+        if (!state.isConnected) return;  // raccroché pendant le backoff -> on ne ressuscite pas l'appel
         fetch(TOKEN_ENDPOINT, { method: "POST" })
           .then(function(r) { return r.json(); })
           .then(function(json) {
-            if (json.token) {
-              state.ws = connectGemini(json.token);
-              wsRetryCount = 0;
-            } else { disconnect(); }
+            if (!state.isConnected) return;
+            // wsRetryCount remis à 0 au setupComplete (session confirmée), pas ici.
+            if (json.token) { state.ws = connectGemini(json.token); }
+            else { disconnect(); }
           })
-          .catch(function() { disconnect(); });
+          .catch(function() { if (state.isConnected) disconnect(); });
       }, delay);
     } else {
       disconnect();
