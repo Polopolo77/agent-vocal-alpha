@@ -947,12 +947,16 @@ async def handle_briefing(request: web.Request) -> web.Response:
         data = await request.json()
         session_id = str(data.get("session_id", "default"))[:64]
         query = str((data.get("query") or data.get("user_message") or ""))[:500].strip()
+        # Capital FIABLE transmis par le frontend (dossier persistant) -> source
+        # prioritaire pour l'override tier B >50k€ dans price_to_announce (le
+        # capital du coach est instable d'un tour à l'autre => prix qui flippe).
+        override_capital = data.get("capital")
 
         if not _require_valid_session(request, session_id):
             return web.json_response({"error": "invalid_session"}, status=403)
 
         cached = coach_cache.get(session_id)
-        briefing = build_briefing_from_cache(cached, REGISTRY, query)
+        briefing = build_briefing_from_cache(cached, REGISTRY, query, override_capital=override_capital)
         return web.json_response(briefing)
     except Exception as e:
         log.exception("Briefing error")

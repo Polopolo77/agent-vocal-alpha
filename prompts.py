@@ -1177,6 +1177,7 @@ def build_briefing_from_cache(
     coach_cache_entry: dict | None,
     registry: ProductsRegistry,
     query: str,
+    override_capital: object = None,
 ) -> dict:
     """
     Compose le briefing renvoyé à {{AGENT_NAME}} quand il appelle obtenir_briefing(query).
@@ -1338,7 +1339,10 @@ def build_briefing_from_cache(
                 direc = coach_cache_entry["directive"]
                 coach_tier = (direc.get("produit") or {}).get("tier_recommande")
                 dossier_capital = (direc.get("dossier") or {}).get("capital")
-            capital_num = _parse_capital_amount(dossier_capital)
+            # Priorité au capital FIABLE envoyé par le frontend (dossier agent,
+            # persistant) plutôt qu'au capital du coach (Flash-lite, parfois nul
+            # d'un tour à l'autre) -> évite que le prix annoncé flippe B <-> A.
+            capital_num = _parse_capital_amount(override_capital) or _parse_capital_amount(dossier_capital)
             # Override >50k€ -> tier B sauf si coach a explicitement choisi C/D
             # (trimestriel = prospect a dit "je veux tester"). Cohérent avec
             # la règle 11 du BASE_AGENT_PROMPT et la règle capital du coach.

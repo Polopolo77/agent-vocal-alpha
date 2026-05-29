@@ -3518,6 +3518,7 @@
               body: JSON.stringify({
                 session_id: state.sessionId,
                 query: query,
+                capital: (state.lastDossier && state.lastDossier.capital) || null,
               }),
             })
               .then(r => r.json())
@@ -3980,6 +3981,7 @@
     { product: "argo_crypto", keywords: ["nvidia", "30000", "30 000"],         card: { template: "proof_number", image_key: "proof_nvidia_reference", title: "+30 000%", subtitle: "Nvidia — +30 000% depuis 2015" } },
 
     // ===== argo_alpha (Stansberry + Tilson) =====
+    { product: "argo_alpha", keywords: ["whitney tilson", "tilson"],           card: { template: "expert_portrait", image_key: "authority_tilson", title: "Whitney Tilson", subtitle: "Superviseur de l'agent IA Alpha", items: ["Formé par Warren Buffett", "20+ ans à Wall Street", "Valide les sélections de l'IA"] } },
     { product: "argo_alpha", keywords: ["jim simons", "simons", "renaissance technologies", "renaissance"], card: { template: "proof_number", image_key: "proof_renaissance_2008", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
     { product: "argo_alpha", keywords: ["lumentum", "548"],                    card: { template: "proof_number", image_key: "proof_lumentum", title: "+548%", subtitle: "Lumentum — succès passé Alpha" } },
     { product: "argo_alpha", keywords: ["cadence design", "cadence"],          card: { template: "proof_number", image_key: "proof_cadence", title: "+550%", subtitle: "Cadence Design Systems — score Alpha 77" } },
