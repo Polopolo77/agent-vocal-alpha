@@ -1737,7 +1737,8 @@
     lastDossier: {},
     // Catalog multi-produits (4 produits chargés au boot)
     catalog: {},            // { product_id → entry }
-    imagesByCardKey: {},    // union des usage_card de tous les produits
+    imagesByCardKey: {},    // union des usage_card de tous les produits (fallback pre-routing)
+    imagesByProduct: {},    // product_id → { usage_card → {url,...} } (résolution par produit actif)
     cardProductMap: {},     // usage_card → product_id (pour savoir quel produit l'a fourni)
     currentRecommendedProduct: null,  // mis à jour par le coach
     systemPrompt: "",
@@ -2454,20 +2455,33 @@
   const $smartCardArea = $("smart-card-area");
   const MAX_STACK = 2;          // max 2 cartes visibles
   const STANDARD_LIFESPAN_MS = 12000; // 12s de vie max par carte
-  let activeCards = [];         // { key, el, timeout }
+  // ===== ARBITRE D'AFFICHAGE — un seul point d'entrée : showSmartCard() =====
+  // Tue le spam multi-source (LLM + triggers mot-clé + heuristiques) : dwell
+  // minimum + rate-limit global + dédup unifié de session.
+  const CARD_MIN_DWELL_MS = 4000;   // une carte reste lisible >=4s avant éviction
+  const CARD_MIN_GAP_MS   = 7000;   // >=7s entre 2 cartes "normales" (anti-spam global)
+  // Templates prioritaires : bypassent gap + dwell (intro, reveal, offre, rassurance).
+  const HIGH_PRIORITY_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "analysis_cross", "offer_card", "no_commit"];
+  let activeCards = [];         // { key, el, timeout, shownAt }
+  let lastCardShownAt = 0;      // ts du dernier affichage réel (rate-limit global)
+  let cardSessionShown = new Set(); // dédup unifié session — TOUS producteurs confondus
 
-  function showSmartCard(cardData) {
+  function showSmartCard(cardData, opts) {
+    opts = opts || {};
     if (!cardData) return;
 
-    // Détermine la clé unique pour le dédup
+    // Clé unique de la carte (respecte cardData.key si fourni → glossaire, etc.)
     let key;
     if (typeof cardData === "string") {
       key = cardData;
     } else {
-      // Objet riche : key = image_key ou template+title
-      key = cardData.image_key || (cardData.template + "_" + (cardData.title || "").slice(0, 20));
+      key = cardData.key || cardData.image_key || (cardData.template + "_" + (cardData.title || "").slice(0, 20));
     }
     if (!key) return;
+
+    var tpl = (typeof cardData === "string") ? cardData : (cardData.template || "");
+    var isHigh = opts.priority === "high" || HIGH_PRIORITY_TEMPLATES.indexOf(tpl) >= 0;
+    var now = Date.now();
 
     // GARDE-FOU TEMPORALITÉ : empêche les cartes prématurées (ex: Whitney Tilson
     // avant même que l'agent n'ait cité son nom).
@@ -2476,9 +2490,31 @@
       return;
     }
 
-    // Pas de doublon (state)
+    // DÉDUP UNIFIÉ SESSION : tous les producteurs (LLM, triggers mot-clé,
+    // heuristiques) partagent ce Set → fini les doublons (ex: carte Tilson
+    // poussée par le trigger local PUIS re-choisie par le LLM).
+    if (cardSessionShown.has(key)) {
+      console.log("[Argo] Card deduped (already shown this session):", key);
+      return;
+    }
+    // Pas de doublon visible
     if (activeCards.some(c => c.key === key)) return;
-    // Pas de doublon (DOM safety)
+
+    // RATE-LIMIT GLOBAL : >=7s entre 2 cartes normales (les high bypassent).
+    if (!isHigh && (now - lastCardShownAt) < CARD_MIN_GAP_MS) {
+      console.log("[Argo] Card rate-limited (global gap):", key);
+      return;
+    }
+    // DWELL-FLOOR : ne pas éjecter une carte encore fraîche (<4s) pour une normale.
+    if (activeCards.length >= MAX_STACK) {
+      var oldest = activeCards[0];
+      if (!isHigh && oldest && (now - (oldest.shownAt || 0)) < CARD_MIN_DWELL_MS) {
+        console.log("[Argo] Card dropped (stack plein, plus ancienne trop fraîche):", key);
+        return;
+      }
+    }
+
+    // DOM safety : retire un éventuel doublon orphelin
     $smartCardArea.querySelectorAll('[data-card-key="' + key + '"]').forEach(function(el) { el.remove(); });
 
     const cardEl = buildSmartCard(cardData);
@@ -2495,18 +2531,20 @@
     // Sound design : whoosh à l'arrivée
     sfxCardWhoosh();
 
-    // Auto-hide 25s (sauf offer_card / product_* qui restent)
+    // Enregistre pour l'arbitre (dédup + rate-limit partagés)
+    cardSessionShown.add(key);
+    lastCardShownAt = now;
+
     let timeoutId = null;
     const isOffer = key === "offer_card" || key.startsWith("product_");
     if (!isOffer) {
       timeoutId = setTimeout(function() { hideSmartCard(key); }, STANDARD_LIFESPAN_MS);
     }
 
-    activeCards.push({ key: key, el: cardEl, timeout: timeoutId });
+    activeCards.push({ key: key, el: cardEl, timeout: timeoutId, shownAt: now });
 
-    // FIFO pur : toute nouvelle carte éjecte la plus ancienne IMMÉDIATEMENT
-    // (pas d'attente des 12s). Les offres/produits n'ont pas de priorité —
-    // le flux doit rester lisible, on garde au max 2 cartes à l'écran.
+    // FIFO : au-delà de MAX_STACK, éjecte la plus ancienne (dwell déjà vérifié
+    // plus haut → on n'éjecte jamais une carte de moins de 4s pour une normale).
     while (activeCards.length > MAX_STACK) {
       const victim = activeCards[0];
       hideSmartCard(victim.key);
@@ -2528,6 +2566,25 @@
     [...activeCards].forEach(c => hideSmartCard(c.key));
   }
 
+  // Résout l'image d'une carte par PRODUIT ACTIF d'abord (corrige les collisions
+  // de clés cross-produit, ex: authority_tilson présent sur actions ET alpha),
+  // puis fallback sur la map plate (utile avant que le coach ait tranché).
+  function resolveCardImage(imgKey) {
+    if (!imgKey) return null;
+    var pid = state.currentRecommendedProduct;
+    if (pid && state.imagesByProduct[pid] && state.imagesByProduct[pid][imgKey]) {
+      return state.imagesByProduct[pid][imgKey];
+    }
+    return state.imagesByCardKey[imgKey] || null;
+  }
+
+  // <img> robuste : onerror retire l'image cassée (404 / mauvaise image servie
+  // par le CDN) → la carte reste lisible en texte plutôt qu'une icône brisée.
+  function cardImg(url, extraAttrs) {
+    if (!url) return "";
+    return '<img src="' + escapeHtml(url) + '" loading="lazy" onerror="this.remove()" ' + (extraAttrs || "") + ' />';
+  }
+
   function buildSmartCard(cardData) {
     const card = document.createElement("div");
     card.className = "smart-card";
@@ -2538,11 +2595,11 @@
       if (cardData === "offer_card" || cardData === "product" || cardData.startsWith("product_")) return buildOfferCard(card);
       if (cardData === "guarantee_generic" || cardData === "guarantee") return buildGuaranteeCard(card);
       // Fallback image simple
-      const img = state.imagesByCardKey[cardData];
+      const img = resolveCardImage(cardData);
       if (img) {
         card.innerHTML =
           '<span class="smart-card-badge">Info</span>' +
-          '<img src="' + escapeHtml(img.url) + '" alt="' + escapeHtml(img.description || "") + '" loading="lazy" />' +
+          cardImg(img.url, 'alt="' + escapeHtml(img.description || "") + '"') +
           '<p>' + escapeHtml(img.description || "") + '</p>';
       } else {
         card.innerHTML = '<span class="smart-card-badge">Info</span><p>' + escapeHtml(cardData) + '</p>';
@@ -2568,7 +2625,7 @@
     if (tpl === "analysis_cross") return buildAnalysisCrossCard(card, cardData);
 
     const imgKey = cardData.image_key;
-    const img = imgKey ? state.imagesByCardKey[imgKey] : null;
+    const img = imgKey ? resolveCardImage(imgKey) : null;
     const imgUrl = img ? img.url : null;
     const title = cardData.title || "";
     const subtitle = cardData.subtitle || "";
@@ -2590,11 +2647,13 @@
     if (tpl === "proof_number") {
       if (title) html += '<div class="big-number">' + escapeHtml(title) + '</div>';
       if (subtitle) html += '<p style="color:var(--fg);font-weight:500;margin-bottom:10px;">' + escapeHtml(subtitle) + '</p>';
-      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" alt="" loading="lazy" />';
+      // Pas d'image sur proof_number : le chiffre se suffit, et ça évite le bug
+      // CDN "mauvaise image servie" (décision PROJECT.md). Image réservée aux
+      // templates fiables : expert_portrait + opportunity.
 
     } else if (tpl === "expert_portrait") {
       html += '<div style="display:flex;gap:16px;align-items:center;margin:10px 0;">';
-      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0;" />';
+      html += cardImg(imgUrl, 'style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0;"');
       html += '<div>';
       if (title) html += '<h4 style="margin:0 0 4px;">' + escapeHtml(title) + '</h4>';
       if (subtitle) html += '<p style="color:var(--gold);font-style:italic;margin:0;font-size:0.85rem;">' + escapeHtml(subtitle) + '</p>';
@@ -2610,7 +2669,7 @@
       html += '<div style="font-size:1.8rem;margin-bottom:8px;">⚡</div>';
       if (title) html += '<h4 style="color:var(--gold);margin:0 0 8px;">' + escapeHtml(title) + '</h4>';
       if (subtitle) html += '<p style="font-size:0.9rem;">' + escapeHtml(subtitle) + '</p>';
-      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="margin-top:12px;opacity:0.8;" loading="lazy" />';
+      html += cardImg(imgUrl, 'style="margin-top:12px;opacity:0.8;"');
       html += '<p style="margin-top:12px;color:var(--gold);font-weight:600;font-size:0.85rem;">Restez en ligne \u2193</p>';
       html += '</div>';
 
@@ -2645,13 +2704,13 @@
           html += '</div>';
         });
       }
-      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" style="margin-top:12px;" loading="lazy" />';
+      // Pas d'image sur track_record (tableau de perfs) — fiabilité CDN (cf. proof_number).
 
     } else {
       // Template non reconnu → fallback générique avec titre + subtitle + image
       if (title) html += '<h4 style="margin:8px 0;">' + escapeHtml(title) + '</h4>';
       if (subtitle) html += '<p style="color:#ccc;font-size:0.9rem;">' + escapeHtml(subtitle) + '</p>';
-      if (imgUrl) html += '<img src="' + escapeHtml(imgUrl) + '" loading="lazy" />';
+      html += cardImg(imgUrl);
       if (items.length) {
         items.forEach(function(it) { html += '<p style="font-size:0.85rem;margin:4px 0;color:#ccc;">• ' + escapeHtml(it) + '</p>'; });
       }
@@ -3713,6 +3772,8 @@
       previousDossierSignature = new Map();
       resetDossierTemplate();
       localCardShown = new Set();
+      cardSessionShown = new Set();
+      lastCardShownAt = 0;
       briefingInjected = false;
       silenceInjected = false;
       userSpeakingStart = null;
@@ -3946,6 +4007,9 @@
     if (cardsAgentSpokenInFlight) return;
     var now = Date.now();
     if (now - lastCardsAgentSpokenCall < 4000) return;
+    // Économie tokens : si une carte vient d'être affichée (<gap global),
+    // l'arbitre rejetterait le résultat → inutile d'appeler le LLM cards.
+    if (now - lastCardShownAt < CARD_MIN_GAP_MS) return;
     var bot = (state.pendingBotText || "").trim();
     if (bot.length < 40) return; // attendre qu'Argos ait dit quelque chose de substantiel
     lastCardsAgentSpokenCall = now;
@@ -4363,11 +4427,13 @@
 
       state.catalog = {};
       state.imagesByCardKey = {};
+      state.imagesByProduct = {};
       state.cardProductMap = {};
       for (var i = 0; i < products.length; i++) {
         var p = products[i];
         state.catalog[p.product_id] = p;
         var ibc = p.images_by_card || {};
+        state.imagesByProduct[p.product_id] = ibc;
         for (var ck in ibc) {
           if (!state.imagesByCardKey[ck]) {
             state.imagesByCardKey[ck] = ibc[ck];

@@ -39,6 +39,7 @@ from dotenv import load_dotenv
 from google import genai
 
 from products_loader import init as init_products, REGISTRY
+from card_grounding import build_number_whitelist, card_numbers_grounded
 from prompts import (
     DEFAULT_AGENT_NAME,
     build_briefing_from_cache,
@@ -737,6 +738,28 @@ def _guess_card_owner(card: dict) -> str | None:
     return None
 
 
+# Whitelist de chiffres autorisés à l'affichage, par produit (lettre + config).
+# Construite une fois puis mise en cache : les lettres ne changent pas en run.
+_number_whitelist_cache: dict[str, set[str]] = {}
+
+
+def _product_number_whitelist(pid: str | None) -> set[str]:
+    """Chiffres qu'une carte peut afficher pour ce produit. Si pid est None
+    (produit pas encore tranché par le coach), union des 4 produits."""
+    key = pid or "__all__"
+    cached = _number_whitelist_cache.get(key)
+    if cached is not None:
+        return cached
+    wl: set[str] = set()
+    pids = [pid] if pid else list(REGISTRY.products.keys())
+    for p_id in pids:
+        p = REGISTRY.get(p_id)
+        if p:
+            wl |= build_number_whitelist(getattr(p, "full_markdown", "") or "", p.config or {})
+    _number_whitelist_cache[key] = wl
+    return wl
+
+
 def _remember_card(session_id: str, card: dict) -> None:
     if not session_id or not card:
         return
@@ -871,6 +894,19 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
                         tpl, card.get("title"), guessed_owner, active_product,
                     )
                     return web.json_response({"card": None})
+
+        # VERROU SERVEUR : ancrage des chiffres (anti-hallucination visuelle).
+        # Une carte proof_number/track_record ne peut afficher QUE des chiffres
+        # presents dans la lettre + config du produit actif (union si pas encore
+        # tranche). Le LLM choisit la carte, il n'invente pas le stat — meme
+        # discipline que la voix d'Argos (allowed_numbers), etendue a l'ecran.
+        if card and (card.get("template") or "") in ("proof_number", "track_record"):
+            if not card_numbers_grounded(card, _product_number_whitelist(active_product)):
+                log.info(
+                    "UI cards ungrounded-number rejected: tpl=%s title=%r active=%s",
+                    card.get("template"), card.get("title"), active_product,
+                )
+                return web.json_response({"card": None, "reason": "ungrounded_number"})
 
         # VERROU SERVEUR #3 : phase-lock — certaines cartes "closing" sont
         # interdites en phase diagnostic/recap/reveal. Evite l'overlay achat
