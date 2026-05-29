@@ -566,12 +566,13 @@ def build_catalog_overlay(registry: ProductsRegistry) -> str:
     lines.append("- **50 000€+** → tier **B OBLIGATOIRE** quel que soit le produit routé. Jamais tier A. Tiers B disponibles : argo_actions=299€/an · argo_crypto=299€/an · argo_alpha=997€/an · argo_gold=1997€/an. Exception : prospect qui dit explicitement \"je veux tester\" → tier C trimestriel (uniquement sur argo_alpha ou argo_gold — argo_actions et argo_crypto n'ont pas de tier C).")
     lines.append("")
     lines.append("### Signaux spécifiques qui orientent vers un produit")
+    lines.append('- RÈGLE PRIORITAIRE — le PROFIL DE RISQUE prime sur le sujet. Prospect qui veut SÉCURISER / PRÉSERVER / "sans risque" / "peur de perdre" / "livret" → TOUJOURS `argo_actions` (défensif, Bouclier Suisse), MÊME s\'il parle d\'or, d\'inflation ou de dette. `argo_gold` est AGRESSIF (or/minières/uranium très volatils) : réservé à qui veut EXPLICITEMENT du haut rendement et ASSUME le risque.')
     lines.append('- Prospect parle de **crypto, Bitcoin, altcoins, tokens, blockchain** → `argo_crypto` (Eric Wade).')
-    lines.append('- Prospect parle de **or, inflation, protéger son épargne, Suisse, banques centrales** → `argo_gold` (Dan Ferris) ou `argo_actions` (Bouclier Suisse).')
+    lines.append('- Prospect DÉFENSIF / averse au risque (protéger, sécuriser, préserver, peur de perdre, livret A, inflation, dette, Suisse, banques centrales) → `argo_actions` (Bouclier Suisse, défensif). Un prudent NE VA PAS sur argo_gold (or/minières = volatil/agressif), même s\'il mentionne l\'or ou l\'inflation.')
     lines.append('- Prospect parle de **IA, algorithme, automatisation, robot, Nvidia** → `argo_alpha` (IA Stansberry + Tilson).')
     lines.append('- Prospect parle de **actions, bourse, dividendes, valeur, long terme** → `argo_actions` (Whitney Tilson).')
     lines.append('- Prospect parle de **gains rapides, spéculation, petit budget** → `argo_crypto` (asymétrie, petites caps).')
-    lines.append('- Prospect parle de **rendement extrême, minières, uranium, matières premières** → `argo_gold` (Dan Ferris).')
+    lines.append('- Prospect qui ASSUME le risque pour du **haut rendement** (or, minières, uranium, matières premières, rendement extrême, cycle haussier) → `argo_gold` (Dan Ferris). argo_gold est AGRESSIF — jamais pour un profil sécurité/prudent.')
     lines.append("")
     lines.append("### Répartition cible (NE PAS toujours recommander le même)")
     lines.append("- `argo_actions` ≈ 35% des conversations (débutants + prudents) — **produit par défaut**")
@@ -797,6 +798,13 @@ def build_catalog_context_for_coach(registry: ProductsRegistry) -> str:
             f"- `{pid}` : {cfg.get('product_name', pid)} ({cfg.get('vertical', '')}) — "
             f"expert **{expert}**, tiers {tier_ids}"
         )
+    lines.append("")
+    lines.append("ROUTING (profil → produit) — LE PROFIL DE RISQUE PRIME SUR LE SUJET :")
+    lines.append("- PRUDENT / DÉFENSIF (veut protéger, sécuriser, préserver, 'sans risque', 'peur de perdre', livret A, inquiet de l'inflation ou de la dette) → `argo_actions` (value défensif, protection d'épargne type Bouclier Suisse). C'est le défaut des prudents MÊME s'ils citent l'or ou l'inflation.")
+    lines.append("- CROISSANCE actions / dividendes / long terme / faire grossir → `argo_actions`.")
+    lines.append("- TECH / IA / automatisation / déléguer la sélection → `argo_alpha` (agent IA).")
+    lines.append("- CRYPTO / asymétrie / gains rapides / petit budget spéculatif → `argo_crypto` (Eric Wade).")
+    lines.append("- AGRESSIF HAUT RENDEMENT : veut EXPLICITEMENT or/minières/uranium et ASSUME la volatilité → `argo_gold` (Dan Ferris). C'est le produit le PLUS RISQUÉ — JAMAIS pour un profil sécurité/prudent, même s'il parle d'inflation.")
     return "\n".join(lines)
 
 
