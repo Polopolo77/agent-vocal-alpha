@@ -1,0 +1,14 @@
+# Railway (Railpack) installe Python via `mise`.
+# Depuis mise 2026.5.x, l'install de cpython vérifie les "GitHub artifact
+# attestations" — et ça échoue au build ("No GitHub artifact attestations found"),
+# ce qui casse TOUS les déploiements à l'étape `mise install`, avant même que le
+# code tourne. On désactive cette vérification : on a juste besoin d'installer
+# Python 3.11.9 (version pilotée par runtime.txt).
+#
+# Filet de sécurité équivalent côté Railway : variable d'env
+#   MISE_PYTHON_GITHUB_ATTESTATIONS=false
+[tools]
+python = "3.11.9"
+
+[settings]
+python.github_attestations = false
