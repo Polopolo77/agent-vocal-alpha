@@ -39,7 +39,7 @@ from dotenv import load_dotenv
 from google import genai
 
 from products_loader import init as init_products, REGISTRY
-from card_grounding import build_number_whitelist, card_numbers_grounded
+from card_grounding import build_number_whitelist, card_numbers_grounded, card_owner_candidates
 from prompts import (
     DEFAULT_AGENT_NAME,
     build_briefing_from_cache,
@@ -701,41 +701,10 @@ def _validate_dossier_quotes(dossier: dict, history: list[dict]) -> dict:
 # TTL = 30 min (comme coach_cache), purge pilotée par le cleanup périodique.
 _cards_session_history: dict[str, list[dict]] = {}
 
-# Marqueurs uniques par produit pour identifier le owner d'une carte qui n'a
-# pas d'image_key precis (cas frequent pour proof_number). Le matching se fait
-# sur le subtitle/title de la carte. Permet de rejeter les cartes cross-product
-# meme quand le verrou image_key ne s'applique pas.
-_PRODUCT_MARKERS: dict[str, tuple[str, ...]] = {
-    "argo_actions": ("tilson", "buffett", "actions gagnantes", "bouclier suisse",
-                      "netflix", "sodastream", "ggp", "general growth"),
-    "argo_crypto": ("eric wade", "wade", "fin du travail", "polymath", "harmony",
-                     "enjin", "luna", "ia physique", "profits asymétriques"),
-    "argo_alpha": ("stansberry", "agent alpha", "alpha ia", "russell 1000",
-                    "renaissance", "simons", "cadence design", "synopsys",
-                    "lumentum", "score alpha"),
-    "argo_gold": ("dan ferris", "ferris", "crocodile", "vista gold", "ssr mining",
-                   "forsys", "laramide", "uranium", "minière", "hyper climax",
-                   "détonateur", "haut rendement", "extreme value"),
-}
-
-
-def _guess_card_owner(card: dict) -> str | None:
-    """Devine le produit d'origine d'une carte a partir de son contenu textuel
-    (title + subtitle). Utilise pour le verrou cross-product quand image_key
-    est manquant ou generique. Retourne None si aucun marqueur unique trouve.
-    """
-    if not card:
-        return None
-    blob = " ".join(
-        str(card.get(k, "") or "") for k in ("title", "subtitle", "image_key")
-    ).lower()
-    if not blob.strip():
-        return None
-    for pid, markers in _PRODUCT_MARKERS.items():
-        for m in markers:
-            if m in blob:
-                return pid
-    return None
+# Attribution cross-produit des cartes : déplacée dans card_grounding.py
+# (card_owner_candidates). Gère les entités PARTAGÉES — Tilson supervise
+# argo_actions ET argo_alpha, Nvidia couvre crypto ET alpha — via un ensemble
+# d'owners possibles, ce qui évite de rejeter à tort une carte légitime.
 
 
 # Whitelist de chiffres autorisés à l'affichage, par produit (lettre + config).
@@ -861,37 +830,41 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
 
         card = result.get("card") if isinstance(result, dict) else None
 
-        # VERROU SERVEUR #1 : cross-produit par image_key (cas image_key precis)
+        # VERROU SERVEUR #1 : cross-produit par image_key. Une meme usage_card
+        # peut appartenir a PLUSIEURS produits (ex: authority_tilson sur actions
+        # ET alpha) -> on collecte TOUS les owners et on ne rejette que si le
+        # produit actif n'en fait pas partie.
         if card and active_product:
             img_key = card.get("image_key") or ""
             generic_keys = {"guarantee_generic", "offer_card"}
             if img_key and img_key not in generic_keys:
-                owner = None
+                owners = set()
                 for pid, p in REGISTRY.products.items():
                     imgs = p.images.get("images", []) if isinstance(p.images, dict) else []
                     if any(i.get("usage_card") == img_key for i in imgs):
-                        owner = pid
-                        break
-                if owner and owner != active_product:
+                        owners.add(pid)
+                if owners and active_product not in owners:
                     log.info(
-                        "UI cards cross-product rejected (image_key): key=%s owner=%s active=%s",
-                        img_key, owner, active_product,
+                        "UI cards cross-product rejected (image_key): key=%s owners=%s active=%s",
+                        img_key, sorted(owners), active_product,
                     )
                     return web.json_response({"card": None})
 
         # VERROU SERVEUR #2 : cross-produit par contenu textuel (cas proof_number
-        # sans image_key precis — le LLM met juste title="+47 400%" subtitle="Apple Tilson")
+        # sans image_key — le LLM met juste title="+47 400%" subtitle="Apple Tilson").
+        # card_owner_candidates gere les entites partagees : rejet seulement si
+        # l'actif n'est dans AUCUN owner candidat.
         if card and active_product:
             tpl = card.get("template") or ""
             # Templates "generiques" qui peuvent legitimement n'avoir aucun owner
             if tpl not in ("guarantee_generic", "offer_card", "welcome_steps",
                            "rgpd_notice", "live_market", "did_you_know",
                            "patrimony_chart", "glossary", "no_commit", "analysis_cross"):
-                guessed_owner = _guess_card_owner(card)
-                if guessed_owner and guessed_owner != active_product:
+                owners = card_owner_candidates(card)
+                if owners and active_product not in owners:
                     log.info(
-                        "UI cards cross-product rejected (content): tpl=%s title=%r owner_guess=%s active=%s",
-                        tpl, card.get("title"), guessed_owner, active_product,
+                        "UI cards cross-product rejected (content): tpl=%s title=%r owners=%s active=%s",
+                        tpl, card.get("title"), sorted(owners), active_product,
                     )
                     return web.json_response({"card": None})
 

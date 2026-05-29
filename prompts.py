@@ -927,7 +927,7 @@ FEW-SHOT EXEMPLES
 → `{"card": {"image_key": "authority_tilson", "template": "expert_portrait", "title": "Whitney Tilson", "subtitle": "L'Héritier de Warren Buffett", "items": ["Formé par Buffett", "20 ans à Wall Street", "Portefeuille +3264% depuis 1999"]}, "reasoning": "Prospect prudent qui cherche l'autorité → ancrage expert."}`
 
 **Exemple 2** — Argos dit "Il a sorti Netflix à +8900%" + prospect dynamique tech :
-→ `{"card": {"image_key": "proof_netflix", "template": "proof_number", "title": "+8 900%", "subtitle": "Netflix — Whitney Tilson, 2012"}, "reasoning": "Chiffre explicite cité, dossier tech → impact visuel maximal."}`
+→ `{"card": {"template": "proof_number", "title": "+8 900%", "subtitle": "Netflix — Whitney Tilson, 2012"}, "reasoning": "Chiffre explicite cité, dossier tech → impact visuel maximal."}` (proof_number = texte seul, pas d'image_key)
 
 **Exemple 3** — Argos pose "Qu'est-ce qui vous motive ?" + prospect hésite :
 → `{"card": null, "reasoning": "Question ouverte en diagnostic, pas de thème précis."}`
@@ -955,12 +955,12 @@ CARTES DISPONIBLES (par produit, par thème)
 TEMPLATES & SCHÉMA
 ═══════════════════
 
-- `proof_number` : gros chiffre doré. title = "+548%". subtitle = contexte court.
-- `expert_portrait` : photo + nom. title = nom. subtitle = surnom. items = credentials.
-- `opportunity` : teaser. title + subtitle courts.
+- `proof_number` : gros chiffre doré, TEXTE SEUL (pas d'image_key). title = "+548%". subtitle = contexte court. Le chiffre DOIT exister dans la lettre de vente du produit (sinon rejet serveur).
+- `expert_portrait` : photo + nom. image_key = carte expert du produit actif. title = nom. subtitle = surnom. items = credentials.
+- `opportunity` : teaser. image_key optionnel. title + subtitle courts.
 - `comparison` : blocs contrastés. items = ["A : …", "B : …"].
 - `testimonial` : citation. quote + subtitle "— Nom, abonné".
-- `track_record` : tableau. items = ["Asset +X%", …].
+- `track_record` : tableau, TEXTE SEUL. items = ["Asset +X%", …]. Chiffres whitelistés (lettre).
 
 **Schéma JSON (obligatoire) :**
 ```
@@ -987,31 +987,41 @@ def build_ui_dossier_prompt(previous_dossier: dict, history_text: str) -> str:
     )
 
 
-def _card_theme_from_key(key: str, role: str, description: str) -> str:
-    """Devine le thème d'une carte à partir de sa clé + role + description.
+def _card_theme_from_key(key: str, role: str, description: str) -> str | None:
+    """Thème d'une carte pour le prompt cards, à partir du role d'abord puis de
+    la clé/description.
 
-    Thèmes : expert_name, perf_number, product_name, offer, guarantee,
-    danger, opportunity, testimonial, comparison.
+    Retourne None si l'asset n'est PAS une carte exploitable (chrome : fond,
+    logo, bannière, drapeau, diagramme de méthode) → build_ui_cards_prompt ne le
+    propose pas au LLM (évite que logos/diagrammes/bannières sortent en cartes).
+
+    Thèmes : expert_name, perf_number, offer, guarantee, danger, testimonial,
+    comparison, opportunity.
     """
     k = (key or "").lower()
     r = (role or "").lower()
     d = (description or "").lower()
-    if k.startswith("authority_") or "portrait" in d or "tilson" in d or "wade" in d or "ferris" in d or "simons" in d:
-        return "expert_name"
-    if k.startswith("proof_") or k.startswith("perf_") or "+%" in d or "performance" in d or "%" in d or "x10" in d or "x100" in d:
-        return "perf_number"
-    if k.startswith("product_") or k.startswith("bonus_") or "bundle" in d or "offre" in d:
-        return "offer"
-    if "guarantee" in k or "garantie" in d or "remboursé" in d:
+    # Chrome / assets non-cartes : jamais proposés au LLM.
+    if r in ("background", "logo", "brand", "symbol", "diagram"):
+        return None
+    # Captures presse / déclarations (Sandrine Rousseau, Moscovici, FMI) :
+    # preuve/danger, PAS un chiffre de performance.
+    if r in ("proof_quote", "proof_press"):
+        return "danger"
+    if r == "proof_symbol" or "guarantee" in k or "garantie" in d or "remboursé" in d:
         return "guarantee"
-    if "dette" in d or "inflation" in d or "fmi" in d or "banques" in d or "risque" in d:
+    if k.startswith("authority_") or r == "authority" or "portrait" in d:
+        return "expert_name"
+    if r == "product_shot" or k.startswith("product_") or k.startswith("bonus_") or "bundle" in d or "offre" in d:
+        return "offer"
+    if r == "proof_chart" or k.startswith("proof_") or k.startswith("perf_") or "performance" in d or "%" in d or "x10" in d or "x100" in d:
+        return "perf_number"
+    if "dette" in d or "inflation" in d or "fmi" in d or "banque" in d or "risque" in d:
         return "danger"
     if "témoignage" in d or "abonné" in d or "membre" in d:
         return "testimonial"
-    if "comparaison" in d or "vs" in d:
+    if "comparaison" in d or " vs " in d:
         return "comparison"
-    if r == "proof_chart":
-        return "perf_number"
     return "opportunity"
 
 
@@ -1045,6 +1055,8 @@ def build_ui_cards_prompt(
             seen.add(key)
             desc = (img.get("description", "") or "")[:90]
             theme = _card_theme_from_key(key, img.get("role", ""), desc)
+            if not theme:
+                continue  # asset non-carte (fond, logo, bannière, diagramme) → on ne propose pas
             by_theme.setdefault(theme, []).append(f'"{key}" — {desc}')
 
         if not by_theme:

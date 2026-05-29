@@ -91,3 +91,77 @@ def card_numbers_grounded(card: dict, whitelist: set[str]) -> bool:
     if not claims:
         return True
     return all(c in whitelist for c in claims)
+
+
+# =============================================================================
+# Attribution cross-produit d'une carte (verrous serveur #1/#2)
+# =============================================================================
+# Marqueurs textuels -> produit(s) propriétaire(s). Les entités PARTAGÉES
+# listent plusieurs owners : le verrou ne rejette une carte que si le produit
+# actif n'est dans AUCUN owner possible. Corrige le bug où une carte Tilson
+# (Tilson supervise argo_actions ET argo_alpha) était rejetée à tort en session
+# alpha. 'laramide' (marqueur périmé, aucune image) retiré ; 'delysium',
+# 'agnico', 'nvidia' ajoutés.
+_ACTIONS_ALPHA = frozenset({"argo_actions", "argo_alpha"})  # Tilson & ses positions
+_MARKER_OWNERS: dict[str, frozenset] = {
+    "tilson": _ACTIONS_ALPHA,
+    "buffett": _ACTIONS_ALPHA,
+    "netflix": _ACTIONS_ALPHA,
+    "sodastream": _ACTIONS_ALPHA,
+    "ggp": _ACTIONS_ALPHA,
+    "general growth": _ACTIONS_ALPHA,
+    "actions gagnantes": frozenset({"argo_actions"}),
+    "bouclier suisse": frozenset({"argo_actions"}),
+    "eric wade": frozenset({"argo_crypto"}),
+    "wade": frozenset({"argo_crypto"}),
+    "fin du travail": frozenset({"argo_crypto"}),
+    "polymath": frozenset({"argo_crypto"}),
+    "harmony": frozenset({"argo_crypto"}),
+    "enjin": frozenset({"argo_crypto"}),
+    "luna": frozenset({"argo_crypto"}),
+    "ia physique": frozenset({"argo_crypto"}),
+    "profits asymétriques": frozenset({"argo_crypto"}),
+    "nvidia": frozenset({"argo_crypto", "argo_alpha"}),  # couvert par les deux
+    "stansberry": frozenset({"argo_alpha"}),
+    "agent alpha": frozenset({"argo_alpha"}),
+    "alpha ia": frozenset({"argo_alpha"}),
+    "russell 1000": frozenset({"argo_alpha"}),
+    "renaissance": frozenset({"argo_alpha"}),
+    "simons": frozenset({"argo_alpha"}),
+    "cadence design": frozenset({"argo_alpha"}),
+    "synopsys": frozenset({"argo_alpha"}),
+    "lumentum": frozenset({"argo_alpha"}),
+    "delysium": frozenset({"argo_alpha"}),
+    "agnico": frozenset({"argo_alpha"}),
+    "score alpha": frozenset({"argo_alpha"}),
+    "dan ferris": frozenset({"argo_gold"}),
+    "ferris": frozenset({"argo_gold"}),
+    "crocodile": frozenset({"argo_gold"}),
+    "vista gold": frozenset({"argo_gold"}),
+    "ssr mining": frozenset({"argo_gold"}),
+    "forsys": frozenset({"argo_gold"}),
+    "uranium": frozenset({"argo_gold"}),
+    "minière": frozenset({"argo_gold"}),
+    "hyper climax": frozenset({"argo_gold"}),
+    "détonateur": frozenset({"argo_gold"}),
+    "haut rendement": frozenset({"argo_gold"}),
+    "extreme value": frozenset({"argo_gold"}),
+}
+
+
+def card_owner_candidates(card: dict) -> set:
+    """Produits possibles d'une carte d'après son contenu (title+subtitle+image_key).
+    Vide si aucun marqueur. Les entités partagées (Tilson, Nvidia) renvoient
+    plusieurs produits → le verrou ne rejette que si l'actif n'est dans aucun."""
+    if not isinstance(card, dict):
+        return set()
+    blob = " ".join(
+        str(card.get(k, "") or "") for k in ("title", "subtitle", "image_key")
+    ).lower()
+    if not blob.strip():
+        return set()
+    owners: set = set()
+    for marker, pids in _MARKER_OWNERS.items():
+        if marker in blob:
+            owners |= pids
+    return owners

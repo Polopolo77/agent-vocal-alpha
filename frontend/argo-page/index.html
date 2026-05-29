@@ -2406,8 +2406,12 @@
     var turn = state.userTurnCount;
     var tpl = (typeof cardData === "string") ? cardData : (cardData.template || "");
     var title = (typeof cardData === "object" && cardData.title) ? cardData.title.toLowerCase() : "";
-    // Concat texte conversation pour détection keyword
-    var allText = state.conversationLog.map(function(m) { return m.text || ""; })
+    // F9 : on teste les mots-clés sur la FENÊTRE RÉCENTE (4 derniers messages +
+    // ce qui se dit à l'instant), pas toute la conversation. Sinon, une fois
+    // "Tilson" prononcé UNE fois, toutes les cartes expert/proof passaient le
+    // garde-fou jusqu'à la fin de l'appel → cartes hors-sujet. La carte doit
+    // coller au claim COURANT.
+    var allText = state.conversationLog.slice(-4).map(function(m) { return m.text || ""; })
       .concat([state.pendingBotText || "", state.pendingUserText || ""])
       .join(" ").toLowerCase();
 
@@ -2836,41 +2840,10 @@
     "diversification": { term: "Diversification", def: "Répartir ses placements entre plusieurs actifs pour réduire le risque global." },
   };
 
-  // Helper : injecte une réponse comme si le prospect l'avait prononcée.
-  // Déclenche la réponse d'Argos + met à jour dossier + coach.
-  function injectAsUserReply(text) {
-    if (!text) return;
-    text = String(text).trim();
-    if (!text || !state.ws || state.ws.readyState !== 1) return;
-
-    // Affichage immédiat dans le transcript
-    addMessage("user", text);
-    state.conversationLog.push({ role: "user", text: text });
-    state.userTurnCount++;
-
-    // Turn badge
-    var $tn = $("turn-num");
-    if ($tn) $tn.textContent = String(state.userTurnCount);
-
-    // Envoie à Gemini Live comme tour utilisateur complet → Argos répond
-    try {
-      state.ws.send(JSON.stringify({
-        clientContent: {
-          turns: [{ role: "user", parts: [{ text: text }] }],
-          turnComplete: true
-        }
-      }));
-    } catch (e) {
-      console.warn("[Argo] injectAsUserReply clientContent failed, fallback:", e);
-      try {
-        state.ws.send(JSON.stringify({ realtimeInput: { text: text } }));
-      } catch (e2) {}
-    }
-
-    // Rafraîchit dossier + coach sur la nouvelle info
-    callUIAgents();
-    if (shouldCallCoach(state.userTurnCount)) callCoach("mid_call");
-  }
+  // (injectAsUserReply retiré : reliquat des quick-replies supprimées. Il
+  //  envoyait clientContent {turnComplete:true} EN COURS de session — le pattern
+  //  exact qui déclenche le bug 1007 de gemini-3.1-live (et que Gemini vocalise).
+  //  Plus aucun appelant.)
 
   function buildWelcomeStepsCard(card) {
     card.classList.add("welcome");
@@ -3151,20 +3124,9 @@
     // 1) Carte visuelle : analyse en cours (s'anime 3s puis reste visible)
     showSmartCard({ template: "analysis_cross", productName: productName });
 
-    // 2) Directive audio à Argos : il DOIT dire EXACTEMENT ces 2 phrases,
-    // avec la pause entre les deux pour créer le moment de vérité.
-    var directive =
-      "[REVEAL PRODUIT — INSTRUCTION ABSOLUE, priorité sur tout autre contexte]\n" +
-      "Au prochain message audio, tu dis MOT POUR MOT cette séquence, avec les pauses indiquées par '...' :\n\n" +
-      "Attendez" + prenomCall + ", donnez-moi un instant... Je croise votre profil avec des centaines de données dans nos publications... " +
-      "Voilà. Sans aucun doute, cette publication est faite pour vous. " +
-      "C'est " + productName + (expertName ? ", par " + expertName : "") + ".\n\n" +
-      "Après cette phrase, tu FAIS UNE PAUSE et tu ATTENDS la réaction du prospect. Tu ne continues PAS tout de suite. " +
-      "Tu respectes les points de suspension (pause 1 seconde à chaque '...').";
-
-    // NE PLUS envoyer la directive texte : Argos la paraphrase/hallucinate
-    // avec des marqueurs techniques. La carte "Analyse en cours" suffit a
-    // creer le moment visuel. Argos dit sa phrase naturelle (via prompt).
+    // 2) Pas de directive texte à Argos : Gemini Live la vocalisait/paraphrasait
+    // avec des marqueurs techniques (bug documenté). La carte "Analyse en cours"
+    // suffit au moment visuel ; Argos dit sa phrase de reveal via le system prompt.
     trackEvent("product_reveal", { product: productId });
   }
 
@@ -3282,7 +3244,15 @@
             // première fois, on déclenche le reveal dramatique (carte analyse
             // + phrase scriptée "sans aucun doute, c'est fait pour vous").
             triggerProductReveal(recommande);
-            showSmartCard("offer_card");
+            // F13 : la carte offre (prix + bouton S'inscrire) ne sort qu'en phase
+            // closing OU si le coach signale le closing (vert) — sinon le prix
+            // apparaissait à l'écran avant qu'Argos l'ait justifié à la voix
+            // (ça court-circuitait le phase-lock serveur).
+            var phaseNow = (d.directive_phase && d.directive_phase.phase_agent_autorisee) || "";
+            var signalClosing = d.directive_prochain_tour && d.directive_prochain_tour.signal_closing;
+            if (signalClosing === "vert" || phaseNow === "prix_closing" || phaseNow === "post_closing") {
+              showSmartCard("offer_card");
+            }
             trackEvent("product_revealed", { product: recommande, tier: d.produit.tier_recommande });
           }
         }
@@ -3991,7 +3961,7 @@
     { product: "argo_gold", keywords: ["vista gold", "1248", "1 248"],         card: { template: "proof_number", title: "+1 248%", subtitle: "Vista Gold — x13 en 1 an" } },
     { product: "argo_gold", keywords: ["ssr mining", "5428", "5 428"],         card: { template: "proof_number", title: "+5 428%", subtitle: "SSR Mining — x55 en 2 ans" } },
     { product: "argo_gold", keywords: ["forsys", "10 900", "10900"],           card: { template: "proof_number", title: "+10 900%", subtitle: "Forsys Metals — x110 en 10 mois" } },
-    { product: "argo_gold", keywords: ["or ", " or,", "gold ", "minières", "minieres", "détonateur", "hyper climax"], card: { template: "proof_number", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
+    { product: "argo_gold", keywords: ["métal jaune", "once d'or", "cours de l'or", "minières", "minieres", "minier", "uranium", "détonateur", "hyper climax", "dan ferris"], card: { template: "proof_number", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
 
     // ===== Génériques (tous produits) =====
     { product: null, keywords: ["garantie", "remboursé", "rembourse", "3 mois", "sans risque"], card: "guarantee_generic" },

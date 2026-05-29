@@ -18,7 +18,9 @@ from card_grounding import (
     build_number_whitelist,
     significant_numbers,
     card_numbers_grounded,
+    card_owner_candidates,
 )
+from prompts import _card_theme_from_key
 
 
 # --- significant_numbers : ce qui compte comme "claim chiffré" ---------------
@@ -84,6 +86,69 @@ def test_non_numeric_templates_always_grounded():
 def test_proof_number_without_any_number_is_grounded():
     card = {"template": "proof_number", "title": "Bouclier Suisse", "subtitle": "Sécurité"}
     assert card_numbers_grounded(card, set()) is True
+
+
+# --- card_owner_candidates : attribution cross-produit (verrous #1/#2) --------
+
+def test_owner_candidates_tilson_shared_actions_and_alpha():
+    # Tilson = expert d'argo_actions ET superviseur d'argo_alpha → partagé
+    assert card_owner_candidates({"title": "Whitney Tilson", "subtitle": ""}) == {"argo_actions", "argo_alpha"}
+
+
+def test_owner_candidates_netflix_shared_actions_and_alpha():
+    assert card_owner_candidates({"title": "+8 900%", "subtitle": "Netflix — Tilson"}) == {"argo_actions", "argo_alpha"}
+
+
+def test_owner_candidates_ferris_gold_only():
+    assert card_owner_candidates({"title": "Dan Ferris", "subtitle": "Le Crocodile"}) == {"argo_gold"}
+
+
+def test_owner_candidates_wade_crypto_only():
+    assert card_owner_candidates({"subtitle": "Eric Wade"}) == {"argo_crypto"}
+
+
+def test_owner_candidates_empty_when_no_marker():
+    assert card_owner_candidates({"title": "Bonjour", "subtitle": "comment allez-vous"}) == set()
+
+
+def test_owner_candidates_laramide_removed():
+    # 'laramide' était un marqueur périmé (aucune image dans argo_gold) → retiré
+    assert card_owner_candidates({"subtitle": "Laramide"}) == set()
+
+
+def test_owner_candidates_alpha_tilson_not_wrongly_attributed():
+    # Bug F8 : une carte Tilson en session alpha ne doit PAS être rejetée.
+    cands = card_owner_candidates({"title": "Whitney Tilson"})
+    assert "argo_alpha" in cands       # alpha actif → carte gardée
+    assert "argo_gold" not in cands    # gold actif → carte rejetée (correct)
+
+
+# --- _card_theme_from_key : bucketing thématique (prompts.py) -----------------
+
+def test_theme_proof_quote_is_danger_not_perf():
+    # Déclaration politique en capture : preuve/danger, PAS un chiffre de perf
+    assert _card_theme_from_key("proof_politique_gauche", "proof_quote", "Declaration Sandrine Rousseau") == "danger"
+
+
+def test_theme_excludes_chrome_assets():
+    for role in ("background", "logo", "brand", "symbol", "diagram"):
+        assert _card_theme_from_key("whatever", role, "un asset") is None, role
+
+
+def test_theme_authority_is_expert():
+    assert _card_theme_from_key("authority_tilson", "authority", "Portrait Tilson") == "expert_name"
+
+
+def test_theme_proof_chart_is_perf():
+    assert _card_theme_from_key("proof_netflix", "proof_chart", "Netflix +8900%") == "perf_number"
+
+
+def test_theme_product_shot_is_offer():
+    assert _card_theme_from_key("product_main", "product_shot", "Pile de numeros") == "offer"
+
+
+def test_theme_guarantee_badge_is_guarantee():
+    assert _card_theme_from_key("guarantee_badge", "proof_symbol", "Badge garantie 90 jours") == "guarantee"
 
 
 if __name__ == "__main__":
