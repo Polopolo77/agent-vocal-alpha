@@ -1295,6 +1295,15 @@ def build_briefing_from_cache(
         briefing["sources"] = []
         briefing["allowed_numbers"] = []
 
+    # Élargit la whitelist VOIX avec les chiffres OFFICIELS du config (notable_wins,
+    # track_record, cumulative) — sinon Argos n'a que ~3 chiffres des 2 chunks BM25
+    # et reste vague (probleme "pas assez concret"). Chiffres RÉELS, citables sans risque.
+    if target_product_id:
+        _p = registry.get(target_product_id)
+        if _p:
+            _merged = (briefing.get("allowed_numbers") or []) + _config_win_numbers(_p.config)
+            briefing["allowed_numbers"] = list(dict.fromkeys(_merged))[:30]
+
     # --- Rappel produit ciblé + current_pitch (opportunité concrète) ---
     if target_product_id:
         p = registry.get(target_product_id)
@@ -1454,6 +1463,36 @@ def _extract_numbers_from_sources(sources: list[dict]) -> list[str]:
         if len(seen) >= 25:
             break
     return seen
+
+
+def _config_win_numbers(cfg: dict) -> list[str]:
+    """Chiffres OFFICIELS du config (notable_wins, track_record, cumulative, cycle
+    uranium) formatés pour la whitelist de citation voix. Que des chiffres RÉELS."""
+    if not isinstance(cfg, dict):
+        return []
+    out: list[str] = []
+    lead = cfg.get("lead_expert") or {}
+    wins: list = []
+    wins += lead.get("notable_wins") or []
+    wins += lead.get("notable_wins_official") or []
+    wins += lead.get("uranium_previous_cycle") or []
+    wins += (cfg.get("track_record") or {}).get("notable_wins") or []
+    wins += (cfg.get("simulated_performance") or {}).get("wins") or []
+    for w in wins:
+        if not isinstance(w, dict):
+            continue
+        mult = w.get("multiple")
+        pct = w.get("return_pct")
+        if pct is None:
+            pct = w.get("gain_pct")
+        if mult:
+            out.append(str(mult))
+        if pct is not None:
+            out.append(f"+{pct}%")
+    cum = cfg.get("cumulative_performance_since_1999_pct")
+    if cum is not None:
+        out.append(f"+{cum}%")
+    return out
 
 
 def _smart_truncate(text: str, query: str, max_chars: int = 250) -> str:
