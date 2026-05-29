@@ -3404,22 +3404,21 @@
           model: "models/" + MODEL,
           generationConfig: {
             responseModalities: ["AUDIO"],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
+            speechConfig: { languageCode: "fr-FR", voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
           },
           systemInstruction: { parts: [{ text: state.systemPrompt }] },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          // QW-4 : VAD serveur tune pour cible 55-75 ans.
-          // Les seniors parlent plus lentement, font des pauses plus longues
-          // entre les phrases. Default Gemini = ~500-700ms -> coupe au milieu
-          // de leurs phrases, tue la confiance. 900ms laisse respirer sans
-          // rendre la conversation molle. prefixPaddingMs 200ms = capture
-          // les premiers sons sans clipping.
+          // QW-4 : VAD serveur tuné pour cible 55-75 ans. Les seniors parlent
+          // plus lentement, font des pauses plus longues entre les phrases.
+          // endOfSpeechSensitivity=LOW = on coupe MOINS vite (cohérent avec le
+          // but "laisser respirer" ; HIGH coupait trop tôt, incohérence relevée
+          // à l'audit). silenceDurationMs=900 + prefixPaddingMs=200.
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
               startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
-              endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+              endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
               prefixPaddingMs: 200,
               silenceDurationMs: 900,
             },

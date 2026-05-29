@@ -78,17 +78,21 @@ DB_PATH = Path(__file__).parent / "conversations.db"
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://nenpyfzsxrbjztsjbbnf.supabase.co")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbnB5ZnpzeHJianp0c2piYm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTM5NjQsImV4cCI6MjA5MjQyOTk2NH0.c1OQitjA9dS2tFALVxNWy1FeBSKxdpv61JTrlQW5cHM")
 
-# Modèle Gemini Live pour l'agent vocal (côté client)
-LIVE_MODEL = "gemini-3.1-flash-live-preview"
-
-# Modèle rapide pour coach
-COACH_MODEL = "gemini-2.5-flash-lite"
-# Modèle plus costaud pour le dossier : flash-lite hallucinait (ex: inventait
-# "salarié" et "peur de perdre" sans aucune citation du prospect).
-DOSSIER_MODEL = "gemini-2.5-flash"
-# Modèle costaud pour l'agent cartes : il doit raisonner sur contexte
-# riche (dossier + coach + historique cartes) et éviter les répétitions.
-CARDS_MODEL = "gemini-3.0-flash"
+# Modèles Gemini — surchargeables par variable d'env (A/B sans redéploiement).
+# IDs vérifiés présents dans l'API (client.models.list) le 2026-05-29.
+LIVE_MODEL = os.getenv("LIVE_MODEL", "gemini-3.1-flash-live-preview")
+# Modèle rapide pour coach (JSON structuré, appelé chaque tour)
+COACH_MODEL = os.getenv("COACH_MODEL", "gemini-2.5-flash-lite")
+# Modèle plus costaud pour le dossier : flash-lite hallucinait (inventait
+# "salarié"/"peur de perdre" sans citation du prospect).
+DOSSIER_MODEL = os.getenv("DOSSIER_MODEL", "gemini-2.5-flash")
+# Agent cartes : raisonne sur contexte riche (dossier + coach + historique).
+# /!\ BUGFIX CRITIQUE : l'ancien "gemini-3.0-flash" N'EXISTE PAS (404 NOT_FOUND
+# vérifié) -> chaque appel /api/ui-cards plantait et tombait dans le fallback
+# {card:null} => l'agent cartes LLM était MORT (seuls les triggers locaux
+# sortaient des cartes). Remplacé par gemini-2.5-flash (réel, capable, accepte
+# la même config thinking_budget=256 + response_schema, testé OK).
+CARDS_MODEL = os.getenv("CARDS_MODEL", "gemini-2.5-flash")
 
 # =============================================================================
 # SÉCURITÉ — rate limiting + security headers (CORS permissif)
