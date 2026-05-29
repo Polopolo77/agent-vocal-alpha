@@ -2405,54 +2405,32 @@
   function cardAllowedAtThisTurn(cardData, key) {
     var turn = state.userTurnCount;
     var tpl = (typeof cardData === "string") ? cardData : (cardData.template || "");
-    var title = (typeof cardData === "object" && cardData.title) ? cardData.title.toLowerCase() : "";
-    // F9 : on teste les mots-clés sur la FENÊTRE RÉCENTE (4 derniers messages +
-    // ce qui se dit à l'instant), pas toute la conversation. Sinon, une fois
-    // "Tilson" prononcé UNE fois, toutes les cartes expert/proof passaient le
-    // garde-fou jusqu'à la fin de l'appel → cartes hors-sujet. La carte doit
-    // coller au claim COURANT.
-    var allText = state.conversationLog.slice(-4).map(function(m) { return m.text || ""; })
-      .concat([state.pendingBotText || "", state.pendingUserText || ""])
-      .join(" ").toLowerCase();
 
-    // Cartes d'accueil / transparence / market : autorisees a TOUT moment
-    // (declenchees au setupComplete pour introduire la conversation). On
-    // return true immediatement, sinon la fonction tombait sur le `return
-    // turn >= 2` final qui les bloquait au tour 0.
+    // Cartes d'accueil / transparence / market : autorisées à TOUT moment.
     var INTRO_TEMPLATES = ["welcome_steps", "rgpd_notice", "live_market", "guarantee_generic", "no_commit", "did_you_know", "patrimony_chart", "glossary"];
     if (INTRO_TEMPLATES.indexOf(tpl) >= 0 || INTRO_TEMPLATES.indexOf(key) >= 0) return true;
     if (turn < 2) return false;
 
-    // Cross-produit : si la carte appartient à un produit connu et ce produit
-    // n'est pas l'actif → rejet.
+    // Cross-produit : une carte d'un AUTRE produit que l'actif → rejet.
     var owner = state.cardProductMap ? state.cardProductMap[key] : null;
     if (owner && state.currentRecommendedProduct && owner !== state.currentRecommendedProduct) {
       return false;
     }
 
-    // expert_portrait : uniquement si le nom de l'expert apparaît dans la conv
-    if (tpl === "expert_portrait" || key.indexOf("authority_") === 0) {
-      var experts = ["tilson", "wade", "ferris", "simons", "stansberry"];
-      for (var i = 0; i < experts.length; i++) {
-        if (allText.indexOf(experts[i]) >= 0) return true;
-      }
-      return false;
-    }
-
-    // proof_number : uniquement si un chiffre concret apparaît dans la conv
-    if (tpl === "proof_number" || key.indexOf("proof_") === 0 || key.indexOf("perf_") === 0) {
-      if (/[\+xX]\s*\d{2,}|\d+\s*%|\d+\s*md|\d+\s*milliard/i.test(allText)) return true;
-      return false;
-    }
-
-    // offer_card / produit : seulement si produit recommandé ferme
+    // offer_card / produit : seulement si un produit est recommandé.
     if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer"
         || key === "offer_card" || key.indexOf("product_") === 0) {
       return !!state.currentRecommendedProduct;
     }
 
-    // Opportunity / comparison / testimonial / guarantee → OK dès tour 2+
-    return turn >= 2;
+    // PROACTIVITÉ VOULUE (garde-fou "mot prononcé" retiré sur autorisation) :
+    // au-delà du tour 1 on laisse passer expert_portrait, proof_number,
+    // opportunity, comparison, testimonial... MÊME si le nom/chiffre n'a pas été
+    // dit mot pour mot. On fait confiance au serveur (chiffres ancrés réels +
+    // verrou cross-produit) et au LLM contextuel ; l'arbitre gère le rythme.
+    // -> Argos parle de Tilson => le LLM peut sortir son portrait ET un de ses
+    //    graphiques de perf pour enrichir, comme voulu.
+    return true;
   }
 
   // ============ SMART CARDS (droite, stack 2 max) ============
