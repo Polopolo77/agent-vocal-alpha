@@ -6,6 +6,9 @@
   "vertical": "tech_ia_actions",
   "positioning": "Premier Agent IA d'Investissement dédié aux particuliers. Développé par Stansberry Research, supervisé par Whitney Tilson. Gère un portefeuille de 20 actions Russell 1000 avec rebalancing trimestriel automatique.",
   "signatory": "Marc Schneider",
+  "lead_magnet": {
+    "title": "Le Projet Alpha"
+  },
   "tech_partner": {
     "name": "Stansberry Research",
     "description": "Plus grande firme de recherche financière indépendante des États-Unis (30 ans d'existence, partenariat exclusif avec Argo depuis l'origine)"
