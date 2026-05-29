@@ -927,7 +927,7 @@ FEW-SHOT EXEMPLES
 → `{"card": {"image_key": "authority_tilson", "template": "expert_portrait", "title": "Whitney Tilson", "subtitle": "L'Héritier de Warren Buffett", "items": ["Formé par Buffett", "20 ans à Wall Street", "Portefeuille +3264% depuis 1999"]}, "reasoning": "Prospect prudent qui cherche l'autorité → ancrage expert."}`
 
 **Exemple 2** — Argos dit "Il a sorti Netflix à +8900%" + prospect dynamique tech :
-→ `{"card": {"template": "proof_number", "title": "+8 900%", "subtitle": "Netflix — Whitney Tilson, 2012"}, "reasoning": "Chiffre explicite cité, dossier tech → impact visuel maximal."}` (proof_number = texte seul, pas d'image_key)
+→ `{"card": {"image_key": "proof_netflix", "template": "proof_number", "title": "+8 900%", "subtitle": "Netflix — Whitney Tilson, 2012"}, "reasoning": "Chiffre explicite cité, dossier tech → impact visuel maximal."}` (image_key = le graphique de perf correspondant, proof_xxx)
 
 **Exemple 3** — Argos pose "Qu'est-ce qui vous motive ?" + prospect hésite :
 → `{"card": null, "reasoning": "Question ouverte en diagnostic, pas de thème précis."}`
@@ -955,12 +955,12 @@ CARTES DISPONIBLES (par produit, par thème)
 TEMPLATES & SCHÉMA
 ═══════════════════
 
-- `proof_number` : gros chiffre doré, TEXTE SEUL (pas d'image_key). title = "+548%". subtitle = contexte court. Le chiffre DOIT exister dans la lettre de vente du produit (sinon rejet serveur).
+- `proof_number` : gros chiffre doré + graphique de perf. title = "+548%". subtitle = contexte court. image_key = le graphique `proof_xxx` du produit actif (recommandé). Le chiffre DOIT exister dans la lettre de vente (sinon rejet serveur).
 - `expert_portrait` : photo + nom. image_key = carte expert du produit actif. title = nom. subtitle = surnom. items = credentials.
 - `opportunity` : teaser. image_key optionnel. title + subtitle courts.
 - `comparison` : blocs contrastés. items = ["A : …", "B : …"].
 - `testimonial` : citation. quote + subtitle "— Nom, abonné".
-- `track_record` : tableau, TEXTE SEUL. items = ["Asset +X%", …]. Chiffres whitelistés (lettre).
+- `track_record` : tableau. items = ["Asset +X%", …]. image_key optionnel. Chiffres whitelistés (lettre).
 
 **Schéma JSON (obligatoire) :**
 ```

@@ -2651,9 +2651,11 @@
     if (tpl === "proof_number") {
       if (title) html += '<div class="big-number">' + escapeHtml(title) + '</div>';
       if (subtitle) html += '<p style="color:var(--fg);font-weight:500;margin-bottom:10px;">' + escapeHtml(subtitle) + '</p>';
-      // Pas d'image sur proof_number : le chiffre se suffit, et ça évite le bug
-      // CDN "mauvaise image servie" (décision PROJECT.md). Image réservée aux
-      // templates fiables : expert_portrait + opportunity.
+      // Graphique de perf si image_key fourni. cardImg ajoute onerror -> si le
+      // CDN sert une image cassée/404, elle disparaît proprement et la carte
+      // reste lisible (chiffre + contexte). C'est le filet de sécurité qui
+      // remplace l'ancien "on retire toutes les images proof".
+      html += cardImg(imgUrl, 'alt=""');
 
     } else if (tpl === "expert_portrait") {
       html += '<div style="display:flex;gap:16px;align-items:center;margin:10px 0;">';
@@ -2708,7 +2710,7 @@
           html += '</div>';
         });
       }
-      // Pas d'image sur track_record (tableau de perfs) — fiabilité CDN (cf. proof_number).
+      html += cardImg(imgUrl, 'style="margin-top:12px;"');
 
     } else {
       // Template non reconnu → fallback générique avec titre + subtitle + image
@@ -3934,34 +3936,34 @@
   var LOCAL_CARD_TRIGGERS = [
     // ===== argo_actions (Whitney Tilson) =====
     { product: "argo_actions", keywords: ["whitney tilson", "tilson"],         card: { template: "expert_portrait", image_key: "authority_tilson", title: "Whitney Tilson", subtitle: "Formé par Warren Buffett", items: ["+47 400% sur Apple", "+8 900% sur Netflix", "20+ ans à Wall Street"] } },
-    { product: "argo_actions", keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
-    { product: "argo_actions", keywords: ["apple", "47400", "47 400", "x475"], card: { template: "proof_number", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
-    { product: "argo_actions", keywords: ["sodastream", "1100"],               card: { template: "proof_number", title: "+1 100%", subtitle: "SodaStream — Whitney Tilson" } },
-    { product: "argo_actions", keywords: ["ggp", "general growth", "1600"],    card: { template: "proof_number", title: "+1 600%", subtitle: "General Growth Properties" } },
-    { product: "argo_actions", keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
+    { product: "argo_actions", keywords: ["netflix", "8900", "8 900"],         card: { template: "proof_number", image_key: "proof_netflix", title: "+8 900%", subtitle: "Netflix — Whitney Tilson, 2012" } },
+    { product: "argo_actions", keywords: ["apple", "47400", "47 400", "x475"], card: { template: "proof_number", image_key: "proof_apple", title: "x475", subtitle: "Apple — Whitney Tilson, 2008" } },
+    { product: "argo_actions", keywords: ["sodastream", "1100"],               card: { template: "proof_number", image_key: "proof_sodastream", title: "+1 100%", subtitle: "SodaStream — Whitney Tilson" } },
+    { product: "argo_actions", keywords: ["ggp", "general growth", "1600"],    card: { template: "proof_number", image_key: "proof_ggp", title: "+1 600%", subtitle: "General Growth Properties" } },
+    { product: "argo_actions", keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", image_key: "proof_dette", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
     { product: "argo_actions", keywords: ["bouclier suisse", "sécuriser votre épargne", "franc suisse"], card: { template: "proof_number", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
 
     // ===== argo_crypto (Eric Wade) =====
     { product: "argo_crypto", keywords: ["eric wade", "wade"],                 card: { template: "expert_portrait", image_key: "authority_wade", title: "Eric Wade", subtitle: "Le Business Angel de la Tech", items: ["wallstreet.com : 7$ → 1M$", "24 recos > +1000%", "Polymath +3 180%"] } },
     { product: "argo_crypto", keywords: ["polymath", "3180", "3 180"],         card: { template: "proof_number", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
     { product: "argo_crypto", keywords: ["harmony", "8079", "8 079"],          card: { template: "proof_number", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
-    { product: "argo_crypto", keywords: ["fin du travail", "60%", "60 %", "emplois menacés", "rentier"], card: { template: "opportunity", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
-    { product: "argo_crypto", keywords: ["nvidia", "30000", "30 000"],         card: { template: "proof_number", title: "+30 000%", subtitle: "Nvidia — +30 000% depuis 2015" } },
+    { product: "argo_crypto", keywords: ["fin du travail", "60%", "60 %", "emplois menacés", "rentier"], card: { template: "opportunity", image_key: "proof_fmi_emplois", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
+    { product: "argo_crypto", keywords: ["nvidia", "30000", "30 000"],         card: { template: "proof_number", image_key: "proof_nvidia_reference", title: "+30 000%", subtitle: "Nvidia — +30 000% depuis 2015" } },
 
     // ===== argo_alpha (Stansberry + Tilson) =====
-    { product: "argo_alpha", keywords: ["jim simons", "simons", "renaissance technologies", "renaissance"], card: { template: "proof_number", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
-    { product: "argo_alpha", keywords: ["lumentum", "548"],                    card: { template: "proof_number", title: "+548%", subtitle: "Lumentum — succès passé Alpha" } },
-    { product: "argo_alpha", keywords: ["cadence design", "cadence"],          card: { template: "proof_number", title: "+550%", subtitle: "Cadence Design Systems — score Alpha 77" } },
-    { product: "argo_alpha", keywords: ["synopsys"],                           card: { template: "proof_number", title: "+450%", subtitle: "Synopsys — score Alpha 78" } },
-    { product: "argo_alpha", keywords: ["nvidia alpha", "6400", "6 400", "x65"],card: { template: "proof_number", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017 par Alpha" } },
+    { product: "argo_alpha", keywords: ["jim simons", "simons", "renaissance technologies", "renaissance"], card: { template: "proof_number", image_key: "proof_renaissance_2008", title: "46 Md$", subtitle: "1 000$ en 1988 → 46 milliards en 2024 — Jim Simons" } },
+    { product: "argo_alpha", keywords: ["lumentum", "548"],                    card: { template: "proof_number", image_key: "proof_lumentum", title: "+548%", subtitle: "Lumentum — succès passé Alpha" } },
+    { product: "argo_alpha", keywords: ["cadence design", "cadence"],          card: { template: "proof_number", image_key: "proof_cadence", title: "+550%", subtitle: "Cadence Design Systems — score Alpha 77" } },
+    { product: "argo_alpha", keywords: ["synopsys"],                           card: { template: "proof_number", image_key: "proof_synopsys", title: "+450%", subtitle: "Synopsys — score Alpha 78" } },
+    { product: "argo_alpha", keywords: ["nvidia alpha", "6400", "6 400", "x65"],card: { template: "proof_number", image_key: "proof_nvidia_alpha", title: "+6 400%", subtitle: "Nvidia — repéré dès 2017 par Alpha" } },
     { product: "argo_alpha", keywords: ["stansberry", "russell 1000"],         card: { template: "opportunity", title: "Agent Alpha", subtitle: "20 actions du Russell 1000, rebalancing IA" } },
 
     // ===== argo_gold (Dan Ferris) =====
     { product: "argo_gold", keywords: ["dan ferris", "ferris", "crocodile"],   card: { template: "expert_portrait", image_key: "authority_ferris", title: "Dan Ferris", subtitle: "Le Crocodile de Wall Street", items: ["Surperforme depuis 2002", "Constellation +629%", "Apple +190%"] } },
-    { product: "argo_gold", keywords: ["vista gold", "1248", "1 248"],         card: { template: "proof_number", title: "+1 248%", subtitle: "Vista Gold — x13 en 1 an" } },
-    { product: "argo_gold", keywords: ["ssr mining", "5428", "5 428"],         card: { template: "proof_number", title: "+5 428%", subtitle: "SSR Mining — x55 en 2 ans" } },
-    { product: "argo_gold", keywords: ["forsys", "10 900", "10900"],           card: { template: "proof_number", title: "+10 900%", subtitle: "Forsys Metals — x110 en 10 mois" } },
-    { product: "argo_gold", keywords: ["métal jaune", "once d'or", "cours de l'or", "minières", "minieres", "minier", "uranium", "détonateur", "hyper climax", "dan ferris"], card: { template: "proof_number", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
+    { product: "argo_gold", keywords: ["vista gold", "1248", "1 248"],         card: { template: "proof_number", image_key: "proof_vista", title: "+1 248%", subtitle: "Vista Gold — x13 en 1 an" } },
+    { product: "argo_gold", keywords: ["ssr mining", "5428", "5 428"],         card: { template: "proof_number", image_key: "proof_ssr", title: "+5 428%", subtitle: "SSR Mining — x55 en 2 ans" } },
+    { product: "argo_gold", keywords: ["forsys", "10 900", "10900"],           card: { template: "proof_number", image_key: "proof_forsys", title: "+10 900%", subtitle: "Forsys Metals — x110 en 10 mois" } },
+    { product: "argo_gold", keywords: ["métal jaune", "once d'or", "cours de l'or", "minières", "minieres", "minier", "uranium", "détonateur", "hyper climax"], card: { template: "proof_number", image_key: "proof_historique", title: "Hyper Climax", subtitle: "L'or au plus haut depuis 55 ans" } },
 
     // ===== Génériques (tous produits) =====
     { product: null, keywords: ["garantie", "remboursé", "rembourse", "3 mois", "sans risque"], card: "guarantee_generic" },
