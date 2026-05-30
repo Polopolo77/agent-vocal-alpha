@@ -196,6 +196,24 @@ PROFILES = [
             ("user",  "Faut vraiment que ça vaille le coup à ce prix-là."),
         ],
     },
+    {
+        "name": "Curieux casse-pattern (dis-moi plus, refuse le prix)",
+        "expect_product": "argo_alpha", "no_premature_close": True,
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Paul. J'ai investi un peu, une dizaine de milliers d'euros en ETF tech, S&P et QQQ."),
+            ("alpha", "Vous cherchez de la croissance sur la tech ?"),
+            ("user",  "Oui faire grossir, j'aime la tech et l'IA."),
+            ("alpha", "On a un agent IA, Alpha, supervisé par Whitney Tilson."),
+            ("user",  "Ah ouais, dis-moi en plus, comment ça marche cette IA ?"),
+            ("alpha", "L'agent IA scanne des milliers d'actions et en sélectionne 20, rééquilibrées chaque trimestre."),
+            ("user",  "Ok dis-moi en plus."),
+            ("alpha", "Il a repéré Nvidia avant sa hausse, un x65, et Cadence à plus 550 pour cent."),
+            ("user",  "Dis-m'en plus."),
+            ("alpha", "Il gère aussi activement le portefeuille pour optimiser les gains."),
+            ("user",  "Non non, je veux pas que tu me parles du prix, dis-moi juste plus sur la strategie."),
+        ],
+    },
 ]
 
 
@@ -204,7 +222,7 @@ def run_profile(p):
     log, active, dossier = [], None, {}
     cards, leaks, ungrounded = [], [], []
     last_price, last_tier, last_allowed, last_phase = None, None, 0, None
-    chaleur, certitude = None, None
+    chaleur, certitude, last_signal = None, None, None
     for role, text in p["script"]:
         log.append({"role": role, "text": text})
         tu = sum(1 for m in log if m["role"] == "user")
@@ -214,6 +232,7 @@ def run_profile(p):
             prod = (coach.get("produit") or {}) if isinstance(coach, dict) else {}
             chaleur = (coach.get("etat_emotionnel") or {}).get("chaleur") if isinstance(coach, dict) else None
             certitude = prod.get("certitude")
+            last_signal = (coach.get("directive_prochain_tour") or {}).get("signal_closing") or last_signal
             if prod.get("recommande") and prod.get("certitude") in ("moyen", "ferme"):
                 active = prod["recommande"]
             d = post("/api/ui-dossier", {"history": log, "previous_dossier": dossier})
@@ -252,7 +271,13 @@ def run_profile(p):
     checks = []
     exp = p.get("expect_product")
     forbid = p.get("forbid_product")
-    if exp:
+    if exp and p.get("no_premature_close"):
+        checks.append(("produit routé", active == exp, f"{active} (attendu {exp})"))
+        checks.append(("PAS de closing prématuré (phase != prix_closing)", last_phase != "prix_closing", f"phase={last_phase}"))
+        checks.append(("PAS de signal closing 'vert' sur pure curiosité", last_signal != "vert", f"signal={last_signal}"))
+        checks.append(("cartes proposées", len(cards) > 0, f"{len(cards)}"))
+        checks.append(("pas de fuite cross-produit", not leaks, f"{leaks if leaks else 'aucune'}"))
+    elif exp:
         checks.append(("produit routé", active == exp, f"{active} (attendu {exp})"))
         checks.append(("tier", last_tier == p.get("expect_tier"), f"{last_tier} @ {last_price}EUR (attendu {p.get('expect_tier')})"))
         checks.append(("cartes proposées", len(cards) > 0, f"{len(cards)}"))
