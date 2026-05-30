@@ -46,7 +46,7 @@ def _load_owners():
             for im in imgs:
                 k = im.get("usage_card")
                 if k:
-                    owners.setdefault(k, pid)
+                    owners.setdefault(k, set()).add(pid)  # une clé peut appartenir à PLUSIEURS produits (ex: authority_tilson)
         except Exception:
             pass
     return owners
@@ -126,6 +126,76 @@ PROFILES = [
             ("user",  "On verra. Je donne pas mon argent comme ça."),
         ],
     },
+    {
+        "name": "Cadre actif pressé (délègue)",
+        "expect_product": "argo_alpha", "expect_tier": "B",
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Thomas. Je suis cadre, j'ai pas le temps de gérer mes placements."),
+            ("alpha", "Vous cherchez à déléguer la gestion ?"),
+            ("user",  "Oui exactement, je veux que ce soit automatisé. J'ai 80 000 euros."),
+            ("alpha", "L'automatisation, c'est notre créneau. Vous aimez la tech ?"),
+            ("user",  "Oui la tech, l'IA, mais je veux surtout pas y passer du temps."),
+            ("alpha", "On a Alpha, un agent IA qui gère la sélection pour vous, supervisé par Tilson."),
+            ("user",  "Parfait, et le prix ?"),
+        ],
+    },
+    {
+        "name": "Gros patrimoine tech (500k)",
+        "expect_product": "argo_alpha", "expect_tier": "B",
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Pierre. J'ai un patrimoine important, 500 000 euros, et je m'intéresse à l'IA."),
+            ("alpha", "Vous investissez déjà beaucoup ?"),
+            ("user",  "Oui pas mal. Je veux de la performance sur la tech et l'IA, du sérieux et délégué."),
+            ("alpha", "On a un agent IA quantitatif. Je vous montre ?"),
+            ("user",  "Oui, montrez-moi l'approche IA."),
+            ("alpha", "Alpha, agent IA sur le Russell 1000, supervisé par Whitney Tilson."),
+            ("user",  "Bien. Combien ça coûte ?"),
+        ],
+    },
+    {
+        "name": "Cadre immobilier moyen budget (60k value)",
+        "expect_product": "argo_actions", "expect_tier": "B",
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Julien. J'investis dans l'immobilier, j'ai 60 000 euros à placer en bourse."),
+            ("alpha", "Vous cherchez quoi pour cette somme ?"),
+            ("user",  "De la croissance solide, du value, du long terme. Pas trop spéculatif."),
+            ("alpha", "Le value long terme, c'est exactement Whitney Tilson."),
+            ("user",  "Ah, quel produit pour ça ?"),
+            ("alpha", "Actions Gagnantes, value américaine solide de Tilson."),
+            ("user",  "Ok, le prix ?"),
+        ],
+    },
+    {
+        "name": "Abonné existant (cross-sell, doit pivoter)",
+        "expect_product": None, "expect_tier": None, "forbid_product": "argo_actions",
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Marc. Je suis déjà abonné à Actions Gagnantes chez vous."),
+            ("alpha", "Super Marc ! Vous voulez diversifier votre portefeuille ?"),
+            ("user",  "Oui, j'aimerais compléter avec autre chose. J'ai 100 000 euros de plus à placer."),
+            ("alpha", "On peut compléter votre value US avec de l'automatisation IA ou de l'asymétrie crypto."),
+            ("user",  "Ah oui, dites-moi ce qui complète bien Actions Gagnantes."),
+            ("alpha", "Pour automatiser une partie, il y a notre agent IA, Alpha."),
+            ("user",  "Intéressant, et le prix ?"),
+        ],
+    },
+    {
+        "name": "Objection prix (produit doit tenir)",
+        "expect_product": "argo_alpha", "expect_tier": "B",
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Sophie. J'ai 100 000 euros, je veux déléguer, j'aime la tech et l'IA."),
+            ("alpha", "Parfait, on a un agent IA pour ça, Alpha."),
+            ("user",  "Ok ça m'intéresse, c'est combien ?"),
+            ("alpha", "997 euros par an, avec la garantie satisfait ou remboursé."),
+            ("user",  "997 euros ?! C'est cher quand même, je trouve ça beaucoup."),
+            ("alpha", "Je comprends que le montant vous interpelle."),
+            ("user",  "Faut vraiment que ça vaille le coup à ce prix-là."),
+        ],
+    },
 ]
 
 
@@ -156,9 +226,9 @@ def run_profile(p):
             if card:
                 cards.append(card)
                 ik = card.get("image_key")
-                owner = OWNERS.get(ik) if ik else None
-                if owner and active and owner != active and ik not in GENERIC:
-                    leaks.append((ik, owner))
+                owner_set = OWNERS.get(ik) if ik else None
+                if owner_set and active and active not in owner_set and ik not in GENERIC:
+                    leaks.append((ik, sorted(owner_set)))
             b = post("/api/briefing", {"session_id": sess, "query": "prix exact et meilleurs chiffres pour convaincre",
                                        "capital": dossier.get("capital")})
             if isinstance(b, dict):
@@ -168,18 +238,36 @@ def run_profile(p):
                 last_allowed = len(b.get("allowed_numbers", [])) or last_allowed
                 last_phase = (b.get("PHASE_LOCK") or {}).get("phase_agent_autorisee")
 
+    # Briefing FINAL : reflète la décision coach après le DERNIER tour (= le prix
+    # que Argos annoncerait au closing). Évite l'artefact "briefing un tour en retard".
+    bf = post("/api/briefing", {"session_id": sess, "query": "prix exact a annoncer",
+                                "capital": dossier.get("capital")})
+    if isinstance(bf, dict):
+        prf = bf.get("price_to_announce") or {}
+        if prf.get("montant_euros") is not None:
+            last_price, last_tier = prf.get("montant_euros"), prf.get("tier_effectif")
+        last_allowed = len(bf.get("allowed_numbers", [])) or last_allowed
+
     # --- Checks ---
     checks = []
-    if p["expect_product"] is not None:
-        checks.append(("produit routé", active == p["expect_product"], f"{active} (attendu {p['expect_product']})"))
-        checks.append(("tier", last_tier == p["expect_tier"], f"{last_tier} @ {last_price}EUR (attendu {p['expect_tier']})"))
+    exp = p.get("expect_product")
+    forbid = p.get("forbid_product")
+    if exp:
+        checks.append(("produit routé", active == exp, f"{active} (attendu {exp})"))
+        checks.append(("tier", last_tier == p.get("expect_tier"), f"{last_tier} @ {last_price}EUR (attendu {p.get('expect_tier')})"))
         checks.append(("cartes proposées", len(cards) > 0, f"{len(cards)}"))
         checks.append(("pas de fuite cross-produit", not leaks, f"{leaks if leaks else 'aucune'}"))
         checks.append(("chiffres citables (voix)", last_allowed >= 4, f"{last_allowed}"))
+    elif forbid:
+        # cross-sell : doit recommander un produit, et PAS celui déjà possédé
+        checks.append(("cross-sell : un produit recommandé", active is not None, f"{active}"))
+        checks.append(("cross-sell : a PIVOTÉ (≠ produit déjà possédé)", active is not None and active != forbid, f"{active} (interdit: {forbid})"))
+        checks.append(("cartes proposées", len(cards) > 0, f"{len(cards)}"))
+        checks.append(("pas de fuite cross-produit", not leaks, f"{leaks if leaks else 'aucune'}"))
     else:
         # sceptique : ne doit PAS être verrouillé en closing prématuré
         checks.append(("sceptique non forcé (certitude != ferme)", certitude != "ferme", f"certitude={certitude}"))
-        checks.append(("pas de carte offre prématurée", not any(c.get("template") == "offer_card" for c in cards), "ok" if not any(c.get("template")=="offer_card" for c in cards) else "offer_card affichée!"))
+        checks.append(("pas de carte offre prématurée", not any(c.get("template") == "offer_card" for c in cards), "ok" if not any(c.get("template") == "offer_card" for c in cards) else "offer_card affichée!"))
 
     card_themes = ", ".join(f"{c.get('template')}:{c.get('image_key') or c.get('title','')[:14]}" for c in cards[:6])
     return {"name": p["name"], "active": active, "chaleur": chaleur, "certitude": certitude,
