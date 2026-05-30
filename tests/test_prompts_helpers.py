@@ -16,6 +16,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from prompts import _parse_capital_amount as cap
 from prompts import _extract_numbers_from_sources
+from prompts import _effective_tier as etier
+
+OFFERS_GOLD = {"A": {"price_eur": 997}, "B": {"price_eur": 1997},
+               "C": {"price_eur": 299}, "D": {"price_eur": 599}}
+OFFERS_AB = {"A": {"price_eur": 149}, "B": {"price_eur": 299}}
 
 
 def _nums(text):
@@ -87,6 +92,61 @@ def test_nums_keeps_real_multiple():
 def test_nums_dollar_amount_no_partial():
     r = _nums("1 000$ investis en 1988")
     assert not any(x.strip() in ("000$", "000") for x in r)
+
+
+# --- _effective_tier : carte == voix, frontière 50k (bug capture Paul) -------
+
+def test_tier_50k_boundary_is_A():
+    # 50 000€ PILE n'est PAS > 50 000 -> tier A (997€), PAS B (1997€).
+    assert etier(OFFERS_GOLD, 50000, None) == "A"
+
+
+def test_tier_just_above_50k_is_B():
+    assert etier(OFFERS_GOLD, 50001, None) == "B"
+
+
+def test_tier_below_50k_is_A():
+    assert etier(OFFERS_GOLD, 49999, None) == "A"
+
+
+def test_tier_big_capital_is_B():
+    assert etier(OFFERS_GOLD, 250000, None) == "B"
+
+
+def test_tier_coach_B_ignored_at_50k():
+    # Le coach (Flash-lite) dit B à 50k -> IGNORÉ, reste A (sinon carte≠voix).
+    assert etier(OFFERS_GOLD, 50000, "B") == "A"
+
+
+def test_tier_coach_A_ignored_above_50k():
+    # Le coach dit A à 250k -> IGNORÉ, reste B (pas de sous-calibrage premium).
+    assert etier(OFFERS_GOLD, 250000, "A") == "B"
+
+
+def test_tier_coach_trial_C_honored():
+    # "je veux tester" -> C respecté, même à gros capital.
+    assert etier(OFFERS_GOLD, 250000, "C") == "C"
+
+
+def test_tier_coach_trial_D_honored():
+    assert etier(OFFERS_GOLD, 250000, "D") == "D"
+
+
+def test_tier_trial_C_ignored_if_absent():
+    # argo_actions n'a pas de tier C -> retombe sur la règle capital (B).
+    assert etier(OFFERS_AB, 250000, "C") == "B"
+
+
+def test_tier_capital_unknown_defaults_A():
+    assert etier(OFFERS_GOLD, None, None) == "A"
+
+
+def test_tier_capital_unknown_coach_B_still_A():
+    assert etier(OFFERS_GOLD, None, "B") == "A"
+
+
+def test_tier_no_B_offer_falls_to_A():
+    assert etier({"A": {"price_eur": 149}}, 250000, None) == "A"
 
 
 if __name__ == "__main__":

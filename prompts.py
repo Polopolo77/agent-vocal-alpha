@@ -309,23 +309,19 @@ Mentionne le lead magnet BRIÈVEMENT (1 phrase). Si le prospect n'est pas intér
 **⚠️ CURIOSITÉ ≠ ACHAT — n'annonce JAMAIS le prix avant qu'il soit demandé.** Si le prospect dit "dis-moi plus", "explique", "continue", "comment ça marche", "encore" → il veut PLUS DE VALEUR, pas le prix. Tu livres une NOUVELLE preuve concrète (un autre chiffre réel du briefing, un autre exemple, un mécanisme précis), puis tu attends. Tu n'annonces le prix QUE s'il le DEMANDE ("combien ça coûte ?", "c'est quoi le prix ?") ou dit clairement qu'il veut s'inscrire. Balancer le prix + le bouton "S'inscrire" à un prospect juste curieux = tu le braques et il fuit. Le bouton ne doit JAMAIS apparaître tant qu'il n'a pas exprimé l'envie d'acheter.
 **SI LE PROSPECT REFUSE LE PRIX / VEUT PLUS D'INFOS** ("je veux pas qu'on parle du prix", "dis-moi plus", "pas tout de suite") → tu reviens IMMÉDIATEMENT à la valeur : une preuve de plus, un mécanisme concret. Tu NE re-mentionnes PAS le prix ni le bouton tant qu'il ne le redemande pas. Tu ne bafouilles pas, tu ne te répètes pas : tu apportes du NOUVEAU concret (un chiffre, un exemple, un nom).
 
-**CHOIX DU TIER selon le capital du prospect (OBLIGATOIRE)**
+**LE PRIX ET LE TIER VIENNENT DU SERVEUR — TU NE LES CHOISIS PAS**
 
-Avant d'annoncer le prix, tu CHOISIS activement le tier (A, B, C, D) en fonction du capital du prospect. Tu ne défaults JAMAIS sur tier A systématiquement.
+⚠️ Tu ne décides JAMAIS le tier ni le prix toi-même. Au closing, `obtenir_briefing` te renvoie `price_to_announce` avec le **montant exact** (`montant_euros`), le tier déjà choisi côté serveur selon le capital, et la consigne `instruction_stricte`. **Tu annonces CE montant, mot pour mot, et AUCUN autre.** Ce même montant est affiché sur le bouton "S'inscrire" à l'écran : si tu dis un chiffre différent (tu dis 1997€ alors que l'écran affiche 997€), le prospect voit une incohérence et il fuit. Les prix listés dans la règle 11 ne sont qu'une RÉFÉRENCE de calibrage, PAS ce que tu annonces : la seule source du prix, c'est `price_to_announce.montant_euros`.
 
-Règles :
-- **Capital < 10 000 €** → **tier A** (le moins cher). C'est le bon choix, pas besoin de justifier.
-- **Capital entre 10 000 et 50 000 €** → **tier A** par défaut, SAUF si le prospect a explicitement exprimé "je veux le meilleur / haut de gamme / premium" → tier B.
-- **Capital > 50 000 €** → **tier B** (premium) par défaut. Tu n'annonces PAS tier A en premier. Tu dis : "Vu votre capital de {capital}€, je vous recommande l'offre **premium à {prix tier B}€/an** qui inclut [avantages tier B]. C'est le tier fait pour votre profil."
-- **Prospect hésite sur l'engagement ou dit "je veux tester"** → propose le **tier C trimestriel** (si argo_alpha ou argo_gold), même si son capital est élevé. Phrase type : "Pour tester sans engagement annuel, il y a une formule trimestrielle à {prix C}/trim."
+Pourquoi ce tier (pour ARGUMENTER, pas pour le choisir) : le serveur applique la règle capital — **< 50 000 € → offre annuelle standard** ; **> 50 000 € → offre premium** ; **"je veux tester sans engagement" → formule trimestrielle**. Tu n'as qu'à l'expliquer au prospect, jamais à le recalculer ni à deviner le tier toi-même.
 
-**Quand tu donnes le prix, tu EXPLIQUES pourquoi CE tier pour CE prospect.** Exemple :
-> "Vu vos 60 000 € et votre profil tech, je vous propose le **tier premium à 997€/an**. C'est celui qui correspond à votre ambition. À 2.7% du capital annuel, c'est minimal pour l'impact."
+**Quand tu donnes le prix, tu EXPLIQUES pourquoi CE tier colle à CE prospect.** Exemple (le montant vient TOUJOURS de `price_to_announce.montant_euros`) :
+> "Vu vos 60 000 €, c'est l'offre **premium à {price_to_announce.montant_euros}€/an**. C'est celle qui correspond à votre ambition. À 2.7% du capital annuel, c'est minimal pour l'impact."
 
-**Si le prospect demande "pourquoi pas l'autre option ?"** :
-- Tu ne marmonnes PAS. Tu as les détails des 2 tiers en mémoire (tier A et tier B, avec leur positioning).
-- Si tu as proposé tier A et qu'il veut tier B : "Le tier B à {prix}€ c'est {positioning tier B}. Pour {capital}€, c'est tout à fait cohérent. On part là-dessus ?"
-- Si tu as proposé tier B et qu'il veut tier A : "Le tier A à {prix}€ est l'entrée de gamme, mais pour votre profil j'ai préféré vous proposer le premium. À vous de voir."
+**Si le prospect demande "pourquoi pas une autre option / une formule moins chère ?"** :
+- Tu ne marmonnes PAS. Tu connais les 2 tiers (standard et premium) et leur positioning.
+- "L'offre à {price_to_announce.montant_euros}€, c'est ce qui colle à votre profil. Il existe aussi une formule trimestrielle pour étaler — dites-moi si vous préférez tester d'abord."
+- Si le prospect veut explicitement tester / étaler, tu le lui confirmes : le serveur basculera sur la formule trimestrielle et te redonnera le bon montant au prochain `obtenir_briefing`. Tu **n'inventes jamais** un chiffre toi-même.
 
 **Phase 7 — Le prix comme évidence (tour 10+)**
 
@@ -1369,14 +1365,11 @@ def build_briefing_from_cache(
             # Override >50k€ -> tier B sauf si coach a explicitement choisi C/D
             # (trimestriel = prospect a dit "je veux tester"). Cohérent avec
             # la règle 11 du BASE_AGENT_PROMPT et la règle capital du coach.
-            coach_is_trial = coach_tier in ("C", "D")
-            if (capital_num and capital_num > 50000
-                    and not coach_is_trial and offers.get("B")):
-                effective_tier = "B"
-            else:
-                effective_tier = coach_tier if coach_tier in offers else (
-                    "A" if offers.get("A") else next(iter(offers), None)
-                )
+            # Décision A vs B DÉTERMINISTE (helper pur, testable, mirroité en JS
+            # par getRecommendedTierAndUrl) -> la carte affiche TOUJOURS le prix
+            # que la voix annonce. Le coach_tier A/B est ignoré (Flash-lite
+            # flippait à la frontière 50k€ et faisait diverger carte/voix).
+            effective_tier = _effective_tier(offers, capital_num, coach_tier)
             offer = offers.get(effective_tier) if effective_tier else None
             if offer and offer.get("price_eur") is not None:
                 period = offer.get("period", "an")
@@ -1399,6 +1392,28 @@ def build_briefing_from_cache(
                 }
 
     return briefing
+
+
+def _effective_tier(offers: dict, capital_num: "float | None", coach_tier: object) -> "str | None":
+    """Décision DÉTERMINISTE du tier à annoncer — SOURCE UNIQUE de prix de la voix
+    (price_to_announce). Le frontend (getRecommendedTierAndUrl) applique la MÊME
+    règle en JS, pour que la carte affiche TOUJOURS le montant que la voix annonce.
+
+    - Le coach ne peut imposer QUE C/D (trimestriel = "je veux tester sans
+      engagement"). Son choix A/B est IGNORÉ : Flash-lite flippait d'un tour à
+      l'autre à la frontière 50k€ et faisait diverger carte (997€) / voix (1997€).
+    - Sinon : capital > 50 000 € -> B (premium), sinon A (standard).
+    - 50 000 € PILE n'est PAS > 50 000 -> tier A (règle catalogue : 'entre
+      10 000 et 50 000 -> A', '> 50 000 -> B').
+    """
+    offers = offers or {}
+    if coach_tier in ("C", "D") and offers.get(coach_tier):
+        return coach_tier
+    if capital_num and capital_num > 50000 and offers.get("B"):
+        return "B"
+    if offers.get("A"):
+        return "A"
+    return next(iter(offers), None)
 
 
 def _parse_capital_amount(raw: object) -> float | None:

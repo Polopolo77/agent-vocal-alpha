@@ -2750,19 +2750,26 @@
     if (!pm) return null;
     const offers = pm.offers || {};
     const coachTier = state.coachDirective && state.coachDirective.produit && state.coachDirective.produit.tier_recommande;
+    const coachIsTrial = coachTier === "C" || coachTier === "D";
 
-    // Override capital-based
-    let overrideTier = null;
+    // DÉTERMINISTE : A vs B dépend UNIQUEMENT du capital (>50k€ -> B), jamais du
+    // coachTier (Flash-lite) qui flippait d'un tour à l'autre et faisait
+    // diverger la carte (997€) de la voix (1997€). Le coach ne peut imposer QUE
+    // C/D (trimestriel = "je veux tester"). Même calcul, même capital que le
+    // serveur (price_to_announce) -> la carte affiche TOUJOURS le prix annoncé.
     const capitalNum = parseCapitalAmount(state.lastDossier && state.lastDossier.capital);
-    if (capitalNum && capitalNum > 50000) {
-      const coachIsTrial = coachTier === "C" || coachTier === "D";
-      if (!coachIsTrial && offers["B"]) {
-        overrideTier = "B";
-      }
+    let forcedTier = null;
+    if (coachIsTrial && offers[coachTier]) {
+      forcedTier = coachTier;
+    } else if (capitalNum && capitalNum > 50000 && offers["B"]) {
+      forcedTier = "B";
+    } else if (offers["A"]) {
+      forcedTier = "A";
     }
 
-    // Certains tiers legacy (ex: "A_cc") peuvent être présents. On priorise A, B, C, D.
-    const preferredOrder = [overrideTier, coachTier, "A", "B", "C", "D"].filter(Boolean);
+    // Certains tiers legacy (ex: "A_cc") peuvent être présents. On priorise le
+    // tier déterministe, puis A, B, C, D en fallback.
+    const preferredOrder = [forcedTier, "A", "B", "C", "D"].filter(Boolean);
     let tier = null, offer = null;
     for (const t of preferredOrder) {
       if (offers[t]) { tier = t; offer = offers[t]; break; }

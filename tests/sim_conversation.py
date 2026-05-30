@@ -99,6 +99,23 @@ PROFILES = [
         ],
     },
     {
+        # Bug réel (capture Paul) : la carte affichait 997€ mais la voix a annoncé
+        # 1997€. 50 000€ PILE n'est PAS > 50 000 -> tier A -> 997€. Carte ET voix
+        # doivent dire le MÊME montant : 997€. (Vérifie la source unique de prix.)
+        "name": "Frontière 50k or (carte == voix == 997€)",
+        "expect_product": "argo_gold", "expect_tier": "A", "expect_price": 997,
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Paul. Je veux me positionner sur l'or avec Dan Ferris."),
+            ("alpha", "L'or, les minières, un cycle rare. Vous avez combien à placer ?"),
+            ("user",  "J'ai exactement 50 000 euros à investir."),
+            ("alpha", "50 000 €, très bien. Vous visez le haut rendement sur l'or et les minières ?"),
+            ("user",  "Oui, le haut rendement sur l'or, les minières, l'uranium."),
+            ("alpha", "On a Dan Ferris, le Crocodile de Wall Street, sur l'or et les minières."),
+            ("user",  "Parfait. C'est combien le prix ?"),
+        ],
+    },
+    {
         "name": "Protection épargne aisé (sécurité)",
         "expect_product": "argo_actions", "expect_tier": "B",
         "script": [
@@ -280,6 +297,9 @@ def run_profile(p):
     elif exp:
         checks.append(("produit routé", active == exp, f"{active} (attendu {exp})"))
         checks.append(("tier", last_tier == p.get("expect_tier"), f"{last_tier} @ {last_price}EUR (attendu {p.get('expect_tier')})"))
+        if p.get("expect_price") is not None:
+            checks.append(("prix annoncé == carte (montant exact)", last_price == p.get("expect_price"),
+                           f"{last_price}EUR (attendu {p.get('expect_price')}EUR)"))
         checks.append(("cartes proposées", len(cards) > 0, f"{len(cards)}"))
         checks.append(("pas de fuite cross-produit", not leaks, f"{leaks if leaks else 'aucune'}"))
         checks.append(("chiffres citables (voix)", last_allowed >= 4, f"{last_allowed}"))
