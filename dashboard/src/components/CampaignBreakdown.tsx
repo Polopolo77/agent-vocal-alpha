@@ -28,7 +28,7 @@ export default function CampaignBreakdown({ buckets }: CampaignBreakdownProps) {
     },
     {
       key: "general",
-      label: "Multi-produits",
+      label: "Argos Concierge",
       sub: "Argo Éditions",
       color: AGENT_COLORS.general,
       count: buckets.general.total,

@@ -73,7 +73,7 @@ const navItems: NavItem[] = [
   },
   {
     href: "/general",
-    label: "Multi-produits",
+    label: "Argos Concierge",
     icon: (
       <svg
         className="w-5 h-5"
@@ -235,7 +235,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               className="w-2 h-2 rounded-full"
               style={{ background: AGENT_COLORS.general }}
             />
-            <span>Multi-produits</span>
+            <span>Argos Concierge</span>
           </div>
         </div>
       </aside>

@@ -32,16 +32,17 @@ export const AGENT_COLORS: Record<AgentType, string> = {
   general: "#06b6d4",
 };
 
+// Tous les sous-produits Argo appartiennent au projet "Argos Concierge"
 export const PRODUCT_LABELS: Record<string, string> = {
   argos_concierge: "Argos Concierge",
-  argo_actions: "Argo Actions",
-  argo_alpha: "Argo Alpha",
-  argo_gold: "Argo Gold",
-  argo_crypto: "Argo Crypto",
-  actions_gagnantes: "Actions Gagnantes",
-  profits_asymetriques: "Profits Asymétriques",
-  agent_alpha: "Agent Alpha",
-  strategie_haut_rendement: "Stratégie Haut Rendement",
+  argo_actions: "Argos Concierge",
+  argo_alpha: "Argos Concierge",
+  argo_gold: "Argos Concierge",
+  argo_crypto: "Argos Concierge",
+  actions_gagnantes: "Argos Concierge",
+  profits_asymetriques: "Argos Concierge",
+  agent_alpha: "Argos Concierge",
+  strategie_haut_rendement: "Argos Concierge",
 };
 
 export function getAgentInfo(conversation: Conversation): AgentInfo {
@@ -67,12 +68,11 @@ export function getAgentInfo(conversation: Conversation): AgentInfo {
     };
   }
 
-  // Multi-produits (Argos) — General
-  const campaign = pid && PRODUCT_LABELS[pid] ? PRODUCT_LABELS[pid] : "Multi-produits";
+  // Argos Concierge — un seul projet, tous les sous-produits regroupés
   return {
     type: "general",
     label: "Argo Éditions",
-    campaign,
+    campaign: "Argos Concierge",
     color: AGENT_COLORS.general,
   };
 }
@@ -84,7 +84,7 @@ export function getAgentType(conversation: Conversation): AgentType {
 export function getAgentLabel(type: AgentType): string {
   if (type === "heritage") return "Héritage Éditions";
   if (type === "argo") return "Argo Éditions";
-  return "Multi-produits";
+  return "Argos Concierge";
 }
 
 export function formatDuration(seconds: number): string {
