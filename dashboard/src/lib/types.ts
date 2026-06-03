@@ -1,5 +1,6 @@
 export interface Message {
-  role: "user" | "assistant";
+  // Plusieurs rôles selon l'agent : "assistant" (gemini), "alpha" (Argos), "event" (technique)
+  role: "user" | "assistant" | "alpha" | "event" | string;
   text: string;
 }
 

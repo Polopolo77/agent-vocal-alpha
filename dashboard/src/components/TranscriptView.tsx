@@ -32,10 +32,14 @@ export default function TranscriptView({
   const bubbleBg = `${agentColor}0f`;
   const bubbleBorder = `${agentColor}33`;
 
-  // Filtrer les messages "event" (hangup, name_given, ...) — pas du chat
-  const chatMessages = messages.filter(
-    (m) => m.role === "user" || m.role === "assistant"
-  );
+  // Normaliser : tous les rôles non-user et non-event sont traités comme assistant
+  // (assistant, alpha=Argos, model, bot, etc.)
+  const chatMessages = messages
+    .filter((m) => m.role !== "event")
+    .map((m) => ({
+      ...m,
+      _isUser: m.role === "user",
+    }));
 
   return (
     <div className="px-5 py-5 space-y-1 max-h-[600px] overflow-y-auto bg-[#fafbfc]">
@@ -45,8 +49,9 @@ export default function TranscriptView({
         </div>
       )}
       {chatMessages.map((msg, i) => {
-        const isUser = msg.role === "user";
-        const showAvatar = i === 0 || chatMessages[i - 1]?.role !== msg.role;
+        const isUser = msg._isUser;
+        const prev = chatMessages[i - 1];
+        const showAvatar = i === 0 || !prev || prev._isUser !== isUser;
 
         return (
           <div
