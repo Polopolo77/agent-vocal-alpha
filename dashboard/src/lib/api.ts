@@ -1,7 +1,10 @@
 import { ConversationsResponse } from "./types";
 
-const API_URL =
-  "https://web-production-572b6.up.railway.app/api/conversations";
+// On NE tape PLUS le backend Railway en direct depuis le navigateur (ça
+// exigerait d'exposer la clé admin côté client). On passe par la route serveur
+// du dashboard (/api/conversations) qui ajoute le header X-Admin-Key côté
+// serveur. Même origine -> URL relative.
+const API_URL = "/api/conversations";
 
 export async function fetchConversations(): Promise<ConversationsResponse> {
   const res = await fetch(API_URL, {
