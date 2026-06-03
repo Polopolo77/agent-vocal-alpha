@@ -25,7 +25,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import hmac
 import os
+import re
 import secrets
 import sqlite3
 import time
@@ -109,9 +111,30 @@ RATE_LIMITS: dict[str, tuple[int, int]] = {
     "/api/ui-director":(300, 3600),
     "/api/briefing":   (300, 3600),
     "/api/save-conversation": (60, 3600),
+    # Endpoints auparavant NON limités (scraping du prompt système / DoS / flood).
+    "/api/prompt":     (120, 3600),
+    "/api/session":    (120, 3600),
+    "/api/products":   (120, 3600),
+    "/api/market":     (120, 3600),
+    "/api/conversations": (60, 3600),
+    "/api/assistant-argo-prompt": (120, 3600),
 }
 # Stockage en mémoire : {(ip, path): deque[timestamps]}
 _rate_buckets: dict[tuple[str, str], deque] = {}
+
+# Plafond GLOBAL anti-DoS-coût sur les endpoints Gemini (cumulé toutes IP) —
+# protège même si le rate-limit par IP est contourné (X-Forwarded-For spoofé).
+_GEMINI_PATHS = ("/api/strategist", "/api/ui-cards", "/api/ui-dossier",
+                 "/api/ui-director", "/api/briefing")
+_GEMINI_GLOBAL_MAX_PER_MIN = int(os.getenv("GEMINI_GLOBAL_MAX_PER_MIN", "500"))
+_gemini_global_bucket: deque = deque()
+# Bornes dures anti-OOM (entre deux passes de purge TTL).
+MAX_RATE_BUCKETS = 100_000
+MAX_VALID_SESSIONS = 100_000
+# Clé admin pour /api/conversations (dump des transcripts PII). VIDE => accès
+# REFUSÉ (secure-by-default). À définir en variable d'env Railway, et envoyer le
+# header X-Admin-Key côté dashboard.
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
 
 # Limites anti-abus sur les payloads
 MAX_HISTORY_MESSAGES = 200
@@ -284,9 +307,24 @@ def init_db() -> None:
 # Helpers
 # =============================================================================
 
+# Anti prompt-injection : le contenu d'un prospect est des DONNÉES, jamais des
+# instructions. On casse les faux marqueurs de rôle ([USER]/[SYSTEM]/note
+# superviseur...) qu'il pourrait glisser dans sa parole pour manipuler le coach,
+# les cartes ou le dossier (tous passent par _format_history).
+_ROLE_MARKER_RE = re.compile(
+    r"\[\s*(USER|SYSTEM|AGENT|ASSISTANT|COACH|SUPERVISEUR|SUPERVISOR|NOTE|"
+    r"INSTRUCTION|ADMIN|DIRECTIVE|SYSTÈME|SYSTEME)\b",
+    re.IGNORECASE,
+)
+
+
+def _neutralize_markers(text: str) -> str:
+    return _ROLE_MARKER_RE.sub(lambda m: "(" + m.group(1).lower(), str(text))
+
+
 def _format_history(history: list[dict]) -> str:
     return "\n".join(
-        f"[{m.get('role', '?').upper()}] {m.get('text', '')}"
+        f"[{m.get('role', '?').upper()}] {_neutralize_markers(m.get('text', ''))}"
         for m in history
     )
 
@@ -318,9 +356,15 @@ def _trim_history_for_coach(history: list[dict], turn_number: int) -> list[dict]
 
 
 def _client_ip(request: web.Request) -> str:
+    # X-Forwarded-For : on prend le DERNIER hop (apposé par le proxy de confiance
+    # Railway), PAS le premier (entièrement contrôlé/spoofable par le client ->
+    # contournement trivial du rate-limit). L'attaquant ne peut pas forger
+    # l'adresse que Railway ajoute en dernière position.
     fwd = request.headers.get("X-Forwarded-For", "")
     if fwd:
-        return fwd.split(",")[0].strip()
+        parts = [p.strip() for p in fwd.split(",") if p.strip()]
+        if parts:
+            return parts[-1]
     return request.remote or "0.0.0.0"
 
 
@@ -337,6 +381,14 @@ def _cors_headers(origin: str | None) -> dict[str, str]:
 def _check_rate_limit(request: web.Request) -> web.Response | None:
     """Applique le rate limit sur les endpoints /api/*. None si OK, sinon 429."""
     path = request.path
+    # Borne dure anti-OOM : évince les entrées les plus anciennes si le dict de
+    # buckets explose (flood d'IP distinctes entre deux purges TTL).
+    if len(_rate_buckets) > MAX_RATE_BUCKETS:
+        for _ in range(min(2000, len(_rate_buckets) - MAX_RATE_BUCKETS + 1)):
+            try:
+                _rate_buckets.pop(next(iter(_rate_buckets)))
+            except StopIteration:
+                break
     # Match exact d'abord, sinon prefix
     limit = RATE_LIMITS.get(path)
     if not limit:
@@ -360,6 +412,18 @@ def _check_rate_limit(request: web.Request) -> web.Response | None:
             status=429,
             headers={"Retry-After": str(retry)},
         )
+    # Plafond GLOBAL anti-DoS-coût sur les endpoints Gemini (cumulé toutes IP) :
+    # tient même si le rate-limit par IP est contourné.
+    if any(path.startswith(p) for p in _GEMINI_PATHS):
+        gnow = time.time()
+        while _gemini_global_bucket and _gemini_global_bucket[0] < gnow - 60:
+            _gemini_global_bucket.popleft()
+        if len(_gemini_global_bucket) >= _GEMINI_GLOBAL_MAX_PER_MIN:
+            return web.json_response(
+                {"error": "server_busy", "retry_after": 5},
+                status=429, headers={"Retry-After": "5"},
+            )
+        _gemini_global_bucket.append(gnow)
     dq.append(now)
     return None
 
@@ -381,6 +445,16 @@ def _require_valid_session(request: web.Request, session_id: str) -> bool:
     return session_id in _valid_sessions
 
 
+def _require_admin(request: web.Request) -> bool:
+    """Auth admin pour les endpoints sensibles (dump des transcripts PII).
+    Secure-by-default : si ADMIN_API_KEY n'est pas configurée, l'accès est
+    REFUSÉ. Comparaison en temps constant (anti timing-attack)."""
+    if not ADMIN_API_KEY:
+        return False
+    provided = request.headers.get("X-Admin-Key", "")
+    return bool(provided) and hmac.compare_digest(provided, ADMIN_API_KEY)
+
+
 # =============================================================================
 # Endpoints
 # =============================================================================
@@ -391,6 +465,13 @@ async def handle_session(request: web.Request) -> web.Response:
     Le client DOIT utiliser cet ID pour toutes les requêtes coach/briefing.
     """
     _cleanup_sessions()
+    # Borne dure anti-OOM si flood de /api/session.
+    if len(_valid_sessions) > MAX_VALID_SESSIONS:
+        for _ in range(min(1000, len(_valid_sessions) - MAX_VALID_SESSIONS + 1)):
+            try:
+                _valid_sessions.pop(next(iter(_valid_sessions)))
+            except StopIteration:
+                break
     sid = "s_" + secrets.token_urlsafe(18)
     _valid_sessions[sid] = time.time()
     return web.json_response({"session_id": sid, "ttl_seconds": SESSION_TTL_SECONDS})
@@ -1083,10 +1164,9 @@ async def handle_save_conversation(request: web.Request) -> web.Response:
             "CONV #%s saved | product=%s duration=%ss messages=%d (sb=%s sqlite=%s)",
             cid, product_id, duration, len(messages), supabase_id, conversation_id,
         )
-        print(f"\n========== CONVERSATION #{cid} (product={product_id}) ==========")
-        print(transcript_text)
-        print("=" * 60)
-
+        # (H3) On ne print PLUS le transcript : il contient des PII (prénom,
+        # capital, objectifs) qui fuyaient en clair dans les logs Railway.
+        # Le log.info ci-dessus ne garde que des métadonnées non identifiantes.
         return web.json_response({"status": "saved", "id": cid})
     except Exception as e:
         log.exception("Save conversation error")
@@ -1171,7 +1251,13 @@ async def handle_market(request: web.Request) -> web.Response:
 
 
 async def handle_list_conversations(request: web.Request) -> web.Response:
-    """List latest 200 conversations from Supabase (persistent)."""
+    """List latest 200 conversations from Supabase (persistent).
+
+    AUTH ADMIN OBLIGATOIRE : ces transcripts contiennent des PII patrimoniales.
+    Sans header X-Admin-Key valide -> 401 (secure-by-default).
+    """
+    if not _require_admin(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
     try:
         import aiohttp as _aiohttp
         async with _aiohttp.ClientSession() as sess:

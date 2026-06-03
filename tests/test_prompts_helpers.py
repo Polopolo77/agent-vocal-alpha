@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from prompts import _parse_capital_amount as cap
 from prompts import _extract_numbers_from_sources
 from prompts import _effective_tier as etier
+from prompts import _guess_product_from_query as guess
 
 OFFERS_GOLD = {"A": {"price_eur": 997}, "B": {"price_eur": 1997},
                "C": {"price_eur": 299}, "D": {"price_eur": 599}}
@@ -70,6 +71,36 @@ def test_cap_50k_boundary():
     assert cap("50 000") == 50000
 
 
+def test_cap_french_decimal_not_inflated():
+    # BUG M6 : "100 000,00" valait 10 000 000 (decimale mangee) -> tier B a tort.
+    assert cap("100 000,00 €") == 100000
+
+
+def test_cap_decimal_half():
+    assert cap("100 000,50") == 100000.5
+
+
+def test_cap_decimal_dot():
+    assert cap("2 500.75") == 2500.75
+
+
+def test_cap_dotted_thousands_preserved():
+    # La correction decimale ne doit PAS casser le separateur de milliers.
+    assert cap("200.000") == 200000
+    assert cap("1.000.000") == 1000000
+
+
+def test_cap_mille_multiplier():
+    # BUG L2 : "100 mille" -> 100000 (etait 100 -> refus de vente).
+    assert cap("100 mille") == 100000
+    assert cap("50 mille euros") == 50000
+
+
+def test_cap_mille_word_boundary_no_false_match():
+    # "famille" ne doit PAS declencher le multiplicateur mille.
+    assert cap("ma famille a 8000 euros") == 8000
+
+
 # --- _extract_numbers_from_sources ------------------------------------------
 
 def test_nums_full_percent_no_partial():
@@ -92,6 +123,25 @@ def test_nums_keeps_real_multiple():
 def test_nums_dollar_amount_no_partial():
     r = _nums("1 000$ investis en 1988")
     assert not any(x.strip() in ("000$", "000") for x in r)
+
+
+# --- _guess_product_from_query : frontieres de mot (bug L3) ------------------
+
+def test_guess_aga_no_false_match_in_word():
+    # "aga" dans "magasin" ne doit plus router (frontiere de mot).
+    assert guess("je cherche un magasin pas cher") is None
+
+
+def test_guess_aga_real_match():
+    assert guess("le produit AGA m'intéresse") == "argo_actions"
+
+
+def test_guess_crypto_keywords():
+    assert guess("je veux du bitcoin et des tokens") == "argo_crypto"
+
+
+def test_guess_gold_keywords():
+    assert guess("je m'intéresse à l'uranium et aux minières") == "argo_gold"
 
 
 # --- _effective_tier : carte == voix, frontière 50k (bug capture Paul) -------

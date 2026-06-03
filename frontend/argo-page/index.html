@@ -2735,7 +2735,7 @@
     var mult = 1;
     if (/\bmilliards?\b/.test(s)) mult = 1000000000;
     else if (/\bmillions?\b/.test(s) || /\d\s*m\b/.test(s)) mult = 1000000;
-    else if (/\d\s*k\b/.test(s)) mult = 1000;
+    else if (/\d\s*k\b/.test(s) || /\bmille\b/.test(s)) mult = 1000;
     var m = s.match(/\d[\d\s.,]*\d|\d/);
     if (!m) return null;
     var tok = m[0];
@@ -2744,9 +2744,18 @@
       val = parseFloat(tok.replace(/\s/g, "").replace(",", "."));
       if (!isFinite(val)) { var d = tok.replace(/\D/g, ""); if (!d) return null; val = parseFloat(d); }
     } else {
-      var digits = tok.replace(/\D/g, "");
-      if (!digits) return null;
-      val = parseFloat(digits);
+      // Pas de multiplicateur. Décimale (",00"/".00" en fin) vs séparateur de
+      // milliers : "100 000,00" -> 100000, pas 10000000. Aligné sur Python.
+      var t = tok.replace(/\s/g, "");
+      var dec = t.match(/[.,](\d{1,2})$/);
+      if (dec) {
+        var ent = t.slice(0, dec.index).replace(/\D/g, "");
+        val = parseFloat(ent || "0") + parseFloat("0." + dec[1]);
+      } else {
+        var digits = t.replace(/\D/g, "");
+        if (!digits) return null;
+        val = parseFloat(digits);
+      }
     }
     if (!isFinite(val)) return null;
     return val * mult;

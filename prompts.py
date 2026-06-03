@@ -1435,7 +1435,7 @@ def _parse_capital_amount(raw: object) -> float | None:
         mult = 1_000_000_000.0
     elif _re.search(r"\bmillions?\b", s) or _re.search(r"\d\s*m\b", s):
         mult = 1_000_000.0
-    elif _re.search(r"\d\s*k\b", s):
+    elif _re.search(r"\d\s*k\b", s) or _re.search(r"\bmille\b", s):
         mult = 1_000.0
     m = _re.search(r"\d[\d\s.,]*\d|\d", s)
     if not m:
@@ -1451,11 +1451,20 @@ def _parse_capital_amount(raw: object) -> float | None:
                 return None
             val = float(digits)
     else:
-        # pas de multiplicateur -> espaces/points = separateurs de milliers
-        digits = _re.sub(r"\D", "", tok)
-        if not digits:
-            return None
-        val = float(digits)
+        # Pas de multiplicateur. Distinguer le separateur de milliers d'une
+        # DECIMALE : une virgule/point suivie de 1-2 chiffres EN FIN de nombre =
+        # decimale ("100 000,00" -> 100000, PAS 10000000). Sinon espaces/points
+        # = separateurs de milliers ("200.000" -> 200000).
+        t = _re.sub(r"\s", "", tok)
+        mdec = _re.search(r"[.,](\d{1,2})$", t)
+        if mdec:
+            entier = _re.sub(r"\D", "", t[: mdec.start()])
+            val = float(entier or "0") + float("0." + mdec.group(1))
+        else:
+            digits = _re.sub(r"\D", "", t)
+            if not digits:
+                return None
+            val = float(digits)
     return val * mult
 
 
@@ -1571,15 +1580,25 @@ def _guess_product_from_query(query: str) -> str | None:
     Heuristique légère : si la query contient des mots-clés explicites d'un produit,
     on route vers ce produit. Sinon None (et BM25 retourne vide).
     """
+    import re as _re
     q = query.lower()
+    # Tokens courts ambigus -> frontieres de mot obligatoires (sinon "magasin"
+    # matche "aga", etc. -> briefing hors-sujet). Les autres restent en sous-chaine.
+    _SHORT = {"aga", "psa", "btc"}
+
+    def has(kw: str) -> bool:
+        if kw in _SHORT:
+            return _re.search(r"\b" + kw + r"\b", q) is not None
+        return kw in q
+
     # Ordre : spécifique → générique
-    if any(k in q for k in ["tilson", "actions gagnantes", "bouclier suisse", "aga", "actions value"]):
+    if any(has(k) for k in ["tilson", "actions gagnantes", "bouclier suisse", "aga", "actions value"]):
         return "argo_actions"
-    if any(k in q for k in ["wade", "engel", "profits asymétriques", "psa", "fin du travail", "asymétrie", "asymetrie", "crypto", "bitcoin", "btc", "altcoin", "blockchain", "token"]):
+    if any(has(k) for k in ["wade", "engel", "profits asymétriques", "psa", "fin du travail", "asymétrie", "asymetrie", "crypto", "bitcoin", "btc", "altcoin", "blockchain", "token"]):
         return "argo_crypto"
-    if any(k in q for k in ["stansberry score", "agent alpha", "projet alpha", "simons", "renaissance technologies", "russell 1000"]):
+    if any(has(k) for k in ["stansberry score", "agent alpha", "projet alpha", "simons", "renaissance technologies", "russell 1000"]):
         return "argo_alpha"
-    if any(k in q for k in ["ferris", "crocodile de wall street", "stratégie haut rendement", "hyper climax gold", "minières", "minieres", "uranium"]):
+    if any(has(k) for k in ["ferris", "crocodile de wall street", "stratégie haut rendement", "hyper climax gold", "minières", "minieres", "uranium"]):
         return "argo_gold"
     return None
 
