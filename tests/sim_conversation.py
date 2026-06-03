@@ -231,6 +231,25 @@ PROFILES = [
             ("user",  "Non non, je veux pas que tu me parles du prix, dis-moi juste plus sur la strategie."),
         ],
     },
+    {
+        # Contre-épreuve du fix bouton : quand le prospect DEMANDE le prix ET
+        # veut s'inscrire, le closing DOIT pouvoir se déclencher (sinon on aurait
+        # sur-bloqué l'offer_card). On vérifie que le coach atteint bien le closing.
+        "name": "Closing net (le bouton DOIT pouvoir sortir)",
+        "expect_product": "argo_alpha", "expect_reaches_closing": True,
+        "script": [
+            ("alpha", "Bonjour, ici Argos. Votre prénom ?"),
+            ("user",  "Marc. J'ai 80 000 euros, je veux déléguer à une IA, j'aime la tech."),
+            ("alpha", "Parfait, on a Alpha, un agent IA supervisé par Whitney Tilson."),
+            ("user",  "Ça m'intéresse beaucoup, dis-m'en plus."),
+            ("alpha", "Il scanne des milliers d'actions et en sélectionne 20, rééquilibrées chaque trimestre."),
+            ("user",  "Ok j'aime bien. Et concrètement il a fait quoi comme performance ?"),
+            ("alpha", "Il a repéré Nvidia avant sa hausse, un x65, et Cadence à plus 550 pour cent."),
+            ("user",  "Impressionnant. Bon, c'est combien et comment je m'inscris ?"),
+            ("alpha", "997 euros par an, avec la garantie satisfait ou remboursé 3 mois."),
+            ("user",  "Parfait, ça me va, je veux m'inscrire maintenant. On y va, je prends."),
+        ],
+    },
 ]
 
 
@@ -296,7 +315,11 @@ def run_profile(p):
         checks.append(("pas de fuite cross-produit", not leaks, f"{leaks if leaks else 'aucune'}"))
     elif exp:
         checks.append(("produit routé", active == exp, f"{active} (attendu {exp})"))
-        checks.append(("tier", last_tier == p.get("expect_tier"), f"{last_tier} @ {last_price}EUR (attendu {p.get('expect_tier')})"))
+        if p.get("expect_reaches_closing"):
+            reached = (last_phase in ("prix_closing", "post_closing")) or (last_signal == "vert")
+            checks.append(("atteint le closing (bouton autorisé)", reached, f"phase={last_phase} signal={last_signal}"))
+        else:
+            checks.append(("tier", last_tier == p.get("expect_tier"), f"{last_tier} @ {last_price}EUR (attendu {p.get('expect_tier')})"))
         if p.get("expect_price") is not None:
             checks.append(("prix annoncé == carte (montant exact)", last_price == p.get("expect_price"),
                            f"{last_price}EUR (attendu {p.get('expect_price')}EUR)"))
@@ -318,9 +341,12 @@ def run_profile(p):
     # JAMAIS sortir avant le closing. Aucun de ces profils n'atteint prix_closing
     # -> 0 carte offre attendue.
     offer_now = [c for c in cards if (c.get("template") in ("offer_card", "product", "product_offer"))]
-    closing = last_phase in ("prix_closing", "post_closing")
+    # Même définition que le gate (serveur + front) : closing = phase prix/post
+    # closing OU signal_closing vert. Sinon une offre légitime à signal=vert
+    # serait flaggée à tort.
+    closing = last_phase in ("prix_closing", "post_closing") or last_signal == "vert"
     checks.append(("offer_card seulement au closing", (not offer_now) or closing,
-                   f"{len(offer_now)} offer_card hors closing, phase={last_phase}"))
+                   f"{len(offer_now)} offer_card hors closing, phase={last_phase} signal={last_signal}"))
 
     card_themes = ", ".join(f"{c.get('template')}:{c.get('image_key') or c.get('title','')[:14]}" for c in cards[:6])
     return {"name": p["name"], "active": active, "chaleur": chaleur, "certitude": certitude,
