@@ -16,35 +16,61 @@ export interface ConversationsResponse {
   conversations: Conversation[];
 }
 
-export type AgentType = "heritage" | "argo";
+export type AgentType = "heritage" | "argo" | "general";
 
 export interface AgentInfo {
   type: AgentType;
   label: string;
   campaign: string;
+  color: string;
 }
 
+// Brand colors per agent type
+export const AGENT_COLORS: Record<AgentType, string> = {
+  heritage: "#d4a44c",
+  argo: "#7c3aed",
+  general: "#06b6d4",
+};
+
+export const PRODUCT_LABELS: Record<string, string> = {
+  argos_concierge: "Argos Concierge",
+  actions_gagnantes: "Actions Gagnantes",
+  profits_asymetriques: "Profits Asymétriques",
+  agent_alpha: "Agent Alpha",
+  strategie_haut_rendement: "Stratégie Haut Rendement",
+};
+
 export function getAgentInfo(conversation: Conversation): AgentInfo {
-  if (
-    conversation.product_id === "fortune_strategique" ||
-    conversation.product_id === "assistant-heritage"
-  ) {
-    return { type: "heritage", label: "Héritage Éditions", campaign: "Trinity Sphères" };
+  const pid = conversation.product_id;
+
+  // Trinity Sphères (Heritage)
+  if (pid === "fortune_strategique" || pid === "assistant-heritage") {
+    return {
+      type: "heritage",
+      label: "Héritage Éditions",
+      campaign: "Trinity Sphères",
+      color: AGENT_COLORS.heritage,
+    };
   }
-  if (conversation.product_id === "assistant-argo") {
-    return { type: "argo", label: "Argo Éditions", campaign: "Monnaie de l'IA" };
+
+  // Monnaie de l'IA (dedicated Argo widget)
+  if (pid === "assistant-argo") {
+    return {
+      type: "argo",
+      label: "Argo Éditions",
+      campaign: "Monnaie de l'IA",
+      color: AGENT_COLORS.argo,
+    };
   }
-  // Argo multi-produits
-  const productLabels: Record<string, string> = {
-    actions_gagnantes: "Actions Gagnantes",
-    profits_asymetriques: "Profits Asymétriques",
-    agent_alpha: "Agent Alpha",
-    strategie_haut_rendement: "Stratégie Haut Rendement",
+
+  // Multi-produits (Argos) — General
+  const campaign = pid && PRODUCT_LABELS[pid] ? PRODUCT_LABELS[pid] : "Multi-produits";
+  return {
+    type: "general",
+    label: "Argo Éditions",
+    campaign,
+    color: AGENT_COLORS.general,
   };
-  const campaign = conversation.product_id && productLabels[conversation.product_id]
-    ? productLabels[conversation.product_id]
-    : "Général";
-  return { type: "argo", label: "Argo Éditions", campaign };
 }
 
 export function getAgentType(conversation: Conversation): AgentType {
@@ -52,7 +78,9 @@ export function getAgentType(conversation: Conversation): AgentType {
 }
 
 export function getAgentLabel(type: AgentType): string {
-  return type === "heritage" ? "Héritage Éditions" : "Argo Éditions";
+  if (type === "heritage") return "Héritage Éditions";
+  if (type === "argo") return "Argo Éditions";
+  return "Multi-produits";
 }
 
 export function formatDuration(seconds: number): string {
@@ -62,28 +90,99 @@ export function formatDuration(seconds: number): string {
   return `${min} min ${sec.toString().padStart(2, "0")} s`;
 }
 
+const MONTHS_FR = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+];
+
 export function formatDateFr(dateStr: string): string {
   const date = new Date(dateStr);
-  const months = [
-    "janvier",
-    "fevrier",
-    "mars",
-    "avril",
-    "mai",
-    "juin",
-    "juillet",
-    "aout",
-    "septembre",
-    "octobre",
-    "novembre",
-    "decembre",
-  ];
   const day = date.getDate();
-  const month = months[date.getMonth()];
+  const month = MONTHS_FR[date.getMonth()];
   const year = date.getFullYear();
   const hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, "0");
-  return `${day} ${month} ${year} a ${hours}h${minutes}`;
+  return `${day} ${month} ${year} à ${hours}h${minutes}`;
+}
+
+/**
+ * Smart date formatting:
+ *  - <1h  : "Il y a Xmin"
+ *  - <24h : "Il y a Xh"
+ *  - same day as today: "Aujourd'hui à HH:MM"
+ *  - yesterday: "Hier à HH:MM"
+ *  - this week (<7d): "lundi à HH:MM"
+ *  - older: absolute date
+ */
+export function formatDateSmart(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffH = Math.floor(diffMs / 3600000);
+
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const time = `${hours}h${minutes}`;
+
+  if (diffMs < 0) {
+    return formatDateFr(dateStr);
+  }
+
+  if (diffMin < 1) return "À l'instant";
+  if (diffMin < 60) return `Il y a ${diffMin} min`;
+
+  const isSameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isSameDay) {
+    if (diffH < 6) return `Il y a ${diffH} h`;
+    return `Aujourd'hui à ${time}`;
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getFullYear() === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate();
+
+  if (isYesterday) return `Hier à ${time}`;
+
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays < 7) {
+    const weekdays = [
+      "dimanche",
+      "lundi",
+      "mardi",
+      "mercredi",
+      "jeudi",
+      "vendredi",
+      "samedi",
+    ];
+    const weekday = weekdays[date.getDay()];
+    return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} à ${time}`;
+  }
+
+  // Older — absolute date without year if current year
+  const day = date.getDate();
+  const month = MONTHS_FR[date.getMonth()];
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${day} ${month} à ${time}`;
+  }
+  return `${day} ${month} ${date.getFullYear()}`;
 }
 
 export function getFirstUserMessage(conversation: Conversation): string {

@@ -10,7 +10,15 @@ interface StatsCardsProps {
   accentColor?: string;
 }
 
-const cards = [
+interface CardDef {
+  key: keyof Omit<StatsCardsProps, "accentColor">;
+  label: string;
+  icon: React.ReactNode;
+  format: (props: StatsCardsProps) => string;
+  subtitle?: (props: StatsCardsProps) => string;
+}
+
+const cards: CardDef[] = [
   {
     key: "total",
     label: "Conversations",
@@ -29,6 +37,9 @@ const cards = [
         />
       </svg>
     ),
+    format: (p) => p.total.toString(),
+    subtitle: (p) =>
+      p.today > 0 ? `+${p.today} aujourd'hui` : "Aucune aujourd'hui",
   },
   {
     key: "today",
@@ -48,6 +59,8 @@ const cards = [
         />
       </svg>
     ),
+    format: (p) => p.today.toString(),
+    subtitle: () => "dernières 24h",
   },
   {
     key: "totalMessages",
@@ -67,10 +80,15 @@ const cards = [
         />
       </svg>
     ),
+    format: (p) => p.totalMessages.toString(),
+    subtitle: (p) =>
+      p.total > 0
+        ? `${Math.round(p.totalMessages / p.total)} / conv. en moyenne`
+        : "",
   },
   {
     key: "avgDuration",
-    label: "Duree moyenne",
+    label: "Durée moyenne",
     icon: (
       <svg
         className="w-5 h-5"
@@ -86,32 +104,21 @@ const cards = [
         />
       </svg>
     ),
+    format: (p) => formatDuration(p.avgDuration),
+    subtitle: () => "par conversation",
   },
 ];
 
-export default function StatsCards({
-  total,
-  today,
-  totalMessages,
-  avgDuration,
-  accentColor,
-}: StatsCardsProps) {
-  const values: Record<string, string> = {
-    total: total.toString(),
-    today: today.toString(),
-    totalMessages: totalMessages.toString(),
-    avgDuration: formatDuration(avgDuration),
-  };
-
-  const accent = accentColor || "#94a3b8";
+export default function StatsCards(props: StatsCardsProps) {
+  const accent = props.accentColor || "#94a3b8";
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {cards.map((card) => (
         <div
           key={card.key}
-          className="bg-white border border-[#e2e8f0] rounded-xl p-4 hover:shadow-md hover:border-[#cbd5e1] group"
-          style={{ borderTopColor: accent, borderTopWidth: '2px' }}
+          className="bg-white border border-[#e2e8f0] rounded-xl p-4 hover:shadow-md hover:border-[#cbd5e1] group transition-all duration-200"
+          style={{ borderTopColor: accent, borderTopWidth: "2px" }}
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#94a3b8] group-hover:text-[#64748b]">
@@ -122,10 +129,15 @@ export default function StatsCards({
               style={{ backgroundColor: accent }}
             />
           </div>
-          <div className="text-2xl font-semibold text-[#1e293b] tracking-tight">
-            {values[card.key]}
+          <div className="text-2xl font-semibold text-[#1e293b] tracking-tight tabular-nums">
+            {card.format(props)}
           </div>
           <div className="text-xs text-[#94a3b8] mt-1">{card.label}</div>
+          {card.subtitle && (
+            <div className="text-[10px] text-[#cbd5e1] mt-1.5 truncate">
+              {card.subtitle(props)}
+            </div>
+          )}
         </div>
       ))}
     </div>

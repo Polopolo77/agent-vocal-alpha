@@ -1345,7 +1345,9 @@
       ...reportCols,
     };
 
-    // Sauvegarde aussi en parallèle vers le backend SQLite (non bloquant, optionnel)
+    // Sauvegarde aussi en parallèle vers le backend SQLite (pour le dashboard)
+    // Tag toujours "argos_concierge" pour identifier le widget multi-produits,
+    // même quand aucun produit n'a été recommandé en fin de conversation.
     try {
       fetch(BACKEND_URL + "/api/save-conversation", {
         method: "POST",
@@ -1354,7 +1356,7 @@
           started_at: snapshot.started_at,
           ended_at: snapshot.ended_at,
           messages: snapshot.messages,
-          product_id: snapshot.product_id,
+          product_id: snapshot.product_id || "argos_concierge",
         }),
         keepalive: true,
       }).catch(() => {});

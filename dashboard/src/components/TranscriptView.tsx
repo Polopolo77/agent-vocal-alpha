@@ -1,31 +1,60 @@
 "use client";
 
-import { Message, AgentType } from "@/lib/types";
+import { Message, AgentType, AGENT_COLORS } from "@/lib/types";
 
 interface TranscriptViewProps {
   messages: Message[];
   agentType: AgentType;
+  accentColor?: string;
 }
+
+const AGENT_NAMES: Record<AgentType, string> = {
+  heritage: "Assistant Héritage",
+  argo: "Assistant Argo",
+  general: "Assistant Argo",
+};
+
+const AGENT_LETTERS: Record<AgentType, string> = {
+  heritage: "H",
+  argo: "A",
+  general: "G",
+};
 
 export default function TranscriptView({
   messages,
   agentType,
+  accentColor,
 }: TranscriptViewProps) {
-  const isHeritage = agentType === "heritage";
-  const agentName = isHeritage ? "Assistant Héritage" : "Assistant Argo";
-  const agentColor = isHeritage ? "#d4a44c" : "#7c3aed";
-  const agentBgLight = isHeritage ? "bg-amber-50" : "bg-violet-50";
-  const agentTextColor = isHeritage ? "text-amber-700" : "text-violet-700";
-  const agentBorderColor = isHeritage ? "border-amber-200" : "border-violet-200";
+  const agentName = AGENT_NAMES[agentType];
+  const agentColor = accentColor || AGENT_COLORS[agentType];
+
+  // Build subtle bubble background from accent
+  const bubbleBg = `${agentColor}0f`;
+  const bubbleBorder = `${agentColor}33`;
+
+  // Filtrer les messages "event" (hangup, name_given, ...) — pas du chat
+  const chatMessages = messages.filter(
+    (m) => m.role === "user" || m.role === "assistant"
+  );
 
   return (
     <div className="px-5 py-5 space-y-1 max-h-[600px] overflow-y-auto bg-[#fafbfc]">
-      {messages.map((msg, i) => {
+      {chatMessages.length === 0 && (
+        <div className="text-center text-[#94a3b8] text-sm py-8">
+          Pas de messages échangés
+        </div>
+      )}
+      {chatMessages.map((msg, i) => {
         const isUser = msg.role === "user";
-        const showAvatar = i === 0 || messages[i - 1]?.role !== msg.role;
+        const showAvatar = i === 0 || chatMessages[i - 1]?.role !== msg.role;
 
         return (
-          <div key={i} className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"} ${showAvatar ? "mt-4" : "mt-0.5"}`}>
+          <div
+            key={i}
+            className={`flex gap-2.5 ${
+              isUser ? "flex-row-reverse" : "flex-row"
+            } ${showAvatar ? "mt-4" : "mt-0.5"}`}
+          >
             {/* Avatar */}
             {showAvatar ? (
               <div
@@ -36,7 +65,7 @@ export default function TranscriptView({
                 }`}
                 style={!isUser ? { background: agentColor } : undefined}
               >
-                {isUser ? "V" : isHeritage ? "H" : "A"}
+                {isUser ? "V" : AGENT_LETTERS[agentType]}
               </div>
             ) : (
               <div className="w-7 shrink-0" />
@@ -45,18 +74,32 @@ export default function TranscriptView({
             {/* Bubble */}
             <div className="max-w-[80%]">
               {showAvatar && (
-                <div className={`text-[10px] font-semibold mb-1 ${isUser ? "text-right text-[#94a3b8]" : agentTextColor}`}>
+                <div
+                  className={`text-[10px] font-semibold mb-1 ${
+                    isUser ? "text-right text-[#94a3b8]" : ""
+                  }`}
+                  style={!isUser ? { color: agentColor } : undefined}
+                >
                   {isUser ? "Visiteur" : agentName}
                 </div>
               )}
               <div
-                className={`
-                  px-3.5 py-2.5 text-[13px] leading-[1.6]
-                  ${isUser
-                    ? "bg-[#f1f5f9] text-[#334155] rounded-2xl rounded-tr-md"
-                    : `${agentBgLight} ${agentTextColor} border ${agentBorderColor} rounded-2xl rounded-tl-md`
-                  }
-                `}
+                className={`px-3.5 py-2.5 text-[13px] leading-[1.6] ${
+                  isUser ? "rounded-2xl rounded-tr-md" : "rounded-2xl rounded-tl-md border"
+                }`}
+                style={
+                  isUser
+                    ? {
+                        backgroundColor: "#f1f5f9",
+                        color: "#334155",
+                      }
+                    : {
+                        backgroundColor: bubbleBg,
+                        borderColor: bubbleBorder,
+                        borderLeft: `3px solid ${agentColor}`,
+                        color: "#334155",
+                      }
+                }
               >
                 {msg.text}
               </div>

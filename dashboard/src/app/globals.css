@@ -7,13 +7,22 @@
   --card-hover: #f8fafc;
   --border: #e2e8f0;
   --muted: #94a3b8;
+
+  /* Heritage — Trinity Sphères */
   --heritage-primary: #d4a44c;
   --heritage-bg: rgba(212, 164, 76, 0.08);
   --heritage-border: rgba(212, 164, 76, 0.25);
+
+  /* Argo — Monnaie de l'IA */
   --argo-primary: #7c3aed;
-  --argo-secondary: #06b6d4;
   --argo-bg: rgba(124, 58, 237, 0.06);
   --argo-border: rgba(124, 58, 237, 0.2);
+
+  /* General — Multi-produits */
+  --general-primary: #06b6d4;
+  --general-bg: rgba(6, 182, 212, 0.06);
+  --general-border: rgba(6, 182, 212, 0.2);
+
   --user-bubble: #f1f5f9;
   --assistant-bubble: #fafafa;
 }
@@ -29,9 +38,11 @@
   --color-heritage-bg: var(--heritage-bg);
   --color-heritage-border: var(--heritage-border);
   --color-argo: var(--argo-primary);
-  --color-argo-secondary: var(--argo-secondary);
   --color-argo-bg: var(--argo-bg);
   --color-argo-border: var(--argo-border);
+  --color-general: var(--general-primary);
+  --color-general-bg: var(--general-bg);
+  --color-general-border: var(--general-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

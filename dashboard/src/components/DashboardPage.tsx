@@ -5,6 +5,7 @@ import { AgentType } from "@/lib/types";
 import DashboardShell from "./DashboardShell";
 import StatsCards from "./StatsCards";
 import ConversationList from "./ConversationList";
+import CampaignBreakdown from "./CampaignBreakdown";
 
 interface DashboardPageProps {
   filter?: AgentType;
@@ -19,15 +20,29 @@ export default function DashboardPage({
   subtitle,
   accentColor,
 }: DashboardPageProps) {
-  const { conversations, loading, stats } = useConversations({
-    filter,
-  });
+  const { conversations, loading, stats, buckets, online, allConversations } =
+    useConversations({ filter });
+
+  const isOverview = !filter;
 
   return (
-    <DashboardShell title={title} subtitle={subtitle}>
+    <DashboardShell
+      title={title}
+      subtitle={subtitle}
+      accentColor={accentColor}
+      totalCount={allConversations.length}
+      online={online}
+    >
       <div className="space-y-6">
         <StatsCards {...stats} accentColor={accentColor} />
-        <ConversationList conversations={conversations} loading={loading} />
+
+        {isOverview && <CampaignBreakdown buckets={buckets} />}
+
+        <ConversationList
+          conversations={conversations}
+          loading={loading}
+          accentColor={accentColor}
+        />
       </div>
     </DashboardShell>
   );
