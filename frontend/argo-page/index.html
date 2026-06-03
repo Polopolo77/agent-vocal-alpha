@@ -3431,8 +3431,11 @@
   }
 
   // ============ GEMINI LIVE ============
-  function connectGemini(token) {
-    const url = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=" + token;
+  function connectGemini() {
+    // Proxy WS backend : on se connecte à NOTRE serveur (/api/live, même origine
+    // que l'API), JAMAIS à Gemini en direct -> plus aucune clé API dans l'URL ni
+    // dans le navigateur. Le prompt système est injecté côté serveur.
+    const url = BACKEND_URL.replace(/^http/, "ws") + "/api/live";
     const ws = new WebSocket(url);
     state.ws = ws;
 
@@ -3444,7 +3447,8 @@
             responseModalities: ["AUDIO"],
             speechConfig: { languageCode: "fr-FR", voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
           },
-          systemInstruction: { parts: [{ text: state.systemPrompt }] },
+          // systemInstruction injecté CÔTÉ SERVEUR par le proxy /api/live :
+          // le prompt système ne transite JAMAIS par le navigateur.
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           // QW-4 : VAD serveur tuné pour cible 55-75 ans. Les seniors parlent
@@ -3815,22 +3819,12 @@
           : ("s_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10));
       }
 
-      // Prompt déjà pre-fetché au bootstrap — sinon on le fetch
-      if (!state.systemPrompt) {
-        var pRes = await fetch(PROMPT_ENDPOINT);
-        var pJson = await pRes.json();
-        if (pJson.error) throw new Error(pJson.error);
-        state.systemPrompt = pJson.prompt;
-      }
-
       state.audioPlayer = new AudioPlayer((vol) => updateOrbLevel(vol));
       state.audioPlayer.init();
 
-      const res = await fetch(TOKEN_ENDPOINT, { method: "POST" });
-      const json = await res.json();
-      if (!json.token) throw new Error("Pas de token");
-
-      state.ws = connectGemini(json.token);
+      // Plus de fetch de clé ni de prompt : le proxy backend (/api/live) détient
+      // la clé Gemini et injecte le prompt système côté serveur.
+      state.ws = connectGemini();
     } catch (err) {
       console.error("connect error:", err);
       $("status").textContent = "Erreur : " + err.message;
@@ -3845,10 +3839,7 @@
     if (preWarmed) return;
     preWarmed = true;
     // Déclenche les fetch critiques en parallèle, sans attendre le click.
-    try { fetch(PROMPT_ENDPOINT).then(function(r) { return r.json(); }).then(function(j) {
-      if (j && j.prompt) state.systemPrompt = j.prompt;
-    }).catch(function() {}); } catch (e) {}
-    try { fetch(TOKEN_ENDPOINT, { method: "POST" }).catch(function() {}); } catch (e) {}
+    // (Plus de prompt ni de token à pré-charger : le proxy backend les gère.)
     try { fetch(BACKEND_URL + "/api/session", { method: "POST" }).then(function(r) { return r.json(); }).then(function(j) {
       if (j && j.session_id) state._prewarmSessionId = j.session_id;
     }).catch(function() {}); } catch (e) {}
@@ -4419,15 +4410,10 @@
       wsReconnectTimer = setTimeout(function() {
         wsReconnectTimer = null;
         if (!state.isConnected) return;  // raccroché pendant le backoff -> on ne ressuscite pas l'appel
-        fetch(TOKEN_ENDPOINT, { method: "POST" })
-          .then(function(r) { return r.json(); })
-          .then(function(json) {
-            if (!state.isConnected) return;
-            // wsRetryCount remis à 0 au setupComplete (session confirmée), pas ici.
-            if (json.token) { state.ws = connectGemini(json.token); }
-            else { disconnect(); }
-          })
-          .catch(function() { if (state.isConnected) disconnect(); });
+        // wsRetryCount remis à 0 au setupComplete (session confirmée), pas ici.
+        // Reconnexion directe au proxy backend (aucun token à refetch).
+        try { state.ws = connectGemini(); }
+        catch (e) { if (state.isConnected) disconnect(); }
       }, delay);
     } else {
       disconnect();
@@ -4441,11 +4427,7 @@
 
   async function bootstrap() {
     try {
-      // D3 : pre-fetch prompt au bootstrap (pas au connect)
-      var pRes = await fetch(PROMPT_ENDPOINT);
-      var pJson = await pRes.json();
-      if (!pJson.error) state.systemPrompt = pJson.prompt;
-
+      // (Le prompt système n'est plus fetché : injecté côté serveur par /api/live.)
       var catRes = await fetch(PRODUCTS_ENDPOINT);
       var catJson = await catRes.json();
       var products = catJson.products || [];
@@ -4467,7 +4449,6 @@
         }
       }
       console.log("[Argo] Catalog loaded:", Object.keys(state.catalog), "— total cards:", Object.keys(state.imagesByCardKey).length);
-      if (state.systemPrompt) console.log("[Argo] Prompt pre-fetched:", state.systemPrompt.length, "chars");
     } catch (err) {
       console.error("[Argo] Bootstrap failed:", err);
     }

@@ -4,3 +4,4 @@ python-dotenv>=1.0
 rank-bm25>=0.2.2
 numpy>=1.26
 pydantic>=2.5
+certifi>=2024.0

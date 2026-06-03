@@ -136,6 +136,16 @@ MAX_VALID_SESSIONS = 100_000
 # header X-Admin-Key côté dashboard.
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
 
+# Contexte SSL pour la connexion amont vers Gemini (proxy /api/live) : on force
+# le bundle CA certifi -> vérification fiable quel que soit le trust store
+# système (évite les CERTIFICATE_VERIFY_FAILED sur conteneurs minimalistes).
+try:
+    import ssl as _ssl
+    import certifi as _certifi
+    _UPSTREAM_SSL = _ssl.create_default_context(cafile=_certifi.where())
+except Exception:
+    _UPSTREAM_SSL = None
+
 # Limites anti-abus sur les payloads
 MAX_HISTORY_MESSAGES = 200
 MAX_MESSAGE_TEXT_LEN = 4000
@@ -478,16 +488,10 @@ async def handle_session(request: web.Request) -> web.Response:
 
 
 async def handle_token(request: web.Request) -> web.Response:
-    """Provide API key for the frontend to connect to Gemini Live.
-
-    Note : la tentative de token éphémère a été retirée — `auth_tokens.create`
-    retourne le nom de la ressource (`auth_tokens/...`) qui ne peut pas être
-    utilisé directement dans l'URL WS `?key=...` du SDK custom côté client.
-    La vraie fix (proxy WS via backend) est un refacto à part.
-    """
-    if not GEMINI_API_KEY:
-        return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
-    return web.json_response({"token": GEMINI_API_KEY, "model": LIVE_MODEL})
+    """OBSOLÈTE depuis le proxy WS backend (/api/live). Ne renvoie PLUS JAMAIS la
+    clé Gemini au navigateur : la clé ne quitte plus le serveur. Conservé pour
+    compatibilité — ne renvoie que le nom du modèle (non sensible)."""
+    return web.json_response({"model": LIVE_MODEL})
 
 
 async def handle_list_products(request: web.Request) -> web.Response:
@@ -531,7 +535,13 @@ async def handle_prompt(request: web.Request) -> web.Response:
     """
     Return the universal multi-product SYSTEM_INSTRUCTION for the voice agent.
     Le prompt est compilé 1 seule fois au démarrage (CACHED_PROMPT).
+
+    CONFIDENTIEL : le prompt système (tactiques, prix, logique de tier) ne doit
+    JAMAIS être servi au navigateur. Le client n'en a plus besoin (injecté côté
+    serveur par le proxy /api/live). Accès réservé admin (X-Admin-Key).
     """
+    if not _require_admin(request):
+        return web.json_response({"error": "unauthorized"}, status=401)
     agent_name = request.query.get("agent_name", DEFAULT_AGENT_NAME)
     if agent_name == CACHED_PROMPT_AGENT and CACHED_PROMPT:
         prompt = CACHED_PROMPT
@@ -544,6 +554,96 @@ async def handle_prompt(request: web.Request) -> web.Response:
         "live_model": LIVE_MODEL,
         "products_loaded": REGISTRY.list_ready(),
     })
+
+
+def _agent_system_prompt() -> str:
+    """Prompt système compilé (réutilise le cache, sinon rebuild)."""
+    if CACHED_PROMPT:
+        return CACHED_PROMPT
+    return build_full_agent_prompt(REGISTRY, agent_name=DEFAULT_AGENT_NAME)
+
+
+def _inject_live_setup(payload: str, system_prompt: str) -> str:
+    """Injecte le prompt système + le modèle CÔTÉ SERVEUR dans le message `setup`
+    envoyé par le navigateur. Le client n'envoie ni clé ni prompt : ils restent
+    confidentiels côté backend."""
+    try:
+        obj = json.loads(payload)
+    except Exception:
+        return payload
+    if isinstance(obj, dict) and isinstance(obj.get("setup"), dict):
+        obj["setup"]["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+        obj["setup"]["model"] = "models/" + LIVE_MODEL
+        return json.dumps(obj)
+    return payload
+
+
+async def handle_live(request: web.Request) -> web.StreamResponse:
+    """Proxy WebSocket navigateur <-> Gemini Live.
+
+    SÉCURITÉ : la clé API Gemini et le prompt système restent CÔTÉ SERVEUR. Le
+    navigateur ouvre un WS vers /api/live (même origine), envoie son `setup`
+    SANS clé ni prompt ; le serveur ouvre la connexion à Gemini avec la clé,
+    injecte le prompt dans le setup, puis relaie les frames dans les deux sens.
+    Le navigateur ne voit jamais ni la clé ni le prompt.
+    """
+    if not GEMINI_API_KEY:
+        return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
+
+    ws_client = web.WebSocketResponse(max_msg_size=16 * 1024 * 1024, heartbeat=30)
+    await ws_client.prepare(request)
+
+    import aiohttp as _aiohttp
+    M = _aiohttp.WSMsgType
+    gem_url = (
+        "wss://generativelanguage.googleapis.com/ws/"
+        "google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+        f"?key={GEMINI_API_KEY}"
+    )
+    system_prompt = _agent_system_prompt()
+    try:
+        async with _aiohttp.ClientSession() as sess:
+            async with sess.ws_connect(
+                gem_url, max_msg_size=16 * 1024 * 1024, heartbeat=30,
+                ssl=_UPSTREAM_SSL,
+            ) as ws_gem:
+
+                async def client_to_gemini():
+                    first = True
+                    async for msg in ws_client:
+                        if msg.type == M.TEXT:
+                            data = msg.data
+                            if first:
+                                first = False
+                                data = _inject_live_setup(data, system_prompt)
+                            await ws_gem.send_str(data)
+                        elif msg.type == M.BINARY:
+                            await ws_gem.send_bytes(msg.data)
+                        else:
+                            break
+                    if not ws_gem.closed:
+                        await ws_gem.close()
+
+                async def gemini_to_client():
+                    async for msg in ws_gem:
+                        if msg.type == M.TEXT:
+                            await ws_client.send_str(msg.data)
+                        elif msg.type == M.BINARY:
+                            await ws_client.send_bytes(msg.data)
+                        else:
+                            break
+                    if not ws_client.closed:
+                        await ws_client.close()
+
+                await asyncio.gather(
+                    client_to_gemini(), gemini_to_client(), return_exceptions=True
+                )
+    except Exception:
+        log.exception("Live proxy error")
+    finally:
+        if not ws_client.closed:
+            await ws_client.close()
+    return ws_client
 
 
 async def handle_strategist(request: web.Request) -> web.Response:
@@ -1373,6 +1473,7 @@ async def handle_static(request: web.Request) -> web.Response:
 app = web.Application(client_max_size=MAX_PAYLOAD_BYTES)
 app.router.add_get("/api/products", handle_list_products)
 app.router.add_post("/api/token", handle_token)
+app.router.add_get("/api/live", handle_live)  # proxy WS Gemini (clé+prompt côté serveur)
 app.router.add_post("/api/session", handle_session)
 app.router.add_get("/api/prompt", handle_prompt)
 app.router.add_post("/api/strategist", handle_strategist)
@@ -1426,6 +1527,11 @@ async def security_middleware(request: web.Request, handler):
             return rl
 
     response = await handler(request)
+
+    # WebSocket (proxy /api/live) : réponse déjà "preparée" -> on ne touche pas
+    # aux en-têtes (sinon erreur "headers already sent").
+    if isinstance(response, web.WebSocketResponse):
+        return response
 
     # CORS echo
     for k, v in _cors_headers(origin).items():
