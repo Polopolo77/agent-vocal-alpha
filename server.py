@@ -1428,6 +1428,15 @@ async def handle_list_conversations(request: web.Request) -> web.Response:
     return web.json_response({"conversations": conversations})
 
 
+async def handle_argos(request: web.Request) -> web.Response:
+    """Lien propre : sert la page Argos sur /argos (alias de /argo-page/).
+    La page est un HTML 100% autonome -> servable à n'importe quel chemin."""
+    return web.FileResponse(
+        FRONTEND_DIR / "argo-page" / "index.html",
+        headers={"Content-Type": "text/html; charset=utf-8"},
+    )
+
+
 async def handle_static(request: web.Request) -> web.Response:
     """Serve static frontend files — path traversal hardened."""
     raw = request.match_info.get("path", "index.html") or "index.html"
@@ -1505,6 +1514,8 @@ async def handle_assistant_argo_prompt(request: web.Request) -> web.Response:
 
 app.router.add_get("/api/assistant-argo-prompt", handle_assistant_argo_prompt)
 
+app.router.add_get("/argos", handle_argos)   # lien propre Argos (alias de /argo-page/)
+app.router.add_get("/argos/", handle_argos)
 app.router.add_get("/", handle_static)
 app.router.add_get("/{path:.*}", handle_static)
 
