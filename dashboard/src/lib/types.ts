@@ -34,6 +34,10 @@ export const AGENT_COLORS: Record<AgentType, string> = {
 
 export const PRODUCT_LABELS: Record<string, string> = {
   argos_concierge: "Argos Concierge",
+  argo_actions: "Argo Actions",
+  argo_alpha: "Argo Alpha",
+  argo_gold: "Argo Gold",
+  argo_crypto: "Argo Crypto",
   actions_gagnantes: "Actions Gagnantes",
   profits_asymetriques: "Profits Asymétriques",
   agent_alpha: "Agent Alpha",
