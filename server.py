@@ -896,6 +896,24 @@ async def handle_ui_cards(request: web.Request) -> web.Response:
                 )
                 return web.json_response({"card": None, "reason": "ungrounded_number"})
 
+        # VERROU SERVEUR : offer_card / produit (bouton S'inscrire) = CLOSING
+        # UNIQUEMENT. Autorise seulement en phase prix_closing/post_closing OU
+        # signal_closing vert. Empeche le bouton d'apparaitre pendant la montee
+        # (opportunite_concrete / empilement_preuves / mention_bonus) AVANT
+        # qu'Argos ait parle de l'offre a la voix. Le phase-lock generique plus
+        # bas ne couvrait QUE diagnostic/recap/reveal -> l'offre fuyait au milieu.
+        if card and (card.get("template") or "") in ("offer_card", "product", "product_offer"):
+            closing_ok = (
+                phase_autorisee in ("prix_closing", "post_closing")
+                or coach_signals.get("signal_closing") == "vert"
+            )
+            if not closing_ok:
+                log.info(
+                    "UI cards offer rejected (not closing): phase=%s signal=%s",
+                    phase_autorisee, coach_signals.get("signal_closing"),
+                )
+                return web.json_response({"card": None, "reason": "offer_too_early"})
+
         # VERROU SERVEUR #3 : phase-lock — certaines cartes "closing" sont
         # interdites en phase diagnostic/recap/reveal. Evite l'overlay achat
         # qui apparait avant que le prospect ait valide l'expert.

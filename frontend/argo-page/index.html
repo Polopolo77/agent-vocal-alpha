@@ -2402,6 +2402,17 @@
   // ============ GARDE-FOU TEMPORALITÉ DES CARTES ============
   // Empêche d'afficher une carte (expert / preuve / offre) avant que son
   // contenu n'ait été VRAIMENT évoqué dans la conversation.
+  // Vrai UNIQUEMENT quand le coach a basculé en closing (phase prix/post closing
+  // OU signal_closing vert). Sert à gater la carte offre / bouton S'inscrire : il
+  // ne doit PAS apparaître tant qu'Argos n'a pas parlé de l'offre à la voix.
+  function inClosingNow() {
+    var d = state.coachDirective;
+    if (!d) return false;
+    var phase = (d.directive_phase && d.directive_phase.phase_agent_autorisee) || "";
+    var signal = (d.directive_prochain_tour && d.directive_prochain_tour.signal_closing) || "";
+    return phase === "prix_closing" || phase === "post_closing" || signal === "vert";
+  }
+
   function cardAllowedAtThisTurn(cardData, key) {
     var turn = state.userTurnCount;
     var tpl = (typeof cardData === "string") ? cardData : (cardData.template || "");
@@ -2417,10 +2428,13 @@
       return false;
     }
 
-    // offer_card / produit : seulement si un produit est recommandé.
-    if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer"
-        || key === "offer_card" || key.indexOf("product_") === 0) {
-      return !!state.currentRecommendedProduct;
+    // offer_card / produit (carte prix + bouton S'inscrire) : produit recommandé
+    // ET closing en cours. Sinon le bouton apparaissait avant qu'Argos ait parlé
+    // de l'offre à la voix (court-circuit du phase-lock serveur). Détection par
+    // TEMPLATE uniquement (une carte proof dont l'image_key commence par
+    // "product" n'est PAS une offre).
+    if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer") {
+      return !!state.currentRecommendedProduct && inClosingNow();
     }
 
     // PROACTIVITÉ VOULUE (garde-fou "mot prononcé" retiré sur autorisation) :
@@ -2503,8 +2517,8 @@
     const cardEl = buildSmartCard(cardData);
     if (!cardEl) return;
     cardEl.dataset.cardKey = key;
-    // V7 — enveloppe qui se déplie pour la carte offre / produit
-    if (key === "offer_card" || key.indexOf("product") === 0) {
+    // V7 — enveloppe qui se déplie pour la carte offre / produit (par TEMPLATE)
+    if (tpl === "offer_card" || tpl === "product" || tpl === "product_offer") {
       cardEl.classList.add("offer-reveal");
     }
 
@@ -2519,7 +2533,11 @@
     lastCardShownAt = now;
 
     let timeoutId = null;
-    const isOffer = key === "offer_card" || key.startsWith("product_");
+    // Persistance (pas de timeout) réservée aux VRAIES cartes offre, détectées
+    // par TEMPLATE — pas par clé : une carte 'did_you_know'/'proof' dont
+    // l'image_key commence par 'product' (ex. product_main) restait collée à
+    // l'écran à tort et bloquait visuellement la suite.
+    const isOffer = tpl === "offer_card" || tpl === "product" || tpl === "product_offer";
     if (!isOffer) {
       timeoutId = setTimeout(function() { hideSmartCard(key); }, STANDARD_LIFESPAN_MS);
     }
@@ -3276,6 +3294,24 @@
   var lastUIAgentsCall = 0;
   var uiAgentsPauseTimer = null;
 
+  // Garde-fou anti-blocage : un fetch UI qui pend (serveur lent sur une grosse
+  // carte) laissait uiDirectorInFlight=true À VIE -> dossier figé + plus aucune
+  // carte ("bloqué sur le dossier, plus rien après"). On borne CHAQUE appel
+  // (abort à 12s) ET le verrou in-flight (15s max) -> ça se débloque toujours.
+  const UI_FETCH_TIMEOUT_MS = 12000;
+  const UI_INFLIGHT_MAX_MS = 15000;
+  function fetchUIAgent(url, body) {
+    var ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, UI_FETCH_TIMEOUT_MS) : null;
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ctrl ? ctrl.signal : undefined,
+    }).then(function (r) { if (to) clearTimeout(to); return r.json(); })
+      .catch(function () { if (to) clearTimeout(to); return null; });
+  }
+
   // Déclenché PENDANT que le prospect parle : dès qu'il fait une micro-pause
   // de 1.2s, on lance le dossier + cards en parallèle. Ils finissent souvent
   // AVANT qu'Argos réponde → le dossier se met à jour "pendant" l'audio.
@@ -3294,33 +3330,26 @@
   }
 
   function callUIAgentsWithLog(historySlice) {
-    if (state.uiDirectorInFlight) return;
+    if (state.uiDirectorInFlight && (Date.now() - (state.uiDirectorInFlightSince || 0)) < UI_INFLIGHT_MAX_MS) return;
     if (historySlice.length < 2) return;
     var now = Date.now();
     if (now - lastUIAgentsCall < 1500) return; // throttle leger (rapide pour dossier reactif)
     lastUIAgentsCall = now;
     state.uiDirectorInFlight = true;
+    state.uiDirectorInFlightSince = now;
     setThinking(true);
 
-    var dossierCall = fetch(DOSSIER_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        history: historySlice,
-        previous_dossier: state.lastDossier,
-      }),
-    }).then(function(r) { return r.json(); }).catch(function() { return {}; });
+    var dossierCall = fetchUIAgent(DOSSIER_ENDPOINT, {
+      history: historySlice,
+      previous_dossier: state.lastDossier,
+    });
 
-    var cardsCall = fetch(CARDS_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        history: historySlice,
-        active_product: state.currentRecommendedProduct,
-        session_id: state.sessionId,
-        dossier: state.lastDossier,
-      }),
-    }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
+    var cardsCall = fetchUIAgent(CARDS_ENDPOINT, {
+      history: historySlice,
+      active_product: state.currentRecommendedProduct,
+      session_id: state.sessionId,
+      dossier: state.lastDossier,
+    });
 
     Promise.all([dossierCall, cardsCall]).then(function(results) {
       state.uiDirectorInFlight = false;
@@ -3341,36 +3370,29 @@
   }
 
   function callUIAgents() {
-    if (state.uiDirectorInFlight) return;
+    if (state.uiDirectorInFlight && (Date.now() - (state.uiDirectorInFlightSince || 0)) < UI_INFLIGHT_MAX_MS) return;
     if (state.conversationLog.length < 2) return;
     var now = Date.now();
     if (now - lastUIAgentsCall < 2000) return; // throttle 2s pour reactivite dossier
     lastUIAgentsCall = now;
     state.uiDirectorInFlight = true;
+    state.uiDirectorInFlightSince = now;
     setThinking(true);
 
     var historySlice = state.conversationLog.slice();
 
-    // Appel PARALLÈLE : dossier + cards en même temps
-    var dossierCall = fetch(DOSSIER_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        history: historySlice,
-        previous_dossier: state.lastDossier,
-      }),
-    }).then(function(r) { return r.json(); }).catch(function() { return {}; });
+    // Appel PARALLÈLE : dossier + cards en même temps (bornés par fetchUIAgent)
+    var dossierCall = fetchUIAgent(DOSSIER_ENDPOINT, {
+      history: historySlice,
+      previous_dossier: state.lastDossier,
+    });
 
-    var cardsCall = fetch(CARDS_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        history: historySlice,
-        active_product: state.currentRecommendedProduct,
-        session_id: state.sessionId,
-        dossier: state.lastDossier,
-      }),
-    }).then(function(r) { return r.json(); }).catch(function() { return { card: null }; });
+    var cardsCall = fetchUIAgent(CARDS_ENDPOINT, {
+      history: historySlice,
+      active_product: state.currentRecommendedProduct,
+      session_id: state.sessionId,
+      dossier: state.lastDossier,
+    });
 
     Promise.all([dossierCall, cardsCall]).then(function(results) {
       state.uiDirectorInFlight = false;

@@ -314,6 +314,14 @@ def run_profile(p):
         checks.append(("sceptique non forcé (certitude != ferme)", certitude != "ferme", f"certitude={certitude}"))
         checks.append(("pas de carte offre prématurée", not any(c.get("template") == "offer_card" for c in cards), "ok" if not any(c.get("template") == "offer_card" for c in cards) else "offer_card affichée!"))
 
+    # UNIVERSEL (bug #3) : le bouton S'inscrire (offer_card / product) ne doit
+    # JAMAIS sortir avant le closing. Aucun de ces profils n'atteint prix_closing
+    # -> 0 carte offre attendue.
+    offer_now = [c for c in cards if (c.get("template") in ("offer_card", "product", "product_offer"))]
+    closing = last_phase in ("prix_closing", "post_closing")
+    checks.append(("offer_card seulement au closing", (not offer_now) or closing,
+                   f"{len(offer_now)} offer_card hors closing, phase={last_phase}"))
+
     card_themes = ", ".join(f"{c.get('template')}:{c.get('image_key') or c.get('title','')[:14]}" for c in cards[:6])
     return {"name": p["name"], "active": active, "chaleur": chaleur, "certitude": certitude,
             "price": last_price, "tier": last_tier, "allowed": last_allowed, "phase": last_phase,
