@@ -3454,18 +3454,20 @@
           sessionResumption: state.resumptionHandle ? { handle: state.resumptionHandle } : {},
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          // QW-4 : VAD serveur tuné pour cible 55-75 ans. Les seniors parlent
-          // plus lentement, font des pauses plus longues entre les phrases.
-          // endOfSpeechSensitivity=LOW = on coupe MOINS vite (cohérent avec le
-          // but "laisser respirer" ; HIGH coupait trop tôt, incohérence relevée
-          // à l'audit). silenceDurationMs=900 + prefixPaddingMs=200.
+          // VAD serveur. ⚠️ L'ancien réglage LOW/LOW + 900ms était TROP mou :
+          // Gemini ne concluait pas que le prospect avait fini de parler -> il
+          // ne répondait qu'au 2e essai ("Allô, tu m'entends ?"). On repasse en
+          // HIGH/HIGH : détecte fiablement le début ET la fin de parole, et
+          // répond après ~0,8s de silence (assez pour ne pas couper une phrase,
+          // assez court pour répondre du premier coup). prefixPadding 300ms pour
+          // ne pas tronquer le 1er mot.
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
-              startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
-              endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-              prefixPaddingMs: 200,
-              silenceDurationMs: 900,
+              startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+              endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+              prefixPaddingMs: 300,
+              silenceDurationMs: 800,
             },
           },
           tools: [{
