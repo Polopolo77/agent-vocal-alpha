@@ -1243,25 +1243,23 @@ def build_briefing_from_cache(
             "must_wait_user_response": dp.get("must_wait_user_response", True),
             "lock_reason": dp.get("lock_reason", ""),
             "instruction_interne": (
-                "Execute UNIQUEMENT la phase indiquee. 1 message = 1 phase. "
-                "Ne prononce JAMAIS le nom de la phase a voix haute. "
-                "Si must_wait_user_response=true, tu t'arretes apres ton message et tu attends."
+                "Le coach te donne juste le CAP (la phase + le produit) ; tes MOTS "
+                "sont LIBRES — tu formules naturellement, comme un humain, tu ne "
+                "recites rien. Garde le rythme : 1 idee par message, tu n'empiles "
+                "pas 3 phases d'un coup. Ne prononce JAMAIS le nom de la phase. Si "
+                "must_wait_user_response=true, tu t'arretes apres ton message et tu attends."
             ),
         }
 
+        # Bloc coach ALLÉGÉ : on ne donne plus à l'agent que le CAP (produit, tier,
+        # chaleur, signal closing). On NE souffle PLUS la phrase exacte
+        # (formulation_suggeree), ni action/pièges/contradictions/archétype : ça
+        # scriptait et PERTURBAIT l'agent. L'agent formule librement ; le coach
+        # se contente d'orienter le fond, pas la forme.
         briefing["coach"] = {
-            "profil_prospect": f"{dom} ({max(scores.values())}%)",
-            "archetype": d.get("archetype_detecte"),
-            "chaleur": emot.get("chaleur", "inconnue"),
-            "confiance_agent": emot.get("confiance_agent", "neutre"),
             "produit_recommande": prod.get("recommande") or "pas encore déterminé",
             "tier_recommande": prod.get("tier_recommande"),
-            "certitude": prod.get("certitude", "faible"),
-            "objections_en_cours": obj.get("en_cours", []),
-            "contradictions": mem.get("contradictions_detectees", []),
-            "action_recommandee": dir_.get("action_principale", ""),
-            "formulation_suggeree": dir_.get("formulation_suggeree", ""),
-            "pieges_a_eviter": dir_.get("pieges_a_eviter", []),
+            "chaleur": emot.get("chaleur", "inconnue"),
             "signal_closing": dir_.get("signal_closing", "rouge"),
         }
         briefing["meta"] = {
