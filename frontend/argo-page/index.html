@@ -2198,8 +2198,19 @@
   const $transcript = $("transcript");
   let currentAlphaMsg = null, currentUserMsg = null;
 
+  // Le modèle vocal émet parfois du markdown (**gras**) hérité du system prompt :
+  // inutile à l'oral et moche dans le transcript. On le nettoie à l'affichage.
+  function cleanDisplayText(t) {
+    if (!t) return t;
+    return String(t)
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/\*(.+?)\*/g, "$1")
+      .replace(/[*_`]+/g, "");
+  }
+
   function addMessage(role, text, replace = false) {
     if (!text) return;
+    text = cleanDisplayText(text);
     if (role === "alpha") {
       if (currentAlphaMsg && replace) {
         currentAlphaMsg.textContent = text;
@@ -3745,7 +3756,7 @@
         pendingBriefingProductId = null;
 
         if (state.pendingBotText) {
-          state.conversationLog.push({ role: "alpha", text: state.pendingBotText.trim() });
+          state.conversationLog.push({ role: "alpha", text: cleanDisplayText(state.pendingBotText.trim()) });
           state.pendingBotText = "";
           currentAlphaMsg = null;
         }
