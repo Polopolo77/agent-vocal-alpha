@@ -58,11 +58,18 @@ export function useConversations(options?: UseConversationsOptions) {
         const data = await fetchConversations();
         if (cancelled) return;
 
-        if (data.conversations.length === 0) {
+        // Filtrer les conversations vides : aucun message de chat (que des events ou rien)
+        const meaningful = data.conversations.filter((c) => {
+          if (!c.messages || c.messages.length === 0) return false;
+          // Doit avoir au moins un message qui n'est pas un "event"
+          return c.messages.some((m) => m.role !== "event");
+        });
+
+        if (meaningful.length === 0) {
           setConversations(mockConversations);
           setUsingMock(true);
         } else {
-          setConversations(data.conversations);
+          setConversations(meaningful);
           setUsingMock(false);
         }
         setOnline(true);
