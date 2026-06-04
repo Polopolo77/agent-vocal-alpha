@@ -2556,7 +2556,9 @@
     // Enregistre pour l'arbitre (dédup + rate-limit partagés)
     cardSessionShown.add(key);
     lastCardShownAt = now;
-    logMonitor("card", { template: tpl, key: key });
+    logMonitor("card", { template: tpl, key: key,
+      ctx_user: (state.pendingUserText || "").trim().slice(-60),
+      ctx_bot: (state.pendingBotText || "").trim().slice(-60) });
 
     let timeoutId = null;
     // Persistance (pas de timeout) réservée aux VRAIES cartes offre, détectées
@@ -3554,6 +3556,7 @@
         startParticles(); // V2 — émission continue tant qu'il parle
         if (!openerSent) {
           openerSent = true;
+          logMonitor("session", { agent: AGENT_NAME, model: MODEL, voice: VOICE, vad: "HIGH/HIGH/800ms" });
           // Cartes d'accueil + RGPD + market + message d'ouverture : UNIQUEMENT au
           // 1er setupComplete. Sur une RECONNEXION mid-call on ne rejoue PAS le
           // "Bonjour... votre prénom ?" (sinon Argos repart de zéro en plein appel).
@@ -3577,6 +3580,7 @@
           if (fc.name === "obtenir_briefing") {
             const query = fc.args?.raison || "";
             console.log("[Argo] obtenir_briefing called:", query);
+            var _tBrief = Date.now();
             fetch(BRIEFING_ENDPOINT, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -3595,6 +3599,7 @@
                   "| phase:", briefing.PHASE_LOCK && briefing.PHASE_LOCK.phase_agent_autorisee);
                 logMonitor("briefing", {
                   query: query,
+                  ms: Date.now() - _tBrief,
                   phase: (briefing.PHASE_LOCK && briefing.PHASE_LOCK.phase_agent_autorisee) || null,
                   price: (briefing.price_to_announce && briefing.price_to_announce.montant_euros) || null,
                   allowed: (briefing.allowed_numbers || []).length,
@@ -3643,6 +3648,7 @@
       // BARGE-IN : Gemini Live détecte que le prospect parle pendant qu'Argos
       // parle → il faut COUPER immédiatement l'audio déjà bufferisé côté client.
       if (sc.interrupted === true) {
+        logMonitor("interrupted", { agent_disait: (state.pendingBotText || "").trim().slice(-70) });
         if (state.audioPlayer) state.audioPlayer.flush();
         state.pendingBotText = "";
         currentAlphaMsg = null;
@@ -3663,6 +3669,10 @@
 
       // Input transcription (user)
       if (sc.inputTranscription && sc.inputTranscription.text) {
+        var _nowU = Date.now();
+        // Nouvelle prise de parole (l'agent a déjà répondu) -> on (re)démarre le chrono.
+        if (!state._tUserStart || state._tAgentStart) { state._tUserStart = _nowU; state._tAgentStart = 0; }
+        state._tUserLast = _nowU;
         state.pendingUserText = (state.pendingUserText + sc.inputTranscription.text).slice(-4000);
         addMessage("user", state.pendingUserText.trim(), true);
         $orbContainer.className = "orb-container";
@@ -3683,6 +3693,14 @@
 
       // Output transcription (alpha)
       if (sc.outputTranscription && sc.outputTranscription.text) {
+        // 1er chunk de réponse -> LATENCE = temps entre "le user a fini" et "l'agent commence".
+        if (!state._tAgentStart) {
+          state._tAgentStart = Date.now();
+          logMonitor("agent_start", {
+            latence_ms: state._tUserLast ? (state._tAgentStart - state._tUserLast) : null,
+            sur: (state.pendingUserText || "").trim().slice(-70)
+          });
+        }
         state.pendingBotText = (state.pendingBotText + sc.outputTranscription.text).slice(-4000);
         addMessage("alpha", state.pendingBotText.trim(), true);
         // V8 : incrémente le compteur de valeur perçue quand Argos cite un chiffre
@@ -3703,6 +3721,16 @@
 
       // Turn complete
       if (sc.turnComplete) {
+        // Tour complet : on logue qui a dit quoi + les chronos (durée user, latence
+        // de réponse, durée agent) -> tout est analysable a posteriori.
+        logMonitor("turn", {
+          user: (state.pendingUserText || "").trim().slice(-280),
+          agent: (state.pendingBotText || "").trim().slice(-280),
+          user_ms: (state._tUserStart && state._tUserLast) ? (state._tUserLast - state._tUserStart) : null,
+          latence_ms: (state._tUserLast && state._tAgentStart) ? (state._tAgentStart - state._tUserLast) : null,
+          agent_ms: state._tAgentStart ? (Date.now() - state._tAgentStart) : null
+        });
+        state._tUserStart = 0; state._tAgentStart = 0; state._tUserLast = 0;
         userSpeakingStart = null; // reset pattern interrupt
 
         // Injection briefing desactivee (cf. handler coach). Pas de flush.
@@ -3841,6 +3869,7 @@
       openerSent = false;  // nouvel appel -> on (re)joue le message d'ouverture
       state.resumptionHandle = null;  // nouvel appel = nouvelle session (pas de reprise)
       state.monitorEvents = [];  // journal d'observabilité (cartes/dossier/coach/briefing)
+      state._tUserStart = 0; state._tAgentStart = 0; state._tUserLast = 0;  // chronos de latence
       _glossaryShownAt = 0; lastCardsAgentSpokenCall = 0;  // pas de timestamp périmé d'un appel précédent
       state.conversationStartedAt = new Date().toISOString();
       state.sessionId = null;

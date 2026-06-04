@@ -69,22 +69,38 @@ def extract_events(messages):
 
 
 def monitor_summary(events):
-    """Resume compact du deroule observe (ce que Argos a fait, quand)."""
+    """Resume compact du deroule observe (ce que Argos a fait, quand, en combien de temps)."""
     if not events:
         return ["(pas de donnees monitor — conversation d'avant l'instrumentation)"]
+    sess = next((e for e in events if e.get("type") == "session"), None)
     cards = [e for e in events if e.get("type") == "card"]
     doss = [e for e in events if e.get("type") == "dossier"]
     coach = [e for e in events if e.get("type") == "coach"]
     brief = [e for e in events if e.get("type") == "briefing"]
+    turns = [e for e in events if e.get("type") == "turn"]
+    interrupts = [e for e in events if e.get("type") == "interrupted"]
     lines = []
+    if sess:
+        lines.append(f"session : {sess.get('agent')} / {sess.get('model')} / voix {sess.get('voice')} / VAD {sess.get('vad')}")
+    # LATENCE DE REPONSE (metrique cle : en combien de temps l'agent repond)
+    lats = [t.get("latence_ms") for t in turns if isinstance(t.get("latence_ms"), (int, float))]
+    if lats:
+        avg = sum(lats) // len(lats)
+        slow = sum(1 for L in lats if L > 2500)
+        lines.append(f"latence reponse : moy {avg}ms, max {max(lats)}ms ({len(lats)} tours"
+                     + (f", ⚠️ {slow} lents >2.5s" if slow else "") + ")")
+    noresp = sum(1 for t in turns if t.get("user") and not t.get("agent"))
+    if noresp:
+        lines.append(f"⚠️ {noresp} tour(s) SANS reponse agent (user a parle, agent muet)")
+    if interrupts:
+        lines.append(f"barge-in (agent coupe) : {len(interrupts)}x")
     lines.append("cartes : " + (", ".join(
         f"{c.get('template')}:{c.get('key')}@{c.get('t')}s" for c in cards) if cards else "AUCUNE"))
     if doss:
         maxf = max((d.get("n_filled", 0) for d in doss), default=0)
         last = doss[-1]
         lines.append(f"dossier : {maxf}/8 champs (final prenom={last.get('prenom')} "
-                     f"capital={last.get('capital')} objectif={last.get('objectif')} "
-                     f"profil={last.get('profil')})")
+                     f"capital={last.get('capital')} objectif={last.get('objectif')} profil={last.get('profil')})")
     if coach:
         phases = []
         for c in coach:
@@ -92,10 +108,42 @@ def monitor_summary(events):
             if p and (not phases or phases[-1] != p):
                 phases.append(p)
         prods = sorted({c.get("product") for c in coach if c.get("product")})
-        lines.append(f"coach : produit={prods or '-'} | phases={' -> '.join(phases) or '-'} "
-                     f"| signal final={coach[-1].get('signal')}")
-    lines.append(f"briefings appeles : {len(brief)}")
+        lines.append(f"coach : produit={prods or '-'} | phases={' -> '.join(phases) or '-'} | signal final={coach[-1].get('signal')}")
+    if brief:
+        bms = [b.get("ms") for b in brief if isinstance(b.get("ms"), (int, float))]
+        lines.append(f"briefings : {len(brief)}" + (f" (lat moy {sum(bms)//len(bms)}ms)" if bms else ""))
     return lines
+
+
+def monitor_timeline(events):
+    """Deroule chronologique detaille (--full) : tours+latences, cartes+contexte, coach, briefings."""
+    out = []
+    for e in events:
+        ty, t = e.get("type"), e.get("t")
+        if ty == "turn":
+            lat = e.get("latence_ms")
+            tag = f"[reponse en {lat}ms]" if isinstance(lat, (int, float)) else "[!! PAS DE REPONSE]"
+            out.append(f"  t{t}s · tour {e.get('turn')} {tag}")
+            if e.get("user"):
+                out.append(f"        USER : {e.get('user')}")
+            if e.get("agent"):
+                out.append(f"        ARGOS: {e.get('agent')}")
+        elif ty == "card":
+            ctx = e.get("ctx_bot") or e.get("ctx_user") or ""
+            out.append(f"  t{t}s · CARTE {e.get('template')}:{e.get('key')}  (pendant: \"...{ctx}\")")
+        elif ty == "coach":
+            out.append(f"  t{t}s · COACH produit={e.get('product')} tier={e.get('tier')} "
+                       f"phase={e.get('phase')} signal={e.get('signal')} chaleur={e.get('chaleur')}")
+        elif ty == "briefing":
+            out.append(f"  t{t}s · BRIEFING phase={e.get('phase')} prix={e.get('price')} "
+                       f"chiffres={e.get('allowed')} ({e.get('ms')}ms)")
+        elif ty == "interrupted":
+            out.append(f"  t{t}s · BARGE-IN (agent coupe: \"...{e.get('agent_disait')}\")")
+        elif ty == "dossier":
+            out.append(f"  t{t}s · DOSSIER {e.get('n_filled')}/8 (capital={e.get('capital')})")
+        elif ty == "session":
+            out.append(f"  SESSION {e.get('agent')} / {e.get('model')} / {e.get('voice')} / VAD {e.get('vad')}")
+    return out
 
 
 def analyze(messages):
@@ -176,16 +224,13 @@ def main():
                 print(f"   ⚠️  {i}")
         else:
             print("   ✓ rien d'anormal détecté")
-        for line in monitor_summary(extract_events(msgs)):
+        events = extract_events(msgs)
+        for line in monitor_summary(events):
             print(f"   · {line}")
         if full:
-            for m in msgs:
-                role = _msg_role(m)
-                if role == "monitor":
-                    continue
-                txt = _msg_text(m).replace("\n", " ").strip()
-                if txt:
-                    print(f"     [{role}] {txt[:300]}")
+            print("   ---------- timeline ----------")
+            for line in monitor_timeline(events):
+                print(line)
         print()
 
     print(f"Résumé : {total_leak}/{len(convs)} conversations avec FUITE briefing.")
