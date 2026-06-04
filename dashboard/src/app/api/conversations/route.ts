@@ -7,8 +7,11 @@
 // transcripts. La clé ne transite jamais par le navigateur.
 export const dynamic = "force-dynamic"; // jamais prérendu/caché : données fraîches
 
-const BACKEND_CONVERSATIONS =
-  "https://web-production-572b6.up.railway.app/api/conversations";
+// Domaine backend Argos (Railway). Surchargeable via env si le domaine change
+// encore (ex: domaine personnalisé) -> pas besoin de retoucher le code.
+const BACKEND_BASE =
+  process.env.ARGO_BACKEND_URL || "https://argo-editions.up.railway.app";
+const BACKEND_CONVERSATIONS = BACKEND_BASE + "/api/conversations";
 
 export async function GET() {
   const adminKey = process.env.ADMIN_API_KEY;

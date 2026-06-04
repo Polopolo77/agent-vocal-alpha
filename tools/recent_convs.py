@@ -24,7 +24,7 @@ import ssl
 import sys
 import urllib.request
 
-BACKEND = os.getenv("ARGO_BACKEND", "https://web-production-572b6.up.railway.app")
+BACKEND = os.getenv("ARGO_BACKEND", "https://argo-editions.up.railway.app")
 
 # SSL fiable même si le trust store système est cassé (macOS local notamment).
 try:
