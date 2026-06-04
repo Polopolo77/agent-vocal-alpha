@@ -35,7 +35,7 @@ export default function TranscriptView({
   // Normaliser : tous les rôles non-user et non-event sont traités comme assistant
   // (assistant, alpha=Argos, model, bot, etc.)
   const chatMessages = messages
-    .filter((m) => m.role !== "event")
+    .filter((m) => m.role !== "event" && m.role !== "monitor")
     .map((m) => ({
       ...m,
       _isUser: m.role === "user",

@@ -2273,8 +2273,33 @@
     $progressLabel.textContent = pct + "% complété · " + filled + "/" + total + " champs";
   }
 
+  // ===== MONITORING : journal d'événements (cartes / dossier / coach / briefing).
+  // Embarqué avec la conversation (entrées role:"monitor") -> analyse a posteriori
+  // par tools/recent_convs.py (quelle carte à quel tour, remplissage du dossier…).
+  function logMonitor(type, data) {
+    try {
+      if (!state.monitorEvents) state.monitorEvents = [];
+      var t = state.conversationStartedAt
+        ? Math.round((Date.now() - new Date(state.conversationStartedAt).getTime()) / 1000) : 0;
+      state.monitorEvents.push(Object.assign({ t: t, turn: state.userTurnCount || 0, type: type }, data || {}));
+      if (state.monitorEvents.length > 400) state.monitorEvents.shift();
+    } catch (e) {}
+  }
+
+  var _DOSSIER_FIELDS = ["prenom", "situation", "objectif", "horizon", "capital", "profil_detecte", "vigilance", "questions_cles"];
   function renderDossier(dossier) {
     if (!dossier || Object.keys(dossier).length === 0) return;
+    try {
+      logMonitor("dossier", {
+        prenom: dossier.prenom || null, capital: dossier.capital || null,
+        objectif: dossier.objectif || null, horizon: dossier.horizon || null,
+        profil: dossier.profil_detecte || null,
+        n_filled: _DOSSIER_FIELDS.filter(function (k) {
+          var v = dossier[k];
+          return v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && !v.length);
+        }).length
+      });
+    } catch (e) {}
 
     // First fill → show panel
     if (!$dossierPanel.classList.contains("open")) showDossier();
@@ -2531,6 +2556,7 @@
     // Enregistre pour l'arbitre (dédup + rate-limit partagés)
     cardSessionShown.add(key);
     lastCardShownAt = now;
+    logMonitor("card", { template: tpl, key: key });
 
     let timeoutId = null;
     // Persistance (pas de timeout) réservée aux VRAIES cartes offre, détectées
@@ -3228,6 +3254,14 @@
         state.coachInFlight = false;
         if (d && !d.error) {
           state.coachDirective = d;
+          logMonitor("coach", {
+            product: (d.produit && d.produit.recommande) || null,
+            tier: (d.produit && d.produit.tier_recommande) || null,
+            certitude: (d.produit && d.produit.certitude) || null,
+            phase: (d.directive_phase && d.directive_phase.phase_agent_autorisee) || null,
+            signal: (d.directive_prochain_tour && d.directive_prochain_tour.signal_closing) || null,
+            chaleur: (d.etat_emotionnel && d.etat_emotionnel.chaleur) || null
+          });
 
           // A1 : mise à jour barre de chaleur
           var chaleur = d.etat_emotionnel && d.etat_emotionnel.chaleur;
@@ -3559,6 +3593,13 @@
                   "| allowed:", (briefing.allowed_numbers || []).length,
                   "| price:", briefing.price_to_announce && briefing.price_to_announce.montant_euros,
                   "| phase:", briefing.PHASE_LOCK && briefing.PHASE_LOCK.phase_agent_autorisee);
+                logMonitor("briefing", {
+                  query: query,
+                  phase: (briefing.PHASE_LOCK && briefing.PHASE_LOCK.phase_agent_autorisee) || null,
+                  price: (briefing.price_to_announce && briefing.price_to_announce.montant_euros) || null,
+                  allowed: (briefing.allowed_numbers || []).length,
+                  sources: (briefing.sources || []).length
+                });
                 // QW-1 : scheduling: "SILENT" -> Gemini Live integre le briefing
                 // au contexte SANS generer de reaction audio verbatim. Argos va
                 // utiliser price_to_announce, PHASE_LOCK, etc. sans les lire a
@@ -3799,6 +3840,7 @@
       state.conversationLog = [];
       openerSent = false;  // nouvel appel -> on (re)joue le message d'ouverture
       state.resumptionHandle = null;  // nouvel appel = nouvelle session (pas de reprise)
+      state.monitorEvents = [];  // journal d'observabilité (cartes/dossier/coach/briefing)
       _glossaryShownAt = 0; lastCardsAgentSpokenCall = 0;  // pas de timestamp périmé d'un appel précédent
       state.conversationStartedAt = new Date().toISOString();
       state.sessionId = null;
@@ -4358,10 +4400,18 @@
 
   async function saveConversation() {
     if (state.conversationLog.length < 2) return;
+    // On embarque le journal d'observabilité comme entrées role:"monitor" dans
+    // le transcript (zéro changement backend). tools/recent_convs.py les filtre.
+    var msgs = state.conversationLog.slice();
+    if (state.monitorEvents && state.monitorEvents.length) {
+      for (var _i = 0; _i < state.monitorEvents.length; _i++) {
+        msgs.push({ role: "monitor", text: JSON.stringify(state.monitorEvents[_i]) });
+      }
+    }
     var payload = {
       started_at: state.conversationStartedAt,
       ended_at: new Date().toISOString(),
-      messages: state.conversationLog.slice(),
+      messages: msgs,
       product_id: state.currentRecommendedProduct,
     };
     try {

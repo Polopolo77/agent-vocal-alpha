@@ -55,8 +55,53 @@ def _msg_role(m):
     return "?"
 
 
+def extract_events(messages):
+    """Parse les entrees role:'monitor' -> evenements (cartes/dossier/coach/briefing)."""
+    evs = []
+    for m in messages:
+        if _msg_role(m) == "monitor":
+            try:
+                evs.append(json.loads(_msg_text(m)))
+            except Exception:
+                pass
+    evs.sort(key=lambda e: (e.get("t", 0), e.get("turn", 0)))
+    return evs
+
+
+def monitor_summary(events):
+    """Resume compact du deroule observe (ce que Argos a fait, quand)."""
+    if not events:
+        return ["(pas de donnees monitor — conversation d'avant l'instrumentation)"]
+    cards = [e for e in events if e.get("type") == "card"]
+    doss = [e for e in events if e.get("type") == "dossier"]
+    coach = [e for e in events if e.get("type") == "coach"]
+    brief = [e for e in events if e.get("type") == "briefing"]
+    lines = []
+    lines.append("cartes : " + (", ".join(
+        f"{c.get('template')}:{c.get('key')}@{c.get('t')}s" for c in cards) if cards else "AUCUNE"))
+    if doss:
+        maxf = max((d.get("n_filled", 0) for d in doss), default=0)
+        last = doss[-1]
+        lines.append(f"dossier : {maxf}/8 champs (final prenom={last.get('prenom')} "
+                     f"capital={last.get('capital')} objectif={last.get('objectif')} "
+                     f"profil={last.get('profil')})")
+    if coach:
+        phases = []
+        for c in coach:
+            p = c.get("phase")
+            if p and (not phases or phases[-1] != p):
+                phases.append(p)
+        prods = sorted({c.get("product") for c in coach if c.get("product")})
+        lines.append(f"coach : produit={prods or '-'} | phases={' -> '.join(phases) or '-'} "
+                     f"| signal final={coach[-1].get('signal')}")
+    lines.append(f"briefings appeles : {len(brief)}")
+    return lines
+
+
 def analyze(messages):
     issues = []
+    # On n'analyse QUE le transcript parle (pas les entrees monitor).
+    messages = [m for m in messages if _msg_role(m) != "monitor"]
     pairs = [(_msg_role(m), _msg_text(m)) for m in messages]
     full = "\n".join(t for _, t in pairs)
     low = full.lower()
@@ -131,9 +176,13 @@ def main():
                 print(f"   ⚠️  {i}")
         else:
             print("   ✓ rien d'anormal détecté")
+        for line in monitor_summary(extract_events(msgs)):
+            print(f"   · {line}")
         if full:
             for m in msgs:
                 role = _msg_role(m)
+                if role == "monitor":
+                    continue
                 txt = _msg_text(m).replace("\n", " ").strip()
                 if txt:
                     print(f"     [{role}] {txt[:300]}")
