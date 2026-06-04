@@ -3449,6 +3449,9 @@
           },
           // systemInstruction injecté CÔTÉ SERVEUR par le proxy /api/live :
           // le prompt système ne transite JAMAIS par le navigateur.
+          // Reprise de session : si on a un handle (reconnexion), on reprend le
+          // contexte ; sinon {} = nouvelle session qui demande un handle.
+          sessionResumption: state.resumptionHandle ? { handle: state.resumptionHandle } : {},
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           // QW-4 : VAD serveur tuné pour cible 55-75 ans. Les seniors parlent
@@ -3498,6 +3501,13 @@
         try { data = JSON.parse(await event.data.text()); } catch { return; }
       } else {
         try { data = JSON.parse(event.data); } catch { return; }
+      }
+
+      // Reprise de session : on mémorise le dernier handle envoyé par Gemini.
+      // S'il y a reconnexion WS, on le renvoie dans le setup -> le contexte est
+      // restauré et Argos NE redit PAS bonjour / ne redemande PAS le prénom.
+      if (data.sessionResumptionUpdate && data.sessionResumptionUpdate.newHandle) {
+        state.resumptionHandle = data.sessionResumptionUpdate.newHandle;
       }
 
       if (data.setupComplete) {
@@ -3556,7 +3566,12 @@
                     functionResponses: [{
                       id: fc.id,
                       name: fc.name,
-                      response: Object.assign({}, briefing, { scheduling: "SILENT" }),
+                      response: briefing,
+                      // scheduling est un champ FRÈRE de response (API Gemini Live) :
+                      // SILENT = le briefing entre dans le contexte SANS être vocalisé.
+                      // (Avant il était DANS response -> aucune directive SILENT reçue
+                      //  -> Gemini lisait tout le briefing interne à voix haute. FUITE.)
+                      scheduling: "SILENT",
                     }],
                   },
                 }));
@@ -3568,7 +3583,8 @@
                     functionResponses: [{
                       id: fc.id,
                       name: fc.name,
-                      response: { error: "briefing_unavailable", scheduling: "SILENT" },
+                      response: { error: "briefing_unavailable" },
+                      scheduling: "SILENT",
                     }],
                   },
                 }));
@@ -3780,6 +3796,7 @@
 
       state.conversationLog = [];
       openerSent = false;  // nouvel appel -> on (re)joue le message d'ouverture
+      state.resumptionHandle = null;  // nouvel appel = nouvelle session (pas de reprise)
       _glossaryShownAt = 0; lastCardsAgentSpokenCall = 0;  // pas de timestamp périmé d'un appel précédent
       state.conversationStartedAt = new Date().toISOString();
       state.sessionId = null;
