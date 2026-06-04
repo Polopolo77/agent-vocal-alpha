@@ -2130,6 +2130,11 @@
   let endCallDetected = false;
   function checkEndOfCall(text, fromRole) {
     if (endCallDetected) return;
+    // Une fois le closing engagé (le prospect veut s'inscrire / le bouton est
+    // affiché), Argos dit souvent "à très vite", "merci de votre confiance"… ce
+    // qui matchait les motifs de fin d'appel et RACCROCHAIT tout seul. On reste
+    // en ligne : plus d'auto-raccrochage dès que le closing est lancé.
+    if (buyIntentTriggered || closingOverlayShown) return;
     if (!text) return;
     const t = text.replace(/’/g, "'").toLowerCase();  // apostrophe courbe -> droite
     for (let i = 0; i < END_CALL_PATTERNS.length; i++) {
@@ -2689,6 +2694,7 @@
       comparison: "Comparaison",
       testimonial: "T\u00e9moignage",
       track_record: "Track record",
+      dossier: "Dossier offert",
     };
     const badge = BADGES[tpl] || "Info";
 
@@ -2757,6 +2763,12 @@
         });
       }
       html += cardImg(imgUrl, 'style="margin-top:12px;"');
+
+    } else if (tpl === "dossier") {
+      // Carte-image d'un dossier (lead magnet) : le nom + l'image en grand.
+      if (title) html += '<h4 style="margin:8px 0 6px;color:var(--gold);">' + escapeHtml(title) + '</h4>';
+      if (subtitle) html += '<p style="color:#ccc;font-size:0.86rem;margin-bottom:10px;">' + escapeHtml(subtitle) + '</p>';
+      html += cardImg(imgUrl, 'style="width:100%;border-radius:10px;border:1px solid var(--line);"');
 
     } else {
       // Template non reconnu → fallback générique avec titre + subtitle + image
@@ -4086,13 +4098,14 @@
     { product: "argo_actions", keywords: ["sodastream", "1100"],               card: { template: "proof_number", image_key: "proof_sodastream", title: "+1 100%", subtitle: "SodaStream — Whitney Tilson" } },
     { product: "argo_actions", keywords: ["ggp", "general growth", "1600"],    card: { template: "proof_number", image_key: "proof_ggp", title: "+1 600%", subtitle: "General Growth Properties" } },
     { product: "argo_actions", keywords: ["dette", "3400", "3 400", "milliards", "sapin"], card: { template: "proof_number", image_key: "proof_dette", title: "3 400 Md€", subtitle: "Dette publique française — 115% du PIB" } },
-    { product: "argo_actions", keywords: ["bouclier suisse", "sécuriser votre épargne", "franc suisse"], card: { template: "proof_number", title: "Bouclier Suisse", subtitle: "Sécurisez votre épargne — 100% légal" } },
+    { product: "argo_actions", keywords: ["bouclier suisse", "dossier bouclier", "rapport bouclier", "franc suisse"], card: { template: "dossier", key: "dossier_bouclier", image_key: "product_lead_magnet", title: "Dossier Bouclier Suisse", subtitle: "Offert avec l'abonnement — sécuriser son épargne, 100% légal" } },
 
     // ===== argo_crypto (Eric Wade) =====
     { product: "argo_crypto", keywords: ["eric wade", "wade"],                 card: { template: "expert_portrait", image_key: "authority_wade", title: "Eric Wade", subtitle: "Le Business Angel de la Tech", items: ["wallstreet.com : 7$ → 1M$", "24 recos > +1000%", "Polymath +3 180%"] } },
     { product: "argo_crypto", keywords: ["polymath", "3180", "3 180"],         card: { template: "proof_number", title: "+3 180%", subtitle: "Polymath — Eric Wade" } },
     { product: "argo_crypto", keywords: ["harmony", "8079", "8 079"],          card: { template: "proof_number", title: "+8 079%", subtitle: "Harmony — Eric Wade" } },
-    { product: "argo_crypto", keywords: ["fin du travail", "60%", "60 %", "emplois menacés", "rentier"], card: { template: "opportunity", image_key: "proof_fmi_emplois", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
+    { product: "argo_crypto", keywords: ["dossier fin du travail", "fin du travail", "rapport fin du travail"], card: { template: "dossier", key: "dossier_fin_travail", image_key: "product_lead_magnet", title: "Dossier La Fin du Travail", subtitle: "Offert avec l'abonnement" } },
+    { product: "argo_crypto", keywords: ["60%", "60 %", "emplois menacés", "rentier"], card: { template: "opportunity", image_key: "proof_fmi_emplois", title: "La Fin du Travail", subtitle: "60% des emplois menacés par l'IA d'ici 2035" } },
     { product: "argo_crypto", keywords: ["nvidia", "30000", "30 000"],         card: { template: "proof_number", image_key: "proof_nvidia_reference", title: "+30 000%", subtitle: "Nvidia — +30 000% depuis 2015" } },
 
     // ===== argo_alpha (Stansberry + Tilson) =====
@@ -4106,6 +4119,9 @@
 
     // ===== argo_gold (Dan Ferris) =====
     { product: "argo_gold", keywords: ["dan ferris", "ferris", "crocodile"],   card: { template: "expert_portrait", image_key: "authority_ferris", title: "Dan Ferris", subtitle: "Le Crocodile de Wall Street", items: ["Surperforme depuis 2002", "Constellation +629%", "Apple +190%"] } },
+    { product: "argo_gold", keywords: ["minières d'or 2026", "minieres d'or 2026", "dossier minières", "dossier minieres"], card: { template: "dossier", key: "dossier_minieres", image_key: "bonus_minieres", title: "Dossier Minières d'Or 2026", subtitle: "Bonus offert (valeur 299€)" } },
+    { product: "argo_gold", keywords: ["titans de la bourse", "dossier titans", "les titans"], card: { template: "dossier", key: "dossier_titans", image_key: "bonus_titans", title: "Les Titans de la Bourse", subtitle: "Bonus offert (valeur 997€)" } },
+    { product: "argo_gold", keywords: ["rapport uranium", "dossier uranium", "secret uranium"], card: { template: "dossier", key: "dossier_uranium", image_key: "bonus_uranium", title: "Rapport secret Uranium", subtitle: "Bonus offert — 2 actions confidentielles" } },
     { product: "argo_gold", keywords: ["vista gold", "1248", "1 248"],         card: { template: "proof_number", image_key: "proof_vista", title: "+1 248%", subtitle: "Vista Gold — x13 en 1 an" } },
     { product: "argo_gold", keywords: ["ssr mining", "5428", "5 428"],         card: { template: "proof_number", image_key: "proof_ssr", title: "+5 428%", subtitle: "SSR Mining — x55 en 2 ans" } },
     { product: "argo_gold", keywords: ["forsys", "10 900", "10900"],           card: { template: "proof_number", image_key: "proof_forsys", title: "+10 900%", subtitle: "Forsys Metals — x110 en 10 mois" } },
