@@ -2505,6 +2505,15 @@
     var isHigh = opts.priority === "high" || HIGH_PRIORITY_TEMPLATES.indexOf(tpl) >= 0;
     var now = Date.now();
 
+    // Cartes d'INTRO (accueil, RGPD) : UNE SEULE FOIS par session, peu importe la
+    // clé. Le LLM cartes a re-émis un welcome_steps en plein call (clé différente
+    // -> échappe à la dédup par clé). On dédup ces templates par TEMPLATE.
+    var INTRO_ONCE = ["welcome_steps", "rgpd_notice"];
+    if (INTRO_ONCE.indexOf(tpl) >= 0 && cardSessionShown.has("__intro_" + tpl)) {
+      console.log("[Argo] Intro card deduped by template:", tpl);
+      return;
+    }
+
     // GARDE-FOU TEMPORALITÉ : empêche les cartes prématurées (ex: Whitney Tilson
     // avant même que l'agent n'ait cité son nom).
     if (!cardAllowedAtThisTurn(cardData, key)) {
@@ -2555,6 +2564,7 @@
 
     // Enregistre pour l'arbitre (dédup + rate-limit partagés)
     cardSessionShown.add(key);
+    if (INTRO_ONCE.indexOf(tpl) >= 0) cardSessionShown.add("__intro_" + tpl);
     lastCardShownAt = now;
     logMonitor("card", { template: tpl, key: key,
       ctx_user: (state.pendingUserText || "").trim().slice(-60),
@@ -3605,21 +3615,19 @@
                   allowed: (briefing.allowed_numbers || []).length,
                   sources: (briefing.sources || []).length
                 });
-                // QW-1 : scheduling: "SILENT" -> Gemini Live integre le briefing
-                // au contexte SANS generer de reaction audio verbatim. Argos va
-                // utiliser price_to_announce, PHASE_LOCK, etc. sans les lire a
-                // voix haute. Requires behavior: "NON_BLOCKING" sur la declaration.
+                // scheduling: "WHEN_IDLE" (champ FRÈRE de response) -> Gemini
+                // intègre le briefing PUIS génère une réponse naturelle dès qu'il
+                // est idle. AVANT: "SILENT" supprimait toute réponse après le
+                // briefing -> Argos restait MUET et le prospect devait relancer
+                // ("Allô, tu m'entends ?"). (Et SILENT mal placé DANS response ->
+                // il lisait le JSON interne à voix haute = la fuite d'avant.)
                 ws.send(JSON.stringify({
                   toolResponse: {
                     functionResponses: [{
                       id: fc.id,
                       name: fc.name,
                       response: briefing,
-                      // scheduling est un champ FRÈRE de response (API Gemini Live) :
-                      // SILENT = le briefing entre dans le contexte SANS être vocalisé.
-                      // (Avant il était DANS response -> aucune directive SILENT reçue
-                      //  -> Gemini lisait tout le briefing interne à voix haute. FUITE.)
-                      scheduling: "SILENT",
+                      scheduling: "WHEN_IDLE",
                     }],
                   },
                 }));
@@ -3632,7 +3640,7 @@
                       id: fc.id,
                       name: fc.name,
                       response: { error: "briefing_unavailable" },
-                      scheduling: "SILENT",
+                      scheduling: "WHEN_IDLE",
                     }],
                   },
                 }));
