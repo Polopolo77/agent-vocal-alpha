@@ -1595,7 +1595,7 @@
 
     <div class="status" id="status">Prêt à vous parler</div>
 
-    <div class="heat-meter" aria-label="Niveau de chaleur du prospect">
+    <div class="heat-meter" style="display:none;" aria-label="Niveau de chaleur du prospect">
       <div class="heat-pip" data-level="cold"></div>
       <div class="heat-pip" data-level="warm"></div>
       <div class="heat-pip" data-level="hot"></div>
@@ -2208,9 +2208,11 @@
   function cleanDisplayText(t) {
     if (!t) return t;
     return String(t)
+      .replace(/\[[^\]]*\]/g, "")        // didascalies "[Il confirme.]" -> retirées
       .replace(/\*\*(.+?)\*\*/g, "$1")
       .replace(/\*(.+?)\*/g, "$1")
-      .replace(/[*_`]+/g, "");
+      .replace(/[*_`]+/g, "")
+      .replace(/\s{2,}/g, " ").trim();
   }
 
   function addMessage(role, text, replace = false) {
@@ -2619,6 +2621,22 @@
 
   function hideAllSmartCards() {
     [...activeCards].forEach(c => hideSmartCard(c.key));
+  }
+
+  // Retire les cartes offre/produit persistantes (bouton S'inscrire) de l'écran.
+  // Appelé quand le coach CHANGE de produit -> sinon l'offre de l'ANCIEN produit
+  // (ex: "S'inscrire à Alpha") reste affichée alors que le prospect est parti
+  // sur autre chose.
+  function hideOfferCards() {
+    [...activeCards].forEach(function(c) {
+      var k = (c.key || "");
+      if (k.indexOf("offer") === 0 || k.indexOf("product") === 0 || k.indexOf("analysis_cross") === 0) {
+        hideSmartCard(c.key);
+      }
+    });
+    ["offer_card", "product_main", "product_offer", "product_guide", "analysis_cross_"].forEach(function(k) {
+      cardSessionShown.delete(k);
+    });
   }
 
   // Résout l'image d'une carte par PRODUIT ACTIF d'abord (corrige les collisions
@@ -3328,6 +3346,9 @@
           var certitude  = d.produit && d.produit.certitude;
           if (recommande && (certitude === "moyen" || certitude === "ferme")) {
             if (state.currentRecommendedProduct !== recommande) {
+              // Produit changé -> on retire l'offre/le bouton S'inscrire de
+              // l'ancien produit (sinon il reste collé à l'écran).
+              if (state.currentRecommendedProduct) hideOfferCards();
               state.currentRecommendedProduct = recommande;
               // NOTE : on n'injecte PLUS le briefing via clientContent car
               // Gemini Live vocalise parfois le contenu comme s'il etait
