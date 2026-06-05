@@ -11,7 +11,7 @@
   "use strict";
 
   // ============ CONFIG ============
-  const BACKEND_URL = "https://web-production-572b6.up.railway.app";
+  const BACKEND_URL = "https://argo-editions.up.railway.app";
   const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
   const TEXT_MODEL = "gemini-2.5-flash";        // Rapide ET intelligent (Pro était trop lent)
   const LIVE_MODEL = "gemini-3.1-flash-live-preview";  // Modèle Live pour la voix

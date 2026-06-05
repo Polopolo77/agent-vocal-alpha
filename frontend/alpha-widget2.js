@@ -7,7 +7,7 @@
 
   // ============ CONFIG ============
   // Backend Railway qui fournit la cl\u00e9 API et stocke les conversations
-  const BACKEND_URL = "https://web-production-572b6.up.railway.app";
+  const BACKEND_URL = "https://argo-editions.up.railway.app";
   const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
   const MODEL = "gemini-3.1-flash-live-preview";
   const VOICE = "Puck";

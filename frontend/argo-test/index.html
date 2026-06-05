@@ -395,7 +395,7 @@
 
       // Backend : prod par défaut, override via ?backend=http://localhost:8000
       const urlParams = new URLSearchParams(location.search);
-      const BACKEND = urlParams.get("backend") || "https://web-production-572b6.up.railway.app";
+      const BACKEND = urlParams.get("backend") || "https://argo-editions.up.railway.app";
       backendUrlEl.textContent = BACKEND;
 
       // Produit initial : via ?product=... ou argo_actions par défaut

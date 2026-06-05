@@ -3,7 +3,7 @@
  *
  * Usage :
  *   <script src="argo-widget.js"
- *           data-backend-url="https://web-production-572b6.up.railway.app"
+ *           data-backend-url="https://argo-editions.up.railway.app"
  *           data-agent-name="Argos"></script>
  *
  * L'agent découvre le prospect, son profil et recommande dynamiquement
@@ -20,7 +20,7 @@
   })();
 
   const DATASET = CURRENT_SCRIPT && CURRENT_SCRIPT.dataset ? CURRENT_SCRIPT.dataset : {};
-  const BACKEND_URL = (DATASET.backendUrl || "https://web-production-572b6.up.railway.app").replace(/\/$/, "");
+  const BACKEND_URL = (DATASET.backendUrl || "https://argo-editions.up.railway.app").replace(/\/$/, "");
   const AGENT_NAME = DATASET.agentName || "Argos";
 
   const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";

@@ -9,7 +9,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 import urllib.request
 
-API_URL = "https://web-production-572b6.up.railway.app/api/save-conversation"
+API_URL = "https://argo-editions.up.railway.app/api/save-conversation"
 CSV_PATH = "/Users/pchenal/Downloads/trinity sphere - Feuille 1.csv"
 
 

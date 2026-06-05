@@ -10,7 +10,7 @@
 
   // ============ CONFIG ============
   // Backend Railway qui fournit la clé API Gemini
-  const BACKEND_URL = "https://web-production-572b6.up.railway.app";
+  const BACKEND_URL = "https://argo-editions.up.railway.app";
   const TOKEN_ENDPOINT = BACKEND_URL + "/api/token";
   const MODEL = "gemini-3.1-flash-live-preview";
   const VOICE = "Puck";
