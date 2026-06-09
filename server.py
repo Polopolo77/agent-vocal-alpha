@@ -49,6 +49,7 @@ from prompts import (
     build_full_agent_prompt,
     build_ui_dossier_prompt,
     build_ui_cards_prompt,
+    _user_mentions_product,
 )
 from schemas import CoachOutput, UICardsOutput
 
@@ -733,6 +734,44 @@ async def handle_strategist(request: web.Request) -> web.Response:
                 return web.json_response({"error": "invalid_json_from_coach"}, status=500)
 
         prod = coach_output.get("produit", {}) or {}
+
+        # === VERROU PRODUIT (anti flip-flop coach) ===========================
+        # Le coach (Flash-lite) peut changer de produit d'un tour à l'autre
+        # (ex: crypto -> alpha parasite -> crypto) -> leak de cartes cross-produit
+        # côté UI (briefing ET cards lisent ce même coach_cache). Une fois le
+        # diagnostic passé (l'expert/produit a été révélé au prospect), on FIGE
+        # le produit. On n'autorise un changement QUE si le prospect a
+        # EXPLICITEMENT mentionné un autre produit dans ses derniers messages
+        # (pivot voulu, pas hallucination du coach).
+        _POST_DIAG_PHASES = {
+            "reveal_expert", "opportunite_concrete", "explication_service",
+            "empilement_preuves", "mention_bonus", "prix_closing", "post_closing",
+        }
+        _new_product = prod.get("recommande")
+        _new_phase = (coach_output.get("directive_phase") or {}).get("phase_agent_autorisee")
+        _prev_cache = coach_cache.get(session_id) or {}
+        _locked_product = _prev_cache.get("locked_product")
+        if _locked_product and _new_product and _new_product != _locked_product:
+            _recent_user = " ".join(
+                m.get("text", "") for m in history[-6:]
+                if str(m.get("role", "")).lower() == "user"
+            )
+            if _user_mentions_product(_recent_user, _new_product):
+                log.info("PRODUCT LOCK: pivot explicite prospect %s -> %s",
+                         _locked_product, _new_product)
+                _locked_product = _new_product  # pivot validé par le prospect
+            else:
+                log.info("PRODUCT LOCK: coach a tenté %s -> rétabli %s "
+                         "(phase=%s, pas de pivot explicite)",
+                         _new_product, _locked_product, _new_phase)
+                prod["recommande"] = _locked_product
+                coach_output["produit"] = prod
+                _new_product = _locked_product
+        # Pose / maintient le verrou dès l'entrée en phase post-diagnostic.
+        if not _locked_product and _new_product and _new_phase in _POST_DIAG_PHASES:
+            _locked_product = _new_product
+        # =====================================================================
+
         log.info(
             "COACH [%s] turn=%s latency=%dms tokens_in=%s tokens_out=%s "
             "archetype=%s chaleur=%s produit=%s tier=%s certitude=%s phase=%s",
@@ -753,6 +792,7 @@ async def handle_strategist(request: web.Request) -> web.Response:
             "directive": coach_output,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "turn": turn_number,
+            "locked_product": _locked_product,
         }
 
         return web.json_response(coach_output)

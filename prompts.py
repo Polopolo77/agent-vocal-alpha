@@ -13,6 +13,7 @@ Les 4 produits sont chargés dynamiquement depuis products_loader.REGISTRY.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from products_loader import Product, ProductsRegistry
@@ -1619,6 +1620,39 @@ def _guess_product_from_query(query: str) -> str | None:
     if any(has(k) for k in ["ferris", "crocodile de wall street", "stratégie haut rendement", "hyper climax gold", "minières", "minieres", "uranium"]):
         return "argo_gold"
     return None
+
+
+# Détecteur de PIVOT produit explicite par le prospect (utilisé par le verrou
+# produit du coach, côté server). Plus LARGE que _guess_product_from_query
+# (qui exige des termes très spécifiques pour le routing) : il inclut les mots
+# VERTICAUX courants ("l'or", "actions américaines"...). Frontières de mot pour
+# éviter les faux positifs ("or" dans "l'organisation"). Biais volontaire vers
+# le RAPPEL : mieux vaut autoriser un vrai pivot que de bloquer un acheteur qui
+# demande explicitement un autre produit.
+_PIVOT_PATTERNS = {
+    "argo_gold": re.compile(
+        r"\b(or physique|or papier|l'or|d'or|de l'or|dans l'or|lingots?|"
+        r"m[ée]taux pr[ée]cieux|m[ée]tal pr[ée]cieux|once d'or|mini[èe]res?|"
+        r"uranium|ferris)\b", re.I),
+    "argo_actions": re.compile(
+        r"\b(actions? am[ée]ricaines?|actions? us|actions? value|"
+        r"actions? gagnantes|bouclier suisse|tilson|dividendes?|small[- ]cap)\b", re.I),
+    "argo_crypto": re.compile(
+        r"\b(cryptos?|bitcoins?|btc|altcoins?|blockchain|tokens?|wade|"
+        r"fin du travail|profits asym[ée]triques)\b", re.I),
+    "argo_alpha": re.compile(
+        r"\b(agent alpha|projet alpha|quantitatif|algorithmes?|"
+        r"stansberry|simons|russell 1000)\b", re.I),
+}
+
+
+def _user_mentions_product(text: str, product_id: str) -> bool:
+    """True si le prospect mentionne EXPLICITEMENT ce produit/vertical.
+    Sert au verrou produit du coach : détecte un pivot voulu par le prospect
+    (pour autoriser un changement de produit malgré le verrou)."""
+    t = (text or "").replace("’", "'")
+    pat = _PIVOT_PATTERNS.get(product_id)
+    return bool(pat and pat.search(t))
 
 
 # =============================================================================
