@@ -156,6 +156,39 @@ def _embed_query_cached(query: str) -> tuple | None:
     return tuple(vec.tolist())
 
 
+# --- Garde-fou latence : plafond wall-clock sur l'embedding de la query --------
+# L'API embedding part parfois en vrille (4-6 s observés en prod). Sur le chemin
+# CHAUD (briefing pendant l'appel vocal), l'agent attend la réponse du tool
+# (scheduling WHEN_IDLE) -> le prospect attend. On borne donc l'embedding de la
+# query : au-delà du timeout on tombe sur BM25 (en RAM, instantané). L'appel
+# sous-jacent continue en tâche de fond et peuple le LRU -> la même query
+# (ou une query identique) sera instantanée la fois suivante.
+EMBED_QUERY_TIMEOUT_S = float(os.getenv("EMBED_QUERY_TIMEOUT_S", "1.2"))
+_QUERY_EMBED_POOL = None
+
+
+def _query_embed_pool():
+    global _QUERY_EMBED_POOL
+    if _QUERY_EMBED_POOL is None:
+        from concurrent.futures import ThreadPoolExecutor
+        _QUERY_EMBED_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="qembed")
+    return _QUERY_EMBED_POOL
+
+
+def _embed_query_timed(query: str) -> tuple | None:
+    """Embedding de la query avec plafond wall-clock. None -> fallback BM25."""
+    from concurrent.futures import TimeoutError as FutureTimeout
+    try:
+        fut = _query_embed_pool().submit(_embed_query_cached, query)
+        return fut.result(timeout=EMBED_QUERY_TIMEOUT_S)
+    except FutureTimeout:
+        log.warning("Query embed > %.1fs -> fallback BM25 (q=%.50s)", EMBED_QUERY_TIMEOUT_S, query)
+        return None
+    except Exception as e:
+        log.warning("Query embed error -> fallback BM25: %s", str(e)[:120])
+        return None
+
+
 def _cosine_top_k(query_vec: np.ndarray, doc_vecs: np.ndarray, k: int) -> list[tuple[int, float]]:
     """Top-k cosine similarity. doc_vecs shape: (N, D). Returns [(idx, score), ...]."""
     if doc_vecs.size == 0:
@@ -492,7 +525,7 @@ class ProductsRegistry:
 
         # === VOIE 1 : Semantic search (embeddings) ===
         if USE_EMBEDDINGS and product.chunks_matrix is not None and product.chunks_matrix.size > 0:
-            query_tuple = _embed_query_cached(query)
+            query_tuple = _embed_query_timed(query)
             if query_tuple is not None:
                 query_vec = np.asarray(query_tuple, dtype=np.float32)
                 # Top-k sur tous les chunks + extension pour laisser de la marge au re-ranking
