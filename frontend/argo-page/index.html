@@ -1844,8 +1844,16 @@
       this.muted = false;
     }
     async start() {
+      // noiseSuppression DÉSACTIVÉ : la suppression de bruit agressive du
+      // navigateur (Chrome/RNNoise) classait les réponses COURTES et douces
+      // ("oui", "non", dites vite par un senior) comme du bruit et les avalait
+      // AVANT qu'elles atteignent la VAD de Gemini -> Argos restait muet. Il n'y
+      // a aucun "minimum de mots" côté code : c'était ça. echoCancellation reste
+      // ON (Argos n'entend pas sa propre voix -> pas d'écho), autoGainControl ON
+      // (booste les voix faibles). Compromis assumé : un peu plus de bruit de
+      // fond capté, mais la VAD de Gemini ne forme pas de tour sur de brefs bruits.
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: false, autoGainControl: true },
         video: false,
       });
       const ctx = getSharedAudioCtx();
