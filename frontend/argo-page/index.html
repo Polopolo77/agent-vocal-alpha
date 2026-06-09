@@ -3108,7 +3108,10 @@
   // du coach → trop tot, le prospect n'avait pas encore dit oui.
   var BUY_INTENT_USER_RES = [
     /\b(?:ok|d'?accord|ouais|oui)[\s,.!]*je\s+m'?inscris\b/i,
-    /\bje\s+(?:prends|m'?engage|m'?inscris|veux\s+bien|signe)\b/i,
+    /\bje\s+(?:prends|m'?engage|m'?inscris|signe)\b/i,
+    // "je veux bien" = oui mou, MAIS pas "je veux bien savoir/voir/comprendre/
+    // écouter/entendre…" qui est de la CURIOSITÉ, pas un achat (lookahead négatif).
+    /\bje\s+veux\s+bien\b(?!\s+(?:savoir|en\s+savoir|voir|comprendre|[ée]couter|entendre|conna[îi]tre|d[ée]couvrir|essayer))/i,
     /\bc'?est\s+(?:bon|parti|ok)\s+(?:pour\s+moi|on\s+y\s+va)/i,
     /\bon\s+y\s+va\b/i,
     /\ballez[\s,]*j'?y\s+vais\b/i,
@@ -3127,6 +3130,14 @@
     if (!text) return;
     text = text.replace(/’/g, "'");  // apostrophe courbe -> droite (sinon "je m'inscris" rate)
     if (!state.currentRecommendedProduct) return; // pas d'overlay sans produit
+    // GATE CLOSING : jamais la pop-up de fin (proposition produits + prix +
+    // confettis) tant qu'Argos n'a pas ATTEINT le closing. Sinon un faux
+    // positif ("je veux bien savoir" en plein diagnostic/recap) balançait la
+    // pop-up AVANT que l'agent ait parlé de l'offre. Même verrou que
+    // l'offer_card (inClosingNow() : prix_closing / post_closing / signal vert).
+    // Placé AVANT de poser buyIntentTriggered -> pas d'effet de bord (sinon
+    // checkEndOfCall resterait suppression toute la conv).
+    if (!inClosingNow()) return;
     var patterns = fromRole === "alpha" ? BUY_INTENT_ALPHA_RES : BUY_INTENT_USER_RES;
     for (var i = 0; i < patterns.length; i++) {
       if (patterns[i].test(text)) {
