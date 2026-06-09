@@ -229,7 +229,8 @@ class Chunk:
     product_id: str
     section: str           # ex: "proof", "offer", "authority"
     title: str | None      # premier header du chunk si présent
-    text: str              # texte du chunk
+    text: str              # texte du chunk (ORIGINAL — sert d'excerpt à l'agent)
+    context: str = ""      # 1 phrase de contexte (Contextual Retrieval) — préfixée à l'embedding/BM25, PAS montrée
     tokens: list[str] = field(default_factory=list)
     embedding: np.ndarray | None = None  # vecteur dense (RETRIEVAL_DOCUMENT)
 
@@ -390,6 +391,122 @@ def _first_header(text: str) -> str | None:
     return None
 
 
+# =============================================================================
+# Contextual Retrieval (style Anthropic) — contexte par chunk avant indexation
+# =============================================================================
+# Pour chaque chunk, une passe LLM (modèle léger) génère UNE phrase qui situe
+# l'extrait dans sa lettre (produit, expert, sujet). Cette phrase est PRÉFIXÉE
+# au texte AVANT l'embedding ET le BM25 -> chunks "auto-descriptifs" : meilleur
+# recall + bien moins de confusion cross-produit. Le texte ORIGINAL (c.text)
+# reste intact pour l'excerpt montré à l'agent.
+#
+# Coût maîtrisé : résultat CACHÉ sur disque (products/<id>/chunks_context.json),
+# clé = hash du texte du chunk -> régénéré seulement si la lettre change. Le
+# cache est COMMITÉ (FS Railway éphémère) -> zéro appel LLM au boot en prod.
+# Dégradation gracieuse : sans clé/cache/flag -> context="" -> nominal.
+CONTEXTUAL_RETRIEVAL = os.getenv("CONTEXTUAL_RETRIEVAL", "1") not in ("0", "false", "False", "")
+CONTEXT_MODEL = os.getenv("CONTEXT_MODEL", "gemini-2.5-flash-lite")
+_CONTEXT_CACHE_VERSION = 1
+
+
+def _chunk_hash(text: str) -> str:
+    import hashlib
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
+
+
+def _context_cache_path(product_id: str) -> Path:
+    return PRODUCTS_DIR / product_id / "chunks_context.json"
+
+
+def _load_context_cache(product_id: str) -> dict:
+    p = _context_cache_path(product_id)
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if data.get("version") == _CONTEXT_CACHE_VERSION and data.get("model") == CONTEXT_MODEL:
+            return data.get("contexts", {}) or {}
+    except Exception as e:
+        log.warning("Context cache illisible (%s): %s", product_id, e)
+    return {}
+
+
+def _save_context_cache(product_id: str, contexts: dict) -> None:
+    p = _context_cache_path(product_id)
+    try:
+        p.write_text(
+            json.dumps(
+                {"version": _CONTEXT_CACHE_VERSION, "model": CONTEXT_MODEL, "contexts": contexts},
+                ensure_ascii=False, indent=2,
+            ),
+            encoding="utf-8",
+        )
+    except Exception as e:
+        log.warning("Context cache non écrit (%s): %s", product_id, e)
+
+
+def _generate_chunk_context(doc_overview: str, chunk: Chunk) -> str:
+    """Génère UNE phrase situant le chunk dans sa lettre (Contextual Retrieval)."""
+    client = _get_genai_client()
+    if not client:
+        return ""
+    prompt = (
+        "Tu situes un extrait dans sa lettre de vente, pour améliorer la "
+        "recherche documentaire (RAG).\n\n"
+        f"CONTEXTE DE LA LETTRE :\n{doc_overview}\n\n"
+        f"EXTRAIT À SITUER (section « {chunk.section} ») :\n{chunk.text[:1800]}\n\n"
+        "Donne UNE seule phrase courte (max 25 mots), en français, qui situe "
+        "cet extrait DANS cette lettre : à quel produit/expert il appartient et "
+        "de quoi il parle. Elle sera ajoutée à l'extrait pour la recherche. "
+        "Réponds UNIQUEMENT par la phrase, sans préambule ni guillemets."
+    )
+    try:
+        resp = client.models.generate_content(
+            model=CONTEXT_MODEL,
+            contents=prompt,
+            config={
+                "temperature": 0.2,
+                "max_output_tokens": 80,
+                "thinking_config": {"thinking_budget": 0},
+            },
+        )
+        return (resp.text or "").strip().strip('"').replace("\n", " ")
+    except Exception as e:
+        log.warning("Context gen failed (%s/%s): %s", chunk.product_id, chunk.section, str(e)[:160])
+        return ""
+
+
+def _contextualize_chunks(product_id: str, doc_overview: str, chunks: list[Chunk]) -> int:
+    """Remplit chunk.context (cache disque + génération LLM des manquants).
+    Retourne le nombre de contextes GÉNÉRÉS (0 si tout en cache / désactivé)."""
+    if not CONTEXTUAL_RETRIEVAL or not chunks:
+        return 0
+    cache = _load_context_cache(product_id)
+    missing: list[tuple[str, Chunk]] = []
+    for c in chunks:
+        h = _chunk_hash(c.text)
+        if h in cache:
+            c.context = cache[h]
+        else:
+            missing.append((h, c))
+    generated = 0
+    if missing and _get_genai_client():
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            results = list(pool.map(
+                lambda hc: (hc[0], hc[1], _generate_chunk_context(doc_overview, hc[1])),
+                missing,
+            ))
+        for h, c, ctx in results:
+            if ctx:
+                c.context = ctx
+                cache[h] = ctx
+                generated += 1
+        if generated:
+            _save_context_cache(product_id, cache)
+    return generated
+
+
 # ---------- chargement principal --------------------------------------------
 
 class ProductsRegistry:
@@ -454,15 +571,36 @@ class ProductsRegistry:
         frontmatter, body = _parse_frontmatter(md)
         chunks, summary_text = _split_into_chunks(product_id, body)
 
-        # BM25 index (fallback et scoring lexical)
+        # --- Contextual Retrieval : 1 phrase de contexte par chunk ---------
+        # Préfixée à l'embedding ET au BM25 (chunks auto-descriptifs : meilleur
+        # recall + moins de confusion cross-produit). Cache disque commité ->
+        # pas d'appel LLM au boot en prod.
+        _expert = (config.get("lead_expert") or {}).get("name") or ""
+        _pitch = config.get("current_pitch") or {}
+        _doc_overview = " | ".join(s for s in [
+            f"Produit : {config.get('product_name', product_id)}",
+            f"Expert : {_expert}" if _expert else "",
+            f"Univers : {config.get('vertical', '')}" if config.get("vertical") else "",
+            f"Accroche : {_pitch.get('hook')}" if _pitch.get("hook") else "",
+            f"Thèse : {_pitch.get('thesis')}" if _pitch.get("thesis") else "",
+            f"Résumé : {summary_text[:600]}" if summary_text else "",
+        ] if s)
+        _n_ctx = _contextualize_chunks(product_id, _doc_overview, chunks)
+        if _n_ctx:
+            log.info("Contextual Retrieval %s : %d/%d contextes générés (reste en cache)",
+                     product_id, _n_ctx, len(chunks))
+
+        # BM25 index (fallback et scoring lexical) — sur texte CONTEXTUALISÉ
         bm25 = None
         if chunks:
-            tokenized_corpus = [c.tokens for c in chunks]
-            non_empty = [toks for toks in tokenized_corpus if toks]
-            if non_empty:
+            tokenized_corpus = [
+                (_tokenize(c.context) + c.tokens) if c.context else c.tokens
+                for c in chunks
+            ]
+            if any(tokenized_corpus):
                 bm25 = BM25Okapi(tokenized_corpus)
 
-        # Embeddings dense (RETRIEVAL_DOCUMENT).
+        # Embeddings dense (RETRIEVAL_DOCUMENT) — contexte PRÉFIXÉ au texte.
         # gemini-embedding-2 : 8192 tokens context -> plus de troncature dure.
         # Pour v1 : on garde max 2000 chars par securite.
         chunks_matrix = None
@@ -475,7 +613,8 @@ class ProductsRegistry:
                 title_hint = c.section
                 if c.title:
                     title_hint = f"{c.section} — {c.title}"
-                items.append((c.text[:max_chars], title_hint))
+                embed_text = (f"{c.context}\n{c.text}" if c.context else c.text)[:max_chars]
+                items.append((embed_text, title_hint))
             vecs = _embed_batch(items, "RETRIEVAL_DOCUMENT")
             valid_vecs = [v for v in vecs if v is not None]
             if valid_vecs and len(valid_vecs) == len(chunks):
