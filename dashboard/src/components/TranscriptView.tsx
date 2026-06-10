@@ -10,12 +10,14 @@ interface TranscriptViewProps {
 
 const AGENT_NAMES: Record<AgentType, string> = {
   heritage: "Assistant Héritage",
+  megablock: "Assistant Héritage",
   argo: "Assistant Argo",
   general: "Assistant Argo",
 };
 
 const AGENT_LETTERS: Record<AgentType, string> = {
   heritage: "H",
+  megablock: "M",
   argo: "A",
   general: "G",
 };

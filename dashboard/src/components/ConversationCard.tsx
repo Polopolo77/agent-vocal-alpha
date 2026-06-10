@@ -18,12 +18,14 @@ interface ConversationCardProps {
 
 const TYPE_AVATAR_LETTER: Record<string, string> = {
   heritage: "H",
+  megablock: "M",
   argo: "A",
   general: "G",
 };
 
 const TYPE_AVATAR_DARK: Record<string, string> = {
   heritage: "#b8860b",
+  megablock: "#0F7A38",
   argo: "#5b21b6",
   general: "#0891b2",
 };

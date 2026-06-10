@@ -17,7 +17,7 @@ export interface ConversationsResponse {
   conversations: Conversation[];
 }
 
-export type AgentType = "heritage" | "argo" | "general";
+export type AgentType = "heritage" | "megablock" | "argo" | "general";
 
 export interface AgentInfo {
   type: AgentType;
@@ -29,6 +29,7 @@ export interface AgentInfo {
 // Brand colors per agent type
 export const AGENT_COLORS: Record<AgentType, string> = {
   heritage: "#d4a44c",
+  megablock: "#16A34A",
   argo: "#7c3aed",
   general: "#06b6d4",
 };
@@ -59,13 +60,13 @@ export function getAgentInfo(conversation: Conversation): AgentInfo {
     };
   }
 
-  // Megablock / Stratégie Green Zone (Heritage)
+  // Megablock / Stratégie Green Zone (Heritage) — section dédiée
   if (pid === "assistant-megablock") {
     return {
-      type: "heritage",
+      type: "megablock",
       label: "Héritage Éditions",
       campaign: "Megablock",
-      color: "#16A34A",
+      color: AGENT_COLORS.megablock,
     };
   }
 
@@ -93,7 +94,7 @@ export function getAgentType(conversation: Conversation): AgentType {
 }
 
 export function getAgentLabel(type: AgentType): string {
-  if (type === "heritage") return "Héritage Éditions";
+  if (type === "heritage" || type === "megablock") return "Héritage Éditions";
   if (type === "argo") return "Argo Éditions";
   return "Argos Concierge";
 }
