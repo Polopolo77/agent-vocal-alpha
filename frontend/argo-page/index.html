@@ -284,6 +284,25 @@
     display: block;
     overflow: visible;
   }
+  /* === NOUVELLE orbe qui parle : sphère d'énergie shader WebGL (or). ===========
+     L'ancienne Oracle SVG (ci-dessous) est CONSERVÉE intacte mais masquée tant
+     que body.shader-orb est posé. Pour revenir à l'Oracle : USE_SHADER_ORB=false
+     dans le script (rien d'autre à toucher). */
+  #orb-shader {
+    display: none;
+    position: absolute;
+    width: 320px; height: 320px;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(var(--orb-scale, 1));
+    transition: transform 70ms linear;
+    pointer-events: none;
+    /* halo or qui s'intensifie quand Argos parle (réutilise --orb-glow) */
+    filter: drop-shadow(0 0 calc(24px + 70px * var(--orb-glow, 0)) rgba(212, 180, 90, calc(0.22 + 0.5 * var(--orb-glow, 0))));
+  }
+  body.shader-orb #orb-shader { display: block; }
+  body.shader-orb .oracle-svg,
+  body.shader-orb .orb-waveform,
+  body.shader-orb #particle-canvas { display: none; }
   /* Sphere group : reactive au voice RMS */
   .oracle-sphere-scale {
     transform-origin: 200px 220px;
@@ -1470,7 +1489,12 @@
     <div class="orb-container idle" id="orb-container">
       <div class="heat-halo" aria-hidden="true"></div>
 
-      <!-- ORACLE SVG ORB (robot / astrolabe) -->
+      <!-- NOUVELLE orbe qui parle : sphère d'énergie shader WebGL (or). L'ancienne
+           Oracle SVG est conservée intacte juste en dessous ; pour y revenir,
+           passer USE_SHADER_ORB à false dans le script. -->
+      <canvas id="orb-shader" aria-hidden="true"></canvas>
+
+      <!-- ORACLE SVG ORB (robot / astrolabe) — CONSERVÉE (masquée si shader actif) -->
       <svg class="oracle-svg" viewBox="0 0 400 480" aria-hidden="true">
         <defs>
           <radialGradient id="oracle-sphere-grad" cx="40%" cy="35%" r="65%">
@@ -2210,17 +2234,137 @@
 
   // ============ ORB LEVEL ============
   const $orbContainer = $("orb-container");
+  // Niveau audio courant (voix Argos en sortie + micro prospect), alimenté par
+  // updateOrbLevel. Lu par l'orbe shader -> pas besoin d'un 2e getUserMedia.
+  var orbAudioLevel = 0;
   function updateOrbLevel(vol) {
     // vol=0 → orb au repos complet (glow 0), pas de résidu lumineux au raccroché
+    orbAudioLevel = vol || 0;
     $orbContainer.style.setProperty("--orb-scale", 1 + vol * 0.25);
     $orbContainer.style.setProperty("--orb-glow", vol <= 0.001 ? 0 : (0.15 + vol * 0.55));
   }
   function resetOrbVisuals() {
+    orbAudioLevel = 0;
     $orbContainer.style.setProperty("--orb-scale", 1);
     $orbContainer.style.setProperty("--orb-glow", 0);
     $orbContainer.style.setProperty("--heat-pct", 0);
     $orbContainer.style.setProperty("--heat-color", "#6688aa");
   }
+
+  // ============ ORBE SHADER (WebGL) ============
+  // Sphère d'énergie OR qui remplace l'orbe Oracle. Port en WebGL BRUT du
+  // composant ogl (aucune dépendance, aucun CDN). Pilotée par orbAudioLevel (la
+  // voix d'Argos en sortie + le micro), donc PAS de 2e getUserMedia.
+  // REVERT : passer USE_SHADER_ORB à false -> l'Oracle SVG d'origine réapparaît.
+  var USE_SHADER_ORB = true;
+  (function initShaderOrb() {
+    if (!USE_SHADER_ORB) return;
+    var canvas = document.getElementById("orb-shader");
+    if (!canvas) return;
+    document.body.classList.add("shader-orb");
+    var gl = null;
+    try {
+      gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, antialias: true })
+        || canvas.getContext("experimental-webgl", { alpha: true, premultipliedAlpha: false, antialias: true });
+    } catch (e) {}
+    if (!gl) { document.body.classList.remove("shader-orb"); return; }  // pas de WebGL -> on garde l'Oracle SVG
+
+    var vert =
+      "precision highp float;" +
+      "attribute vec2 position; attribute vec2 uv; varying vec2 vUv;" +
+      "void main(){ vUv = uv; gl_Position = vec4(position, 0.0, 1.0); }";
+
+    var frag = [
+      "precision highp float;",
+      "uniform float iTime; uniform vec3 iResolution; uniform float hue;",
+      "uniform float hover; uniform float rot; uniform float hoverIntensity;",
+      "varying vec2 vUv;",
+      "vec3 rgb2yiq(vec3 c){ float y=dot(c,vec3(0.299,0.587,0.114)); float i=dot(c,vec3(0.596,-0.274,-0.322)); float q=dot(c,vec3(0.211,-0.523,0.312)); return vec3(y,i,q); }",
+      "vec3 yiq2rgb(vec3 c){ float r=c.x+0.956*c.y+0.621*c.z; float g=c.x-0.272*c.y-0.647*c.z; float b=c.x-1.106*c.y+1.703*c.z; return vec3(r,g,b); }",
+      "vec3 adjustHue(vec3 color,float hueDeg){ float h=hueDeg*3.14159265/180.0; vec3 yiq=rgb2yiq(color); float c=cos(h); float s=sin(h); float i=yiq.y*c-yiq.z*s; float q=yiq.y*s+yiq.z*c; yiq.y=i; yiq.z=q; return yiq2rgb(yiq); }",
+      "vec3 hash33(vec3 p3){ p3=fract(p3*vec3(0.1031,0.11369,0.13787)); p3+=dot(p3,p3.yxz+19.19); return -1.0+2.0*fract(vec3(p3.x+p3.y,p3.x+p3.z,p3.y+p3.z)*p3.zyx); }",
+      "float snoise3(vec3 p){ const float K1=0.333333333; const float K2=0.166666667; vec3 i=floor(p+(p.x+p.y+p.z)*K1); vec3 d0=p-(i-(i.x+i.y+i.z)*K2); vec3 e=step(vec3(0.0),d0-d0.yzx); vec3 i1=e*(1.0-e.zxy); vec3 i2=1.0-e.zxy*(1.0-e); vec3 d1=d0-(i1-K2); vec3 d2=d0-(i2-K1); vec3 d3=d0-0.5; vec4 h=max(0.6-vec4(dot(d0,d0),dot(d1,d1),dot(d2,d2),dot(d3,d3)),0.0); vec4 n=h*h*h*h*vec4(dot(d0,hash33(i)),dot(d1,hash33(i+i1)),dot(d2,hash33(i+i2)),dot(d3,hash33(i+1.0))); return dot(vec4(31.316),n); }",
+      "vec4 extractAlpha(vec3 c){ float a=max(max(c.r,c.g),c.b); return vec4(c.rgb/(a+1e-5),a); }",
+      // --- PALETTE OR (adaptée à Argos : or sur noir). Anciennement violet/cyan/bleu. ---
+      "const vec3 baseColor1 = vec3(0.831, 0.706, 0.353);",  // or #d4b45a
+      "const vec3 baseColor2 = vec3(0.984, 0.914, 0.690);",  // champagne clair #fbe9b0
+      "const vec3 baseColor3 = vec3(0.094, 0.063, 0.024);",  // bronze sombre (cœur) #181006
+      "const float innerRadius = 0.6; const float noiseScale = 0.65;",
+      "float light1(float i,float a,float d){ return i/(1.0+d*a); }",
+      "float light2(float i,float a,float d){ return i/(1.0+d*d*a); }",
+      "vec4 draw(vec2 uv){",
+      "  vec3 color1=adjustHue(baseColor1,hue); vec3 color2=adjustHue(baseColor2,hue); vec3 color3=adjustHue(baseColor3,hue);",
+      "  float ang=atan(uv.y,uv.x); float len=length(uv); float invLen=len>0.0?1.0/len:0.0;",
+      "  float n0=snoise3(vec3(uv*noiseScale,iTime*0.5))*0.5+0.5;",
+      "  float r0=mix(mix(innerRadius,1.0,0.4),mix(innerRadius,1.0,0.6),n0);",
+      "  float d0=distance(uv,(r0*invLen)*uv); float v0=light1(1.0,10.0,d0); v0*=smoothstep(r0*1.05,r0,len);",
+      "  float cl=cos(ang+iTime*2.0)*0.5+0.5;",
+      "  float a=iTime*-1.0; vec2 pos=vec2(cos(a),sin(a))*r0; float d=distance(uv,pos);",
+      "  float v1=light2(1.5,5.0,d); v1*=light1(1.0,50.0,d0);",
+      "  float v2=smoothstep(1.0,mix(innerRadius,1.0,n0*0.5),len); float v3=smoothstep(innerRadius,mix(innerRadius,1.0,0.5),len);",
+      "  vec3 col=mix(color1,color2,cl); col=mix(color3,col,v0); col=(col+v1)*v2*v3; col=clamp(col,0.0,1.0);",
+      "  return extractAlpha(col);",
+      "}",
+      "vec4 mainImage(vec2 fragCoord){",
+      "  vec2 center=iResolution.xy*0.5; float size=min(iResolution.x,iResolution.y);",
+      "  vec2 uv=(fragCoord-center)/size*2.0;",
+      "  float s=sin(rot); float c=cos(rot); uv=vec2(c*uv.x-s*uv.y,s*uv.x+c*uv.y);",
+      "  uv.x+=hover*hoverIntensity*0.1*sin(uv.y*10.0+iTime); uv.y+=hover*hoverIntensity*0.1*sin(uv.x*10.0+iTime);",
+      "  return draw(uv);",
+      "}",
+      "void main(){ vec2 fragCoord=vUv*iResolution.xy; vec4 col=mainImage(fragCoord); gl_FragColor=vec4(col.rgb*col.a,col.a); }"
+    ].join("\n");
+
+    function compile(type, src) {
+      var sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) { console.warn("[orb] shader:", gl.getShaderInfoLog(sh)); return null; }
+      return sh;
+    }
+    var vs = compile(gl.VERTEX_SHADER, vert), fs = compile(gl.FRAGMENT_SHADER, frag);
+    if (!vs || !fs) { document.body.classList.remove("shader-orb"); return; }
+    var prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.warn("[orb] link:", gl.getProgramInfoLog(prog)); document.body.classList.remove("shader-orb"); return; }
+    gl.useProgram(prog);
+
+    // Triangle plein écran : position en clip [-1..3], uv [0..2] -> vUv 0..1 sur la zone visible
+    var buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 0,0,  3,-1, 2,0,  -1,3, 0,2]), gl.STATIC_DRAW);
+    var aPos = gl.getAttribLocation(prog, "position"), aUv = gl.getAttribLocation(prog, "uv");
+    gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0);
+    gl.enableVertexAttribArray(aUv);  gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 16, 8);
+    var uTime = gl.getUniformLocation(prog, "iTime"), uRes = gl.getUniformLocation(prog, "iResolution"),
+        uHue = gl.getUniformLocation(prog, "hue"), uHover = gl.getUniformLocation(prog, "hover"),
+        uRot = gl.getUniformLocation(prog, "rot"), uHoverI = gl.getUniformLocation(prog, "hoverIntensity");
+    gl.clearColor(0, 0, 0, 0);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    function resize() {
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = canvas.clientWidth || 320, h = canvas.clientHeight || 320;
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener("resize", resize); resize();
+
+    var rot = 0, lvl = 0, last = 0;
+    function loop(t) {
+      requestAnimationFrame(loop);
+      var dt = last ? Math.min((t - last) * 0.001, 0.05) : 0.016; last = t;
+      // lissage : montée vive (réactif quand Argos attaque une phrase), descente douce
+      var target = Math.min(1, orbAudioLevel * 1.25);
+      lvl += (target - lvl) * (target > lvl ? 0.45 : 0.08);
+      rot += dt * (0.25 + lvl * 1.8);  // rotation de base + accélérée par la voix
+      gl.uniform1f(uTime, t * 0.001);
+      gl.uniform3f(uRes, canvas.width, canvas.height, canvas.width / canvas.height);
+      gl.uniform1f(uHue, 0.0);
+      gl.uniform1f(uHover, Math.min(lvl * 1.6, 1.0));
+      gl.uniform1f(uRot, rot);
+      gl.uniform1f(uHoverI, Math.min(0.08 + lvl * 0.72, 0.8));
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    requestAnimationFrame(loop);
+  })();
 
   // ============ TRANSCRIPT ============
   const $transcript = $("transcript");
