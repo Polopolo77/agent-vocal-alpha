@@ -116,7 +116,7 @@ export default function DashboardShell({
         <main className="flex-1 overflow-y-auto">
           {/* Page title bar */}
           <header className="sticky top-0 z-30 bg-white/85 backdrop-blur-xl border-b border-[#e2e8f0]">
-            <div className="px-6 py-4">
+            <div className="px-6 py-4 max-w-6xl mx-auto">
               <h2
                 className="text-lg font-semibold text-[#1e293b] tracking-tight inline-block pb-1.5"
                 style={{ borderBottom: `2px solid ${accent}` }}
@@ -129,8 +129,8 @@ export default function DashboardShell({
             </div>
           </header>
 
-          {/* Content */}
-          <div className="px-6 py-6 max-w-5xl">{children}</div>
+          {/* Content — centré dans l'espace disponible */}
+          <div className="px-6 py-6 max-w-6xl mx-auto">{children}</div>
         </main>
       </div>
     </div>
