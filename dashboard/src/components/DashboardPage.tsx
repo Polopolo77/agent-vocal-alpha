@@ -20,7 +20,7 @@ export default function DashboardPage({
   subtitle,
   accentColor,
 }: DashboardPageProps) {
-  const { conversations, loading, stats, buckets, online, allConversations } =
+  const { conversations, loading, stats, online, allConversations } =
     useConversations({ filter });
 
   const isOverview = !filter;
@@ -36,7 +36,7 @@ export default function DashboardPage({
       <div className="space-y-6">
         <StatsCards {...stats} accentColor={accentColor} />
 
-        {isOverview && <CampaignBreakdown buckets={buckets} />}
+        {isOverview && <CampaignBreakdown conversations={allConversations} />}
 
         <ConversationList
           conversations={conversations}

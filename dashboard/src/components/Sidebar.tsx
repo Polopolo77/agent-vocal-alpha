@@ -226,6 +226,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <div className="flex items-center gap-2 text-[11px] text-[#64748b]">
             <span
               className="w-2 h-2 rounded-full"
+              style={{ background: "#16A34A" }}
+            />
+            <span>Megablock</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-[#64748b]">
+            <span
+              className="w-2 h-2 rounded-full"
               style={{ background: AGENT_COLORS.argo }}
             />
             <span>Monnaie de l&apos;IA</span>

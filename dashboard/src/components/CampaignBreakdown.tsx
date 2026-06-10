@@ -1,39 +1,43 @@
 "use client";
 
-import { AGENT_COLORS } from "@/lib/types";
-import type { AllBuckets } from "@/lib/useConversations";
+import { Conversation, getAgentInfo } from "@/lib/types";
 
 interface CampaignBreakdownProps {
-  buckets: AllBuckets;
+  conversations: Conversation[];
 }
 
-export default function CampaignBreakdown({ buckets }: CampaignBreakdownProps) {
-  const total =
-    buckets.heritage.total + buckets.argo.total + buckets.general.total;
+interface CampaignRow {
+  key: string;
+  label: string;
+  sub: string;
+  color: string;
+  count: number;
+}
 
-  const rows = [
-    {
-      key: "heritage",
-      label: "Trinity Sphères",
-      sub: "Héritage Éditions",
-      color: AGENT_COLORS.heritage,
-      count: buckets.heritage.total,
-    },
-    {
-      key: "argo",
-      label: "Monnaie de l'IA",
-      sub: "Argo Éditions",
-      color: AGENT_COLORS.argo,
-      count: buckets.argo.total,
-    },
-    {
-      key: "general",
-      label: "Argos Concierge",
-      sub: "Argo Éditions",
-      color: AGENT_COLORS.general,
-      count: buckets.general.total,
-    },
-  ];
+export default function CampaignBreakdown({
+  conversations,
+}: CampaignBreakdownProps) {
+  const total = conversations.length;
+
+  // Comptage dynamique par campagne (toute nouvelle campagne apparaît seule)
+  const map = new Map<string, CampaignRow>();
+  for (const c of conversations) {
+    const info = getAgentInfo(c);
+    const key = info.campaign;
+    const row = map.get(key);
+    if (row) {
+      row.count += 1;
+    } else {
+      map.set(key, {
+        key,
+        label: info.campaign,
+        sub: info.label,
+        color: info.color,
+        count: 1,
+      });
+    }
+  }
+  const rows = Array.from(map.values()).sort((a, b) => b.count - a.count);
 
   const pct = (n: number) =>
     total === 0 ? 0 : Math.round((n / total) * 1000) / 10;
