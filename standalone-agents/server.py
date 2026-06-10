@@ -326,10 +326,18 @@ async def handle_save_conversation(request: web.Request) -> web.Response:
 
 
 async def handle_health(request: web.Request) -> web.Response:
+    # Liste dynamique : un agent = un fichier prompts_files/<agent>_prompt.txt
+    try:
+        agents = sorted(
+            p.name.removesuffix("_prompt.txt").replace("_", "-")
+            for p in PROMPTS_DIR.glob("*_prompt.txt")
+        )
+    except Exception:
+        agents = []
     return web.json_response({
         "status": "ok",
         "service": "standalone-agents",
-        "agents": ["assistant-argo", "assistant-heritage"],
+        "agents": agents,
         "gemini_key_set": bool(GEMINI_API_KEY),
     })
 

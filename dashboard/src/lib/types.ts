@@ -59,6 +59,16 @@ export function getAgentInfo(conversation: Conversation): AgentInfo {
     };
   }
 
+  // Megablock / Stratégie Green Zone (Heritage)
+  if (pid === "assistant-megablock") {
+    return {
+      type: "heritage",
+      label: "Héritage Éditions",
+      campaign: "Megablock",
+      color: "#16A34A",
+    };
+  }
+
   // Monnaie de l'IA (dedicated Argo widget)
   if (pid === "assistant-argo") {
     return {
