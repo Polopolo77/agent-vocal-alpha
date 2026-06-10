@@ -106,6 +106,7 @@ CARDS_MODEL = os.getenv("CARDS_MODEL", "gemini-2.5-flash")
 RATE_LIMITS: dict[str, tuple[int, int]] = {
     # path_prefix: (max_requests, window_seconds)
     "/api/token":      (20, 3600),   # 20 tokens/h/IP
+    "/api/live":       (40, 3600),   # 40 ouvertures de session Live/h/IP (anti-flood upgrade) — audit #1/#9
     "/api/strategist": (200, 3600),  # 200 coach calls/h/IP
     "/api/ui-dossier": (300, 3600),
     "/api/ui-cards":   (300, 3600),
@@ -132,6 +133,27 @@ _gemini_global_bucket: deque = deque()
 # Bornes dures anti-OOM (entre deux passes de purge TTL).
 MAX_RATE_BUCKETS = 100_000
 MAX_VALID_SESSIONS = 100_000
+# Plafond de SESSIONS LIVE CONCURRENTES (audit #1/#9). /api/live ouvre une
+# session Gemini Live (le modèle realtime, le plus cher du stack) facturée tant
+# qu'elle est ouverte. Le rate-limit par-IP ci-dessus borne le DÉBIT d'ouverture ;
+# ces compteurs bornent la CONCURRENCE (un bot ouvrant des dizaines de WS en
+# parallèle = explosion du coût/quota Gemini + épuisement de FDs). Le cap GLOBAL
+# est le backstop dur même si X-Forwarded-For est spoofé.
+_LIVE_MAX_TOTAL = int(os.getenv("LIVE_MAX_TOTAL", "60"))
+_LIVE_MAX_PER_IP = int(os.getenv("LIVE_MAX_PER_IP", "3"))
+_live_conns_total = 0
+_live_conns_per_ip: dict[str, int] = {}
+
+
+def _release_live_slot(ip: str) -> None:
+    """Libère un slot de session Live (idempotent par appel). (audit #1/#9)"""
+    global _live_conns_total
+    _live_conns_total = max(0, _live_conns_total - 1)
+    n = _live_conns_per_ip.get(ip, 1) - 1
+    if n <= 0:
+        _live_conns_per_ip.pop(ip, None)
+    else:
+        _live_conns_per_ip[ip] = n
 # Clé admin pour /api/conversations (dump des transcripts PII). VIDE => accès
 # REFUSÉ (secure-by-default). À définir en variable d'env Railway, et envoyer le
 # header X-Admin-Key côté dashboard.
@@ -276,7 +298,15 @@ async def _periodic_cleanup_loop() -> None:
             log.warning("Periodic cleanup error: %s", e)
 
 
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+# http_options timeout (en ms) : sans ça le SDK passe timeout=None à httpx ->
+# un appel Gemini qui pend (TCP half-open, upstream lent) ne lève jamais
+# d'exception, _gemini_generate_with_retry ne retry pas, et le thread reste
+# occupé -> coach/cards/dossier figés des minutes. 15s borne le hang tout en
+# respectant le minimum API (l'API REJETTE tout deadline < 10s en 400). N'affecte
+# PAS /api/live (qui n'utilise pas ce client mais un ws_connect direct). (audit #8)
+client = genai.Client(
+    api_key=GEMINI_API_KEY, http_options={"timeout": 15000}
+) if GEMINI_API_KEY else None
 
 
 # =============================================================================
@@ -591,8 +621,24 @@ async def handle_live(request: web.Request) -> web.StreamResponse:
     if not GEMINI_API_KEY:
         return web.json_response({"error": "GEMINI_API_KEY not configured"}, status=500)
 
+    # Plafond de concurrence anti DoS-coût Gemini Live (audit #1/#9). Refuse
+    # AVANT d'ouvrir la session amont facturée. asyncio mono-thread -> pas de lock.
+    global _live_conns_total
+    _live_ip = _client_ip(request)
+    if (_live_conns_total >= _LIVE_MAX_TOTAL
+            or _live_conns_per_ip.get(_live_ip, 0) >= _LIVE_MAX_PER_IP):
+        log.warning("Live refusée (cap) : total=%d ip=%s ip_count=%d",
+                    _live_conns_total, _live_ip, _live_conns_per_ip.get(_live_ip, 0))
+        return web.json_response({"error": "too_many_live_sessions"}, status=429)
+    _live_conns_total += 1
+    _live_conns_per_ip[_live_ip] = _live_conns_per_ip.get(_live_ip, 0) + 1
+
     ws_client = web.WebSocketResponse(max_msg_size=16 * 1024 * 1024, heartbeat=30)
-    await ws_client.prepare(request)
+    try:
+        await ws_client.prepare(request)
+    except Exception:
+        _release_live_slot(_live_ip)  # pas de fuite de compteur si l'upgrade échoue
+        raise
 
     import aiohttp as _aiohttp
     M = _aiohttp.WSMsgType
@@ -644,6 +690,7 @@ async def handle_live(request: web.Request) -> web.StreamResponse:
     finally:
         if not ws_client.closed:
             await ws_client.close()
+        _release_live_slot(_live_ip)  # libère le slot quoi qu'il arrive (audit #1/#9)
     return ws_client
 
 
@@ -1199,7 +1246,15 @@ async def handle_briefing(request: web.Request) -> web.Response:
             return web.json_response({"error": "invalid_session"}, status=403)
 
         cached = coach_cache.get(session_id)
-        briefing = build_briefing_from_cache(cached, REGISTRY, query, override_capital=override_capital)
+        # to_thread OBLIGATOIRE : build_briefing_from_cache descend dans
+        # REGISTRY.search() -> _embed_query_timed() qui fait fut.result(timeout=1.2s),
+        # un blocage SYNCHRONE. Exécuté dans le thread de l'event loop, il gèle le
+        # relais audio du proxy /api/live de TOUS les appels en cours (micro-coupures
+        # audibles) pile quand Argos attend ce tool result (WHEN_IDLE). (audit #7)
+        briefing = await asyncio.to_thread(
+            build_briefing_from_cache, cached, REGISTRY, query,
+            override_capital=override_capital,
+        )
         return web.json_response(briefing)
     except Exception as e:
         log.exception("Briefing error")

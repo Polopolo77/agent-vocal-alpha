@@ -2126,14 +2126,22 @@
   }
 
   // ============ P7 — DÉTECTION DE FIN D'APPEL NATURELLE ============
+  // Adieux EXPLICITES (des deux côtés) = vrai signal de fin.
+  // NB: "je vais réfléchir" a été RETIRÉ — c'est l'objection n°1 du closing, pas
+  // une fin d'appel (le prompt l'isole, cf. RÈGLES DE CLOSING #3). Raccrocher 3s
+  // après tuait la reprise d'objection. (audit #3/#4/#11)
   const END_CALL_PATTERNS = [
     /\bau\s+revoir\b/i,
     /\bà\s+(bientôt|très\s+vite|plus\s+tard|la\s+prochaine)\b/i,
-    /\bmerci\s+pour\s+(ce|votre|le|tout)\b/i,
-    /\bparfait[^,.!?]*merci[^,.!?]*$/i,  // Argos ferme l'appel
     /\bbonne\s+(journée|soirée|fin\s+de)\b/i,
     /\bje\s+(raccroche|vais\s+y\s+aller|dois\s+filer)\b/i,
-    /\bje\s+vais\s+(réfléchir|y\s+réfléchir)\b/i,
+  ];
+  // Phrase d'adieu d'ARGOS uniquement (règle 7 : "Parfait …, merci pour ce moment.
+  // À très vite."). Côté AGENT seulement : un "merci pour votre analyse" dit
+  // poliment par le prospect en plein appel ne doit PAS raccrocher. (audit #3/#21)
+  const AGENT_FAREWELL_PATTERNS = [
+    /\bmerci\s+pour\s+(ce|votre|le|tout)\b/i,
+    /\bparfait[^,.!?]*merci[^,.!?]*$/i,
   ];
   let endCallDetected = false;
   function checkEndOfCall(text, fromRole) {
@@ -2145,13 +2153,20 @@
     if (buyIntentTriggered || closingOverlayShown) return;
     if (!text) return;
     const t = text.replace(/’/g, "'").toLowerCase();  // apostrophe courbe -> droite
-    for (let i = 0; i < END_CALL_PATTERNS.length; i++) {
-      if (END_CALL_PATTERNS[i].test(t)) {
+    // La phrase "merci pour…" ne compte comme fin QUE si c'est ARGOS qui la dit
+    // (sa phrase d'adieu scriptée) — pas la politesse du prospect. (audit #3/#21)
+    var patterns = (fromRole === "alpha")
+      ? END_CALL_PATTERNS.concat(AGENT_FAREWELL_PATTERNS)
+      : END_CALL_PATTERNS;
+    for (let i = 0; i < patterns.length; i++) {
+      if (patterns[i].test(t)) {
         endCallDetected = true;
-        console.log("[Argo] End-of-call detected:", fromRole, "→ auto disconnect dans 3s");
+        // 8s (et non 3s) : laisse Argos terminer sa phrase de clôture avant de
+        // couper la ligne — 3s coupait en pleine phrase. (audit #3)
+        console.log("[Argo] End-of-call detected:", fromRole, "→ auto disconnect dans 8s");
         scheduleEphemeral(function() {
           if (state.isConnected) disconnect();
-        }, 3000);
+        }, 8000);
         return;
       }
     }
@@ -3299,12 +3314,20 @@
   var lastCoachCall = 0;
   var COACH_MIN_INTERVAL_MS = 5000;
 
+  // Garde-fou anti-latch (audit #2/#8) : un /api/strategist qui pend ne doit plus
+  // figer le coach — sinon coachDirective reste périmée et inClosingNow() ne passe
+  // jamais à vrai => offer_card / bouton S'inscrire / pop-up de fin / CTA tous
+  // bloqués = vente impossible le reste de l'appel, sans symptôme visible.
+  var COACH_FETCH_TIMEOUT_MS = 10000;
+  var COACH_INFLIGHT_MAX_MS = 12000;
   function callCoach(mode) {
-    if (state.coachInFlight) return;
+    // Âge max du verrou : au-delà on considère le fetch perdu et on relance.
+    if (state.coachInFlight && (Date.now() - (state.coachInFlightSince || 0)) < COACH_INFLIGHT_MAX_MS) return;
     var now = Date.now();
     if (mode !== "post_call" && now - lastCoachCall < COACH_MIN_INTERVAL_MS) return;
     lastCoachCall = now;
     state.coachInFlight = true;
+    state.coachInFlightSince = now;
 
     var payload = {
       history: state.conversationLog.slice(),
@@ -3316,13 +3339,17 @@
     // B5 : hint focus produit si ?focus= dans l'URL
     if (FOCUS_PRODUCT) payload.focus_hint = FOCUS_PRODUCT;
 
+    var coachCtrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var coachTo = coachCtrl ? setTimeout(function () { try { coachCtrl.abort(); } catch (e) {} }, COACH_FETCH_TIMEOUT_MS) : null;
     fetch(STRATEGIST_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: coachCtrl ? coachCtrl.signal : undefined,
     })
       .then(r => r.json())
       .then(d => {
+        if (coachTo) clearTimeout(coachTo);
         state.coachInFlight = false;
         if (d && !d.error) {
           state.coachDirective = d;
@@ -3399,6 +3426,7 @@
         }
       })
       .catch(err => {
+        if (coachTo) clearTimeout(coachTo);
         state.coachInFlight = false;
         console.warn("Coach error:", err);
       });
@@ -3721,6 +3749,14 @@
       if (sc.interrupted === true) {
         logMonitor("interrupted", { agent_disait: (state.pendingBotText || "").trim().slice(-70) });
         if (state.audioPlayer) state.audioPlayer.flush();
+        // audit #14 : la phrase coupée a été ENTENDUE par le prospect (souvent le
+        // prix : "c'est 1997 euros par—" coupé par "pardon, combien ?"). Si on la
+        // jette, le coach / dossier / cartes / transcript raisonnent sur un
+        // historique où elle n'a jamais existé. On la conserve (marquée).
+        var _cutBot = (state.pendingBotText || "").trim();
+        if (_cutBot.length > 10) {
+          state.conversationLog.push({ role: "alpha", text: cleanDisplayText(_cutBot) + " [interrompu]" });
+        }
         state.pendingBotText = "";
         currentAlphaMsg = null;
         $orbContainer.className = "orb-container";
@@ -3913,20 +3949,17 @@
       modeClosingNudged = false;
       revealTriggered = false;
       buyIntentTriggered = false;
+      // audit #2/#8 : ces verrous one-shot ne se réinitialisaient PAS à la
+      // (re)connexion — un latch hérité d'un appel précédent bloquait
+      // silencieusement coach/cards (donc tout le closing) sur le nouvel appel.
+      state.coachInFlight = false;
+      state.coachInFlightSince = 0;
+      cardsAgentSpokenInFlight = false;
+      cardsAgentSpokenSince = 0;
       document.querySelectorAll(".heat-pip").forEach(function(p) {
         p.classList.remove("active", "cold", "warm", "hot", "ready");
       });
       var $hl = $("heat-label"); if ($hl) $hl.textContent = "";
-
-      // P8 — si le prospect avait opte pour la memoire, on pre-remplit
-      // uniquement l'UI (dossier). On n'injecte PAS de hint vers Argos :
-      // il l'hallucinait en direct. Le dossier visible a l'ecran suffit.
-      var remembered = loadRememberedDossier();
-      if (remembered && remembered.dossier) {
-        state.lastDossier = remembered.dossier;
-        if (remembered.product_id) state.currentRecommendedProduct = remembered.product_id;
-        renderDossier(remembered.dossier);
-      }
 
       document.body.classList.add("in-call");
       $startBtn.style.display = "none";
@@ -3952,6 +3985,17 @@
       state.currentRecommendedProduct = null;
       previousDossierSignature = new Map();
       resetDossierTemplate();
+      // P8 — mémoire cross-session : restauration APRÈS le reset (audit #12).
+      // Avant, le restore était au-dessus du reset -> lastDossier={} +
+      // resetDossierTemplate() l'écrasaient = feature morte (prospect récurrent =
+      // dossier VIDE). On pré-remplit l'UI seulement, sans hint vers Argos (il
+      // l'hallucinait en direct ; le dossier visible à l'écran suffit).
+      var remembered = loadRememberedDossier();
+      if (remembered && remembered.dossier) {
+        state.lastDossier = remembered.dossier;
+        if (remembered.product_id) state.currentRecommendedProduct = remembered.product_id;
+        renderDossier(remembered.dossier);
+      }
       localCardShown = new Set();
       cardSessionShown = new Set();
       lastCardShownAt = 0;
@@ -4177,8 +4221,10 @@
   // un monologue long, sans attendre le turnComplete.
   var lastCardsAgentSpokenCall = 0;
   var cardsAgentSpokenInFlight = false;
+  var cardsAgentSpokenSince = 0;
   function scheduleCardsAgentWhileSpeaking() {
-    if (cardsAgentSpokenInFlight) return;
+    // Garde d'âge anti-latch (audit #2/#8) : même motif que callCoach.
+    if (cardsAgentSpokenInFlight && (Date.now() - cardsAgentSpokenSince) < COACH_INFLIGHT_MAX_MS) return;
     var now = Date.now();
     if (now - lastCardsAgentSpokenCall < 4000) return;
     // Économie tokens : si une carte vient d'être affichée (<gap global),
@@ -4188,10 +4234,13 @@
     if (bot.length < 40) return; // attendre qu'Argos ait dit quelque chose de substantiel
     lastCardsAgentSpokenCall = now;
     cardsAgentSpokenInFlight = true;
+    cardsAgentSpokenSince = now;
 
     var historySlice = state.conversationLog.slice();
     historySlice.push({ role: "alpha", text: bot });
 
+    var caCtrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    var caTo = caCtrl ? setTimeout(function () { try { caCtrl.abort(); } catch (e) {} }, COACH_FETCH_TIMEOUT_MS) : null;
     fetch(CARDS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -4201,14 +4250,16 @@
         session_id: state.sessionId,
         dossier: state.lastDossier,
       }),
+      signal: caCtrl ? caCtrl.signal : undefined,
     })
       .then(function(r) { return r.json(); })
       .then(function(res) {
+        if (caTo) clearTimeout(caTo);
         cardsAgentSpokenInFlight = false;
         var cardData = res && (res.card || res.card_a_afficher);
         if (cardData) showSmartCard(cardData);
       })
-      .catch(function() { cardsAgentSpokenInFlight = false; });
+      .catch(function() { if (caTo) clearTimeout(caTo); cardsAgentSpokenInFlight = false; });
   }
 
   function triggerCardsWhileSpeaking() {
@@ -4417,6 +4468,22 @@
 
   // ============ DISCONNECT (refondu avec post-call) ============
   function disconnect() {
+    // audit #28 : flush des buffers AVANT save/score. Si l'appel se termine hors
+    // turnComplete (clic Raccrocher en pleine parole, ou auto-disconnect de fin
+    // d'appel pendant qu'Argos parle), la dernière réplique de chaque côté n'est
+    // pas encore dans conversationLog -> elle manquerait du transcript sauvé ET du
+    // score post_call (souvent la phrase qui a CONCLU l'appel).
+    var _flushBot = (state.pendingBotText || "").trim();
+    if (_flushBot.length > 2) {
+      state.conversationLog.push({ role: "alpha", text: cleanDisplayText(_flushBot) });
+      state.pendingBotText = "";
+    }
+    var _flushUser = (state.pendingUserText || "").trim();
+    if (_flushUser.length > 1) {
+      state.conversationLog.push({ role: "user", text: _flushUser });
+      state.pendingUserText = "";
+    }
+
     saveConversation().catch(function(e) { console.warn("save error:", e); });
 
     // Score post-call (C2) : appel coach en mode post_call

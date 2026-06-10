@@ -149,10 +149,15 @@ def _embed_batch(items: list[tuple[str, str | None]], task_type: str, max_worker
 
 # Cache LRU pour les queries repetees (gains de latence + coût)
 @lru_cache(maxsize=512)
-def _embed_query_cached(query: str) -> tuple | None:
+def _embed_query_cached(query: str) -> tuple:
     vec = _embed_one(query, "RETRIEVAL_QUERY")
     if vec is None:
-        return None
+        # RAISE plutôt que return None : functools.lru_cache NE CACHE PAS les
+        # exceptions. Un échec transitoire (429/timeout/réseau) ne condamne donc
+        # plus cette query au fallback BM25 pour toute la vie du process — elle
+        # sera retentée au briefing suivant. _embed_query_timed catch déjà
+        # Exception -> fallback BM25 pour CE tour uniquement. (audit #17)
+        raise RuntimeError("embed query returned None")
     return tuple(vec.tolist())
 
 
@@ -675,7 +680,7 @@ class ProductsRegistry:
                     if score <= 0.1:  # similarité trop faible → skip
                         continue
                     section = product.chunks[idx].section
-                    factor = boosts.get(section, 1.0)
+                    factor = _boost_for_section(section, boosts)
                     if section in ("intro", "preamble") and factor == 1.0:
                         factor = 0.85
                     adjusted.append((idx, score * factor))
@@ -701,7 +706,7 @@ class ProductsRegistry:
             if score <= 0:
                 continue
             section = product.chunks[idx].section
-            factor = boosts.get(section, 1.0)
+            factor = _boost_for_section(section, boosts)
             # Pénalité générique sur intro/preamble (matchent trop souvent par nom de produit)
             if section in ("intro", "preamble") and factor == 1.0:
                 factor = 0.75
@@ -712,10 +717,29 @@ class ProductsRegistry:
 
 
 # Mots-clés → boost sur certaines sections (re-ranking léger, pas d'embedding)
-_NUMERIC_HINTS = re.compile(r"(\+?\d{1,3}[\s\u00a0]?(?:\d{3})+|\d+[.,]\d+|\d+\s*%|x\s*\d+|%)", re.IGNORECASE)
+_NUMERIC_HINTS = re.compile(
+    r"(\+?\d{1,3}[\s\u00a0]?(?:\d{3})+|\d+[.,]\d+|\d+\s*%|x\s*\d+|%"
+    r"|\b(?:chiffres?|performances?|rendements?|r[\u00e9e]sultats?|combien|gains?|track[ -]?record|preuves?)\b)",
+    re.IGNORECASE)  # FR \u00e9largi (audit #30) : queries coach sans chiffre litt\u00e9ral
 _OBJECTION_HINTS = re.compile(r"\b(cher|prix|co[uû]t|risque|arnaque|confiance)\b", re.IGNORECASE)
 _GUARANTEE_HINTS = re.compile(r"\b(garantie|rembours\w*|satisfait|engagement)\b", re.IGNORECASE)
 _EXPERT_HINTS = re.compile(r"\b(expert|exp[ée]rience|r[ée]f[ée]rence|cr[ée]dentials?|parcours)\b", re.IGNORECASE)
+
+
+def _boost_for_section(section: str, boosts: dict[str, float]) -> float:
+    """Boost d'une section, avec MATCH PAR PRÉFIXE (audit #30). Les sections
+    réelles des lettres sont proof_wins / authority_tech / etc. ; un boost sur
+    'proof' ou 'authority' doit s'y appliquer. Sans ça, le re-ranking par section
+    était quasi mort (clés boostées ne matchant aucune section réelle)."""
+    if not boosts:
+        return 1.0
+    if section in boosts:
+        return boosts[section]
+    best = 1.0
+    for key, f in boosts.items():
+        if section == key or section.startswith(key + "_"):
+            best = max(best, f)
+    return best
 
 
 def _section_boosts_for_query(query: str) -> dict[str, float]:
