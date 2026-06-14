@@ -3735,20 +3735,20 @@
           sessionResumption: state.resumptionHandle ? { handle: state.resumptionHandle } : {},
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          // VAD serveur. ⚠️ L'ancien réglage LOW/LOW + 900ms était TROP mou :
-          // Gemini ne concluait pas que le prospect avait fini de parler -> il
-          // ne répondait qu'au 2e essai ("Allô, tu m'entends ?"). On repasse en
-          // HIGH/HIGH : détecte fiablement le début ET la fin de parole, et
-          // répond après ~0,8s de silence (assez pour ne pas couper une phrase,
-          // assez court pour répondre du premier coup). prefixPadding 300ms pour
-          // ne pas tronquer le 1er mot.
+          // VAD serveur. HIGH/HIGH : détecte fiablement le début ET la fin de
+          // parole. silenceDurationMs = délai de silence avant qu'Argos décide
+          // que tu as fini -> AJOUTÉ À CHAQUE RÉPONSE. Baissé 800 -> 500ms pour
+          // qu'il réponde plus vite en fin de phrase (gain ~300ms par tour).
+          // Compromis : si ça coupe un prospect qui marque une pause au milieu
+          // d'une phrase, remonter vers 650. prefixPadding 300ms = ne tronque
+          // pas le 1er mot (look-back, ne pas baisser).
           realtimeInputConfig: {
             automaticActivityDetection: {
               disabled: false,
               startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
               endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
               prefixPaddingMs: 300,
-              silenceDurationMs: 800,
+              silenceDurationMs: 500,
             },
           },
           tools: [{

@@ -168,7 +168,7 @@ def _embed_query_cached(query: str) -> tuple:
 # query : au-delà du timeout on tombe sur BM25 (en RAM, instantané). L'appel
 # sous-jacent continue en tâche de fond et peuple le LRU -> la même query
 # (ou une query identique) sera instantanée la fois suivante.
-EMBED_QUERY_TIMEOUT_S = float(os.getenv("EMBED_QUERY_TIMEOUT_S", "1.2"))
+EMBED_QUERY_TIMEOUT_S = float(os.getenv("EMBED_QUERY_TIMEOUT_S", "0.8"))
 _QUERY_EMBED_POOL = None
 
 
