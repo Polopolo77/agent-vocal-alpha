@@ -1,7 +1,11 @@
 // Route serveur (Next.js) : lit les conversations DIRECTEMENT depuis Supabase
 // (où vivent les données), côté serveur. Plus de dépendance au backend Argos
-// Concierge — et plus de limite à 200 qui coupait les plus anciennes
-// conversations (Trinity Sphères, IDs 1-61).
+// Concierge.
+//
+// IMPORTANT : pagination COMPLÈTE. On récupère TOUTES les conversations par
+// pages successives, quel que soit leur nombre (Supabase plafonne chaque
+// requête à ~1000 lignes — sans pagination, les plus anciennes finiraient
+// par disparaître, comme c'est arrivé aux Trinity Sphères au-delà de 200).
 //
 // La clé Supabase reste côté serveur (jamais NEXT_PUBLIC), jamais exposée au
 // navigateur. Surchargeable via env si la base change.
@@ -14,6 +18,9 @@ const SUPABASE_KEY =
   process.env.SUPABASE_KEY ||
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lbnB5ZnpzeHJianp0c2piYm5mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NTM5NjQsImV4cCI6MjA5MjQyOTk2NH0.c1OQitjA9dS2tFALVxNWy1FeBSKxdpv61JTrlQW5cHM";
 
+const PAGE_SIZE = 1000; // taille d'une page Supabase
+const MAX_PAGES = 100; // garde-fou (100 000 convs) — jamais une boucle infinie
+
 interface SupabaseRow {
   id: number;
   started_at: string;
@@ -23,37 +30,42 @@ interface SupabaseRow {
   transcript: unknown;
 }
 
-export async function GET() {
-  // ?order=id.desc&limit=2000 : on récupère TOUTES les conversations (les plus
-  // récentes d'abord). 2000 couvre largement (et Supabase plafonne de toute
-  // façon le nombre de lignes par requête).
+const SELECT =
+  "id,started_at,duration_seconds,message_count,product_id,transcript";
+
+async function fetchPage(offset: number): Promise<SupabaseRow[]> {
   const url =
     `${SUPABASE_URL}/rest/v1/voice_conversations` +
-    `?select=id,started_at,duration_seconds,message_count,product_id,transcript` +
-    `&order=id.desc&limit=2000`;
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-      cache: "no-store",
-    });
-  } catch {
-    return Response.json({ error: "Supabase injoignable" }, { status: 502 });
+    `?select=${SELECT}&order=id.desc&limit=${PAGE_SIZE}&offset=${offset}`;
+  const res = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Supabase ${res.status}: ${body.slice(0, 200)}`);
   }
+  return (await res.json()) as SupabaseRow[];
+}
 
-  if (!upstream.ok) {
-    const body = await upstream.text();
+export async function GET() {
+  const rows: SupabaseRow[] = [];
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const batch = await fetchPage(page * PAGE_SIZE);
+      rows.push(...batch);
+      // page incomplète => dernière page atteinte, on arrête
+      if (batch.length < PAGE_SIZE) break;
+    }
+  } catch (e) {
     return Response.json(
-      { error: `Supabase a répondu ${upstream.status}`, detail: body.slice(0, 200) },
-      { status: upstream.status },
+      { error: "Supabase injoignable", detail: String(e).slice(0, 200) },
+      { status: 502 },
     );
   }
-
-  const rows = (await upstream.json()) as SupabaseRow[];
 
   const conversations = rows.map((row) => {
     let messages: unknown = row.transcript;
