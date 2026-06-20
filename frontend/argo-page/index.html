@@ -2646,13 +2646,30 @@
       return !!state.currentRecommendedProduct && inClosingNow();
     }
 
-    // PROACTIVITÉ VOULUE (garde-fou "mot prononcé" retiré sur autorisation) :
-    // au-delà du tour 1 on laisse passer expert_portrait, proof_number,
-    // opportunity, comparison, testimonial... MÊME si le nom/chiffre n'a pas été
-    // dit mot pour mot. On fait confiance au serveur (chiffres ancrés réels +
-    // verrou cross-produit) et au LLM contextuel ; l'arbitre gère le rythme.
-    // -> Argos parle de Tilson => le LLM peut sortir son portrait ET un de ses
-    //    graphiques de perf pour enrichir, comme voulu.
+    // EXPERT — RÈGLE STRICTE : aucune carte d'expert (portrait) tant qu'Argos
+    // ne l'a pas NOMMÉ à voix haute. L'agent UI la sortait parfois AVANT la
+    // mention (sur la seule phase) -> on l'interdit tant que le nom de l'expert
+    // n'est pas présent dans ce qu'Argos a RÉELLEMENT dit (transcript + buffer
+    // en cours). S'applique quelle que soit la source (LLM, trigger, heuristique).
+    if (tpl === "expert_portrait" || (key && key.indexOf("authority_") === 0)) {
+      var spokenA = "";
+      for (var _i = 0; _i < state.conversationLog.length; _i++) {
+        if (state.conversationLog[_i].role === "alpha") spokenA += " " + (state.conversationLog[_i].text || "");
+      }
+      if (state.pendingBotText) spokenA += " " + state.pendingBotText;
+      spokenA = spokenA.toLowerCase().replace(/’/g, "'");
+      var _title = (cardData && cardData.title ? cardData.title : "").toLowerCase();
+      var _last  = _title ? _title.split(/\s+/).pop()
+                          : (key ? key.replace(/^authority_/, "").toLowerCase() : "");
+      var _named = (_title && spokenA.indexOf(_title) >= 0) ||
+                   (_last && _last.length >= 3 && spokenA.indexOf(_last) >= 0);
+      if (!_named) return false;  // Argos n'a pas encore prononcé le nom de l'expert
+    }
+
+    // PROACTIVITÉ VOULUE (autres cartes : proof_number, opportunity, comparison,
+    // testimonial...) : au-delà du tour 1 on les laisse passer même si le chiffre
+    // n'a pas été dit mot pour mot (chiffres ancrés serveur + verrou cross-produit
+    // + arbitre de rythme). Seul l'EXPERT exige sa mention explicite (ci-dessus).
     return true;
   }
 

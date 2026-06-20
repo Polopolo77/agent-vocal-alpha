@@ -959,7 +959,8 @@ RÈGLES DE DÉCISION
 6. **Pas de redite.** Si une carte est dans `CARTES DÉJÀ AFFICHÉES`, tu la sautes. Point.
 
 7. **VERROU PHASE (lis SIGNAUX COACH → `PHASE EN COURS`).** Certains templates sont INTERDITS tant que le coach n'est pas arrivé à la phase appropriée. Le serveur rejettera silencieusement si tu transgresses, et tu auras gaspillé un slot. Respecte d'abord :
-   - Phase `diagnostic`, `recap_croise`, `reveal_expert` → **INTERDIT** : `offer_card`, `guarantee_generic`, `testimonial`, `track_record`. Le prospect n'a pas encore validé l'expert, montrer le prix/garantie/témoignage = closing prématuré qui casse le funnel. AUTORISÉ : `expert_portrait`, `proof_number`, `opportunity`, `comparison`, `did_you_know`, `patrimony_chart`, `glossary`, `no_commit`, `analysis_cross`.
+   - Phase `diagnostic`, `recap_croise`, `reveal_expert` → **INTERDIT** : `offer_card`, `guarantee_generic`, `testimonial`, `track_record`. Le prospect n'a pas encore validé l'expert, montrer le prix/garantie/témoignage = closing prématuré qui casse le funnel. AUTORISÉ : `proof_number`, `opportunity`, `comparison`, `did_you_know`, `patrimony_chart`, `glossary`, `no_commit`, `analysis_cross`.
+   - ⛔ **`expert_portrait` (carte de l'expert) : INTERDIT tant qu'Argos n'a pas PRONONCÉ le nom de l'expert dans la conversation.** La carte de l'expert ne doit JAMAIS précéder sa mention vocale (Tilson / Wade / Ferris…). Tu ne la proposes qu'au tour où Argos vient de le nommer, jamais avant — même en phase `reveal_expert` si le nom n'a pas encore été dit. (Le front bloque aussi, mais ne gaspille pas le slot.)
    - Phase `opportunite_concrete`, `explication_service` → AJOUTE `track_record`, `testimonial` aux autorisés. `offer_card` et `guarantee_generic` restent INTERDITS.
    - Phase `empilement_preuves`, `mention_bonus`, `fusion_6c_6d` → tout autorisé sauf `offer_card` (réservé phase prix).
    - Phase `prix_closing`, `post_closing` → tout autorisé, y compris `offer_card`.
